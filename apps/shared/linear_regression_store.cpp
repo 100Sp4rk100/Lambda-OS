@@ -52,7 +52,7 @@ double LinearRegressionStore::leastSquaredSum(int series) const {
   // Find the linear regression
   double a = yIntercept(series);
   double b = slope(series);
-  return yDataset.squaredSumOffsettedByLinearTransformationOfDataset(&xDataset,
+  return yDataset.squaredSumOffsettedByLinearTransformationOfDataset(xDataset,
                                                                      a, b);
 }
 
@@ -119,8 +119,8 @@ Poincare::StatisticsDataset<double>
 LinearRegressionStore::createDatasetFromColumn(
     int series, int i, CalculationOptions options) const {
   return Poincare::StatisticsDataset<double>(&m_dataLists[series][i],
-                                             options.lnOfValues(i),
-                                             options.oppositeOfValues(i));
+                                             options.lnOfValue(i),
+                                             options.oppositeOfValue(i));
 }
 
 }  // namespace Shared

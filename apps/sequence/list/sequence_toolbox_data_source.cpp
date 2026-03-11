@@ -3,16 +3,16 @@
 #include <apps/global_preferences.h>
 #include <apps/shared/sequence_store.h>
 #include <assert.h>
-#include <poincare/helpers/sequence.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/layout_helper.h>
+#include <poincare/vertical_offset_layout.h>
 
 using namespace Poincare;
 using namespace Escher;
 
 namespace Sequence {
 
-void SequenceToolboxDataSource::buildExtraCellsLayouts(const char* sequenceName,
+void SequenceToolboxDataSource::buildExtraCellsLayouts(const char *sequenceName,
                                                        int order) {
   /* If recurrenceDepth < 0, the user is setting the initial conditions so we
    * do not want to add any cell in the toolbox. */
@@ -34,12 +34,14 @@ void SequenceToolboxDataSource::buildExtraCellsLayouts(const char* sequenceName,
       if (j == 2 || (j == order && sequenceIndex == i)) {
         continue;
       }
-      const char* indice = j == 0 ? "n" : "n+1";
+      const char *indice = j == 0 ? "n" : "n+1";
       assert(m_numberOfAddedCells < k_maxNumberOfLayouts);
-      m_addedCellLayout[m_numberOfAddedCells++] = Layout::Create(
-          KA ^ KSubscriptL(KB),
-          {.KA = Layout::CodePoint(SequenceHelper::k_sequenceNames[i][0]),
-           .KB = Layout::String(indice)});
+      m_addedCellLayout[m_numberOfAddedCells++] = HorizontalLayout::Builder(
+          CodePointLayout::Builder(
+              Shared::SequenceStore::k_sequenceNames[i][0]),
+          VerticalOffsetLayout::Builder(
+              LayoutHelper::String(indice, strlen(indice)),
+              VerticalOffsetLayoutNode::VerticalPosition::Subscript));
     }
   }
 }

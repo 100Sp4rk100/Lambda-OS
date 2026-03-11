@@ -1,24 +1,12 @@
 #include <poincare/init.h>
-#include <poincare/pool.h>
 #include <poincare/preferences.h>
-#include <poincare/src/memory/tree_stack.h>
-
-#if POINCARE_TREE_STACK_VISUALIZATION
-#include <poincare/src/memory/visualization.h>
-#endif
+#include <poincare/tree_pool.h>
 
 namespace Poincare {
 
 void Init() {
   Preferences::Init();
-  Pool::sharedPool.init();
-  Internal::SharedTreeStack.init();
-}
-
-void Shutdown() {
-#if POINCARE_TREE_STACK_VISUALIZATION
-  Internal::CloseLogger();
-#endif
+  TreePool::sharedPool.init();
 }
 
 }  // namespace Poincare

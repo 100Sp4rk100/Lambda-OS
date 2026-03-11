@@ -12,30 +12,10 @@ using namespace Escher;
 
 namespace Code {
 
-bool EditorController::freeSpaceFor(int size) {
-  assert(size > 0);
-  if (!Ion::Storage::FileSystem::sharedFileSystem->freeSpaceFor(size)) {
-    return false;
-  }
-#if ASSERTIONS
-  const char* previousContentAddress = m_script.content();
-#endif
-  Ion::Storage::FileSystem::sharedFileSystem->putAvailableSpaceAtEndOfRecord(
-      m_script);
-#if ASSERTIONS
-  assert(m_script.content() == previousContentAddress);
-  assert(Ion::Storage::FileSystem::sharedFileSystem->availableSize() == 0);
-#endif
-  // Update content size without reseting cursor
-  m_editorView.setText(const_cast<char*>(m_script.content()),
-                       m_script.contentSize(), false);
-  return true;
-}
-
-EditorController::EditorController(MenuController* menuController,
-                                   App* pythonDelegate)
+EditorController::EditorController(MenuController *menuController,
+                                   App *pythonDelegate)
     : ViewController(nullptr),
-      m_editorView(this, pythonDelegate, this),
+      m_editorView(this, pythonDelegate),
       m_script(Ion::Storage::Record()),
       m_scriptIndex(-1),
       m_menuController(menuController) {}
@@ -59,7 +39,7 @@ void EditorController::setScript(Script script, int scriptIndex) {
 
   Ion::Storage::FileSystem::sharedFileSystem->putAvailableSpaceAtEndOfRecord(
       m_script);
-  m_editorView.setText(const_cast<char*>(m_script.content()),
+  m_editorView.setText(const_cast<char *>(m_script.content()),
                        m_script.contentSize());
 }
 
@@ -80,13 +60,8 @@ bool EditorController::handleEvent(Ion::Events::Event event) {
   return false;
 }
 
-void EditorController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(&m_editorView);
-  } else {
-    ViewController::handleResponderChainEvent(event);
-  }
+void EditorController::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(&m_editorView);
 }
 
 void EditorController::viewWillAppear() {
@@ -102,8 +77,8 @@ void EditorController::viewDidDisappear() {
   m_menuController->scriptContentEditionDidFinish();
 }
 
-StackViewController* EditorController::stackController() {
-  return static_cast<StackViewController*>(parentResponder());
+StackViewController *EditorController::stackController() {
+  return static_cast<StackViewController *>(parentResponder());
 }
 
 void EditorController::cleanStorageEmptySpace() {
@@ -111,8 +86,8 @@ void EditorController::cleanStorageEmptySpace() {
       !Ion::Storage::FileSystem::sharedFileSystem->hasRecord(m_script)) {
     return;
   }
-  Ion::Storage::FileSystem::sharedFileSystem->removeDataFromEndOfRecord(
-      m_script, m_script.availableSpace());
+  Ion::Storage::FileSystem::sharedFileSystem->getAvailableSpaceFromEndOfRecord(
+      m_script, m_script.usedSize());
 }
 
 }  // namespace Code

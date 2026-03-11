@@ -36,13 +36,13 @@ QUIZ_CASE(kandinsky_color_blend) {
    *           = 0x7F*(0x000100) + 0x80*(0x000001)
    *           = 0x007F80 */
 
-  assert_colors_blend_to(KDColorWhite, KDColorBlack, 0x00, KDColorBlack);
-  assert_colors_blend_to(KDColorWhite, KDColorBlack, 0xFF, KDColorWhite);
-  assert_colors_blend_to(KDColorWhite, KDColorBlack, 0x7F, midGray);
+  assert_colors_blend_to(Theme::ThemeGestion::getColor("KDColorWhite"), Theme::ThemeGestion::getColor("KDColorBlack"), 0x00, Theme::ThemeGestion::getColor("KDColorBlack"));
+  assert_colors_blend_to(Theme::ThemeGestion::getColor("KDColorWhite"), Theme::ThemeGestion::getColor("KDColorBlack"), 0xFF, Theme::ThemeGestion::getColor("KDColorWhite"));
+  assert_colors_blend_to(Theme::ThemeGestion::getColor("KDColorWhite"), Theme::ThemeGestion::getColor("KDColorBlack"), 0x7F, midGray);
 
-  assert_colors_blend_to(KDColorGreen, KDColorBlue, 0x00, KDColorBlue);
-  assert_colors_blend_to(KDColorGreen, KDColorBlue, 0xFF, KDColorGreen);
-  assert_colors_blend_to(KDColorGreen, KDColorBlue, 0x7F, midTurquoise);
+  assert_colors_blend_to(Theme::ThemeGestion::getColor("KDColorGreen"), Theme::ThemeGestion::getColor("KDColorBlue"), 0x00, Theme::ThemeGestion::getColor("KDColorBlue"));
+  assert_colors_blend_to(Theme::ThemeGestion::getColor("KDColorGreen"), Theme::ThemeGestion::getColor("KDColorBlue"), 0xFF, Theme::ThemeGestion::getColor("KDColorGreen"));
+  assert_colors_blend_to(Theme::ThemeGestion::getColor("KDColorGreen"), Theme::ThemeGestion::getColor("KDColorBlue"), 0x7F, midTurquoise);
 
   // Assert that blending two identical colors does not produce strange colors.
   for (uint16_t col = 0; col < 0xFFFF; col++) {

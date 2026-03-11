@@ -10,12 +10,12 @@ using namespace Shared;
 namespace Calculation {
 
 void AdditionalResultsController::openAdditionalResults(
-    AdditionalResultsType type, const UserExpression input,
-    const UserExpression exactOutput, const UserExpression approximateOutput,
+    AdditionalResultsType type, const Expression input,
+    const Expression exactOutput, const Expression approximateOutput,
     const Preferences::CalculationPreferences calculationPreferences) {
   // Head controller
   /* TODO: Refactor to avoid writing an if for each parent * child. */
-  ExpressionsListController* mainController = nullptr;
+  ExpressionsListController *mainController = nullptr;
   if (type.complex || type.unit || type.vector || type.matrix ||
       type.directTrigonometry || type.inverseTrigonometry || type.function) {
     m_unionController.~UnionController();
@@ -46,7 +46,7 @@ void AdditionalResultsController::openAdditionalResults(
                  calculationPreferences);
 
   // Tail controller
-  ExpressionsListController* tailController = nullptr;
+  ExpressionsListController *tailController = nullptr;
   if (type.integer) {
     tailController = &m_integerController;
   } else if (type.rational) {
@@ -57,20 +57,15 @@ void AdditionalResultsController::openAdditionalResults(
 
   if (tailController) {
     if (mainController) {
-      static_cast<ChainedExpressionsListController*>(mainController)
-          ->setTail(
-              static_cast<ChainableExpressionsListController*>(tailController));
+      static_cast<ChainedExpressionsListController *>(mainController)
+          ->setTail(static_cast<ChainableExpressionsListController *>(
+              tailController));
     } else {
       mainController = tailController;
       tailController = nullptr;
     }
   }
   if (mainController) {
-    if (mainController->numberOfRows() == 0) {
-      /* TODO: remove this defensive step by making sure there will be
-       * additional results beforehand. */
-      return;
-    }
     assert(mainController->numberOfRows() > 0);
     App::app()->displayModalViewController(
         mainController, 0.f, 0.f, Escher::Metric::PopUpMarginsNoBottom);
@@ -78,9 +73,9 @@ void AdditionalResultsController::openAdditionalResults(
 }
 
 void AdditionalResultsController::computeResults(
-    ExpressionsListController** expressionsListController,
-    const UserExpression input, const UserExpression exactOutput,
-    const UserExpression approximateOutput,
+    ExpressionsListController **expressionsListController,
+    const Expression input, const Expression exactOutput,
+    const Expression approximateOutput,
     Preferences::CalculationPreferences calculationPreferences) {
   if (*expressionsListController == nullptr) {
     return;

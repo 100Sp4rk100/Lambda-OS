@@ -2,10 +2,11 @@
 
 #include <apps/apps_container.h>
 #include <apps/global_preferences.h>
-#include <apps/math_preferences.h>
 #include <assert.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/fraction_layout.h>
+#include <poincare/layout_helper.h>
+#include <poincare/vertical_offset_layout.h>
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +16,7 @@ using namespace Escher;
 
 namespace Settings {
 
-PreferencesController::PreferencesController(Responder* parentResponder)
+PreferencesController::PreferencesController(Responder *parentResponder)
     : GenericSubController(parentResponder) {}
 
 bool PreferencesController::handleEvent(Ion::Events::Event event) {
@@ -26,14 +27,14 @@ bool PreferencesController::handleEvent(Ion::Events::Event event) {
            selectedRow() != numberOfRows() - 1);
     setPreferenceWithValueIndex(m_messageTreeModel->label(), selectedRow());
     AppsContainer::sharedAppsContainer()->refreshPreferences();
-    StackViewController* stack = stackController();
+    StackViewController *stack = stackController();
     stack->pop();
     return true;
   }
   return GenericSubController::handleEvent(event);
 }
 
-HighlightCell* PreferencesController::reusableCell(int index, int type) {
+HighlightCell *PreferencesController::reusableCell(int index, int type) {
   assert(type == 0);
   assert(index >= 0 && index < k_totalNumberOfCell);
   return &m_cells[index];
@@ -46,39 +47,62 @@ int PreferencesController::reusableCellCount(int type) const {
 Layout PreferencesController::layoutForPreferences(I18n::Message message) {
   switch (message) {
     // Angle Unit
-    case I18n::Message::Degrees:
-      return "90°"_l;
+    case I18n::Message::Degrees: {
+      const char *degEx = "90°";
+      return LayoutHelper::String(degEx, strlen(degEx));
+    }
     case I18n::Message::Radian:
-      return KRackL(KFracL("π"_l, "2"_l));
-    case I18n::Message::Gradians:
-      return "100 gon"_l;
-
+      return FractionLayout::Builder(
+          CodePointLayout::Builder(UCodePointGreekSmallLetterPi),
+          CodePointLayout::Builder('2'));
+    case I18n::Message::Gradians: {
+      const char *degEx = "100 gon";
+      return LayoutHelper::String(degEx, strlen(degEx));
+    }
     // Display Mode format
     case I18n::Message::Decimal:
-      return "0.1234"_l;
-    case I18n::Message::Scientific:
-      return "1.234ᴇ-1"_l;
-    case I18n::Message::Engineering:
-      return "123.4ᴇ-3"_l;
+      return LayoutHelper::String("0.1234", 6);
+    case I18n::Message::Scientific: {
+      const char *text = "1.234ᴇ-1";
+      return LayoutHelper::String(text, strlen(text));
+    }
+    case I18n::Message::Engineering: {
+      const char *text = "123.4ᴇ-3";
+      return LayoutHelper::String(text, strlen(text));
+    }
 
     // Edition mode
     case I18n::Message::Edition2D:
-      return "1+"_l ^ KFracL("2"_l, "3"_l);
+      return HorizontalLayout::Builder(
+          LayoutHelper::String("1+", 2),
+          FractionLayout::Builder(LayoutHelper::String("2", 1),
+                                  LayoutHelper::String("3", 1)));
     case I18n::Message::EditionLinear:
-      return "1+2/3"_l;
+      return LayoutHelper::String("1+2/3", 5);
 
     // Complex format
     case I18n::Message::Real:
-      return "x"_l;
-    case I18n::Message::Algebraic:
-      return "a+bi"_l;
-    case I18n::Message::Exponential:
-      return "re"_l ^ KSuperscriptL("iθ"_l);
+      return CodePointLayout::Builder('x');
+    case I18n::Message::Algebraic: {
+      const char *text = "a+ib";
+      return LayoutHelper::String(text, strlen(text));
+    }
+    case I18n::Message::Exponential: {
+      const char *base = "re";
+      const char *superscript = "iθ";
+      return HorizontalLayout::Builder(
+          LayoutHelper::String(base, strlen(base)),
+          VerticalOffsetLayout::Builder(
+              LayoutHelper::String(superscript, strlen(superscript)),
+              VerticalOffsetLayoutNode::VerticalPosition::Superscript));
+    }
 
     // Font size
     case I18n::Message::LargeFont:
-    case I18n::Message::SmallFont:
-      return "abc"_l;
+    case I18n::Message::SmallFont: {
+      const char *text = "abc";
+      return LayoutHelper::String(text, strlen(text));
+    }
 
     default:
       assert(false);
@@ -86,10 +110,10 @@ Layout PreferencesController::layoutForPreferences(I18n::Message message) {
   }
 }
 
-void PreferencesController::fillCellForRow(HighlightCell* cell, int row) {
+void PreferencesController::fillCellForRow(HighlightCell *cell, int row) {
   GenericSubController::fillCellForRow(cell, row);
-  MenuCell<MessageTextView, LayoutView>* myCell =
-      static_cast<MenuCell<MessageTextView, LayoutView>*>(cell);
+  MenuCell<MessageTextView, LayoutView> *myCell =
+      static_cast<MenuCell<MessageTextView, LayoutView> *>(cell);
   I18n::Message message = m_messageTreeModel->childAtIndex(row)->label();
   myCell->subLabel()->setLayout(layoutForPreferences(message));
   myCell->subLabel()->setFont(
@@ -103,12 +127,7 @@ KDCoordinate PreferencesController::nonMemoizedRowHeight(int row) {
 
 void PreferencesController::setPreferenceWithValueIndex(I18n::Message message,
                                                         int valueIndex) {
-  /* TODO: Implement a derived class for each preference (angle units, display
-   * mode, complex format...). Each derived class would be responsible for
-   * implementing a setter. This would make the code more modular and avoid such
-   * hard-to-read if/else blocks. */
-
-  MathPreferences* preferences = MathPreferences::SharedPreferences();
+  Preferences *preferences = Preferences::SharedPreferences();
   if (message == I18n::Message::AngleUnit) {
     preferences->setAngleUnit((Preferences::AngleUnit)valueIndex);
   } else if (message == I18n::Message::DisplayMode) {
@@ -133,12 +152,7 @@ void PreferencesController::setPreferenceWithValueIndex(I18n::Message message,
 
 int PreferencesController::valueIndexForPreference(
     I18n::Message message) const {
-  /* TODO: Implement a derived class for each preference (angle units, display
-   * mode, complex format...). Each derived class would be responsible for
-   * implementing a getter. This would make the code more modular and avoid such
-   * hard-to-read if/else blocks. */
-
-  const MathPreferences* preferences = MathPreferences::SharedPreferences();
+  Preferences *preferences = Preferences::SharedPreferences();
   if (message == I18n::Message::AngleUnit) {
     return (int)preferences->angleUnit();
   }

@@ -22,22 +22,19 @@ DataViewController::DataViewController(
 }
 
 int DataViewController::selectedSeries() const {
-  return App::app()->snapshot()->selectedSeries();
+  return *App::app()->snapshot()->selectedSeries();
 }
 
 void DataViewController::setSelectedSeries(int selectedSeries) {
-  assert(selectedSeries >= INT8_MIN && selectedSeries <= INT8_MAX);
-  App::app()->snapshot()->setSelectedSeries(
-      static_cast<int8_t>(selectedSeries));
+  *App::app()->snapshot()->selectedSeries() = selectedSeries;
 }
 
 int DataViewController::selectedIndex() const {
-  return App::app()->snapshot()->selectedIndex();
+  return *App::app()->snapshot()->selectedIndex();
 }
 
 void DataViewController::setSelectedIndex(int selectedIndex) {
-  assert(selectedIndex >= INT16_MIN && selectedIndex <= INT16_MAX);
-  App::app()->snapshot()->setSelectedIndex(static_cast<int16_t>(selectedIndex));
+  *App::app()->snapshot()->selectedIndex() = selectedIndex;
 }
 
 void DataViewController::viewWillAppear() {
@@ -84,8 +81,8 @@ bool DataViewController::handleEvent(Ion::Events::Event event) {
       (event == Ion::Events::Down || event == Ion::Events::Up);
   if ((isVerticalEvent || event == Ion::Events::Left ||
        event == Ion::Events::Right)) {
-    if (isVerticalEvent ? moveSelectionVertically(event.direction())
-                        : moveSelectionHorizontally(event.direction())) {
+    if (isVerticalEvent ? moveSelectionVertically(OMG::Direction(event))
+                        : moveSelectionHorizontally(OMG::Direction(event))) {
       if (reloadBannerView()) {
         dataView()->reload();
       }
@@ -95,31 +92,28 @@ bool DataViewController::handleEvent(Ion::Events::Event event) {
   return false;
 }
 
-void DataViewController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasEntered) {
-    if (!m_store->hasActiveSeries(activeSeriesMethod()) ||
-        !dataView()->plotViewForSeries(selectedSeries())->hasFocus()) {
-      header()->setSelectedButton(0);
-    } else {
-      assert(activeSeriesMethod()(m_store, selectedSeries()));
-      dataView()->setDisplayBanner(true);
-      dataView()->selectViewForSeries(selectedSeries());
-      highlightSelection();
-    }
-  } else if (event.type == ResponderChainEventType::WillExit) {
-    if (event.nextFirstResponder == m_tabController) {
-      assert(m_tabController != nullptr);
-      if (header()->selectedButton() >= 0) {
-        header()->setSelectedButton(-1);
-      } else if (m_store->hasActiveSeries(activeSeriesMethod())) {
-        assert(selectedSeries() >= 0);
-        dataView()->deselectViewForSeries(selectedSeries());
-        dataView()->setDisplayBanner(false);
-      }
-    }
+void DataViewController::didEnterResponderChain(Responder* firstResponder) {
+  if (!m_store->hasActiveSeries(activeSeriesMethod()) ||
+      !dataView()->plotViewForSeries(selectedSeries())->hasFocus()) {
+    header()->setSelectedButton(0);
   } else {
-    ViewController::handleResponderChainEvent(event);
+    assert(activeSeriesMethod()(m_store, selectedSeries()));
+    dataView()->setDisplayBanner(true);
+    dataView()->selectViewForSeries(selectedSeries());
+    highlightSelection();
+  }
+}
+
+void DataViewController::willExitResponderChain(Responder* nextFirstResponder) {
+  if (nextFirstResponder == m_tabController) {
+    assert(m_tabController != nullptr);
+    if (header()->selectedButton() >= 0) {
+      header()->setSelectedButton(-1);
+    } else if (m_store->hasActiveSeries(activeSeriesMethod())) {
+      assert(selectedSeries() >= 0);
+      dataView()->deselectViewForSeries(selectedSeries());
+      dataView()->setDisplayBanner(false);
+    }
   }
 }
 
@@ -127,7 +121,7 @@ void DataViewController::sanitizeSeriesIndex() {
   // Sanitize selectedSeries()
   if (selectedSeries() < 0 ||
       !activeSeriesMethod()(m_store, selectedSeries())) {
-    for (int8_t series = 0; series < Store::k_numberOfSeries; series++) {
+    for (int series = 0; series < Store::k_numberOfSeries; series++) {
       if (activeSeriesMethod()(m_store, series)) {
         setSelectedSeries(series);
         return;

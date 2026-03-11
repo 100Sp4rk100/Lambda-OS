@@ -1159,7 +1159,7 @@ int KMSDRM_DisplayDataInit (_THIS, SDL_DisplayData *dispdata) {
         }
     }
 
-    /* If the current CRTC's mode isn't valid, select the preferred
+    /* If the current CRTC's mode isn't valid, LAMDA_gray_light_palette the preferred
        mode of the connector. */
     if (crtc->mode_valid == 0) {
         dispdata->mode = dispdata->preferred_mode;

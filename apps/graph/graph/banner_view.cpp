@@ -10,31 +10,34 @@ namespace Graph {
 BannerView::BannerView(Responder* parentResponder,
                        TextFieldDelegate* textFieldDelegate)
     : Shared::XYBannerView(parentResponder, textFieldDelegate),
-      m_firstDerivativeView(k_bannerFieldFormat),
-      m_secondDerivativeView(k_bannerFieldFormat),
-      m_slopeView(k_bannerFieldFormat),
+      m_firstDerivativeView(k_bannerFieldFormat()),
+      m_secondDerivativeView(k_bannerFieldFormat()),
+      m_slopeView(k_bannerFieldFormat()),
       m_tangentEquationView(I18n::Message::LinearRegressionFormula,
-                            k_bannerFieldFormat),
-      m_aView(k_bannerFieldFormat),
-      m_bView(k_bannerFieldFormat) {
+                            k_bannerFieldFormat()),
+      m_aView(k_bannerFieldFormat()),
+      m_bView(k_bannerFieldFormat()) {
   for (int i = 0; i < k_maxNumberOfInterests; i++) {
     m_interestMessageView[i] =
-        MessageTextView(I18n::Message::Default, k_bannerFieldFormat);
+        MessageTextView(I18n::Message::Default, k_bannerFieldFormat());
   }
 }
 
-void BannerView::addInterestMessage(I18n::Message message) {
+void BannerView::addInterestMessage(I18n::Message message,
+                                    Shared::CursorView* cursor) {
   int n = numberOfInterestMessages();
   if (n == k_maxNumberOfInterests) {
     return;
   }
   m_interestMessageView[n].setMessage(message);
+  cursor->setHighlighted(true);
 }
 
-void BannerView::emptyInterestMessages() {
+void BannerView::emptyInterestMessages(Shared::CursorView* cursor) {
   for (int i = 0; i < k_maxNumberOfInterests; i++) {
     m_interestMessageView[i].setMessage(I18n::Message::Default);
   }
+  cursor->setHighlighted(false);
 }
 
 void BannerView::setDisplayParameters(DisplayParameters displayParameters) {

@@ -125,7 +125,7 @@ MainWindow::MainWindow(FXApp *app)
 	label->setFont(title_font);
 	
 	new FXLabel(vf,
-		"Select a device and press Connect.", NULL, JUSTIFY_LEFT);
+		"LAMDA_gray_light_palette a device and press Connect.", NULL, JUSTIFY_LEFT);
 	new FXLabel(vf,
 		"Output data bytes can be entered in the Output section, \n"
 		"separated by space, comma or brackets. Data starting with 0x\n"

@@ -20,13 +20,8 @@ PopUpController::PopUpController(Invocation OkInvocation,
 
 View* PopUpController::view() { return &m_contentView; }
 
-void PopUpController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    m_contentView.setSelectedButton(0);
-  } else {
-    ViewController::handleResponderChainEvent(event);
-  }
+void PopUpController::didBecomeFirstResponder() {
+  m_contentView.setSelectedButton(0);
 }
 
 bool PopUpController::handleEvent(Ion::Events::Event event) {
@@ -64,8 +59,8 @@ PopUpController::ContentView::ContentView(Responder* parentResponder,
                      KDFont::Size::Small),
       m_okButton(this, okMessage, okInvocation, KDFont::Size::Small),
       m_warningTextView(warningMessage,
-                        {.style = {.glyphColor = KDColorWhite,
-                                   .backgroundColor = KDColorBlack,
+                        {.style = {.glyphColor = Theme::ThemeGestion::getColor("KDColorWhite"),
+                                   .backgroundColor = Theme::ThemeGestion::getColor("KDColorBlack"),
                                    .font = KDFont::Size::Small},
                          .horizontalAlignment = KDGlyph::k_alignCenter}),
       m_detailTextView(detailTextView) {}
@@ -121,8 +116,8 @@ void PopUpController::ContentView::layoutSubviews(bool force) {
   m_detailTextView->setFont(KDFont::Size::Small);
   m_detailTextView->setAlignment(KDGlyph::k_alignCenter,
                                  KDGlyph::k_alignCenter);
-  m_detailTextView->setBackgroundColor(KDColorBlack);
-  m_detailTextView->setTextColor(KDColorWhite);
+  m_detailTextView->setBackgroundColor(Theme::ThemeGestion::getColor("KDColorBlack"));
+  m_detailTextView->setTextColor(Theme::ThemeGestion::getColor("KDColorWhite"));
 }
 
 KDSize PopUpController::ContentView::minimalSizeForOptimalDisplay() const {

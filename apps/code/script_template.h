@@ -10,12 +10,12 @@ class ScriptTemplate {
   constexpr ScriptTemplate(const char* name, const char* content)
       : m_name(name), m_content(content) {}
   static const ScriptTemplate* Empty();
-  static const ScriptTemplate* Squares();
-  static const ScriptTemplate* Mandelbrot();
-  static const ScriptTemplate* Polynomial();
-  static const ScriptTemplate* Parabola();
   const char* name() const { return m_name; }
   const char* content() const { return m_content; }
+
+  static const ScriptTemplate* Get();
+  static const ScriptTemplate* Set();
+  static const ScriptTemplate* Reset();
 
  private:
   const char* m_name;

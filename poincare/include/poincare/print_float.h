@@ -12,22 +12,22 @@ namespace Poincare {
  */
 class PrintFloat {
  public:
-  constexpr static size_t k_floatNumberOfSignificantDigits = 7;
-  constexpr static size_t k_maxNumberOfSignificantDigits = 14;
+  constexpr static int k_floatNumberOfSignificantDigits = 7;
+  constexpr static int k_maxNumberOfSignificantDigits = 14;
   // ᴇ is 3 bytes long
-  constexpr static size_t k_specialECodePointByteLength = 3;
+  constexpr static int k_specialECodePointByteLength = 3;
   /* We here define the glyph length and the buffer size to write the longest
    * float possible.
    * At maximum, the number has 15 significant digits so, in the worst case it
    * has the form -1.99999999999999ᴇ-308 (2+15+3+1+3 char) (the decimal mode is
    * always shorter. */
-  constexpr static size_t k_maxFloatGlyphLength =
+  constexpr static int k_maxFloatGlyphLength =
       2                                 // '-' and '.'
       + k_maxNumberOfSignificantDigits  // mantissa
       + 1                               // ᴇ
       + 1                               // exponant '-'
       + 3;                              // exponant
-  constexpr static size_t k_maxFloatCharSize =
+  constexpr static int k_maxFloatCharSize =
       2                                 // '-' and '.'
       + k_maxNumberOfSignificantDigits  // mantissa
       + k_specialECodePointByteLength   // ᴇ
@@ -35,8 +35,8 @@ class PrintFloat {
       + 3                               // exponant
       + 1;                              // null-terminated
 
-  constexpr static size_t glyphLengthForFloatWithPrecision(
-      size_t numberOfSignificantDigits) {
+  constexpr static int glyphLengthForFloatWithPrecision(
+      int numberOfSignificantDigits) {
     // The worst case is -1.234ᴇ-328
     return 2                            // '-' and '.'
            + numberOfSignificantDigits  // mantissa
@@ -44,8 +44,8 @@ class PrintFloat {
            + 1                          // '-'
            + 3;                         // exponant
   }
-  constexpr static size_t charSizeForFloatsWithPrecision(
-      size_t numberOfSignificantDigits) {
+  constexpr static int charSizeForFloatsWithPrecision(
+      int numberOfSignificantDigits) {
     // The worst case is -1.234ᴇ-328
     return 2                                // '-' and '.'
            + numberOfSignificantDigits      // mantissa
@@ -54,15 +54,10 @@ class PrintFloat {
            + 3                              // exponant
            + 1;                             // null-terminated
   }
-  /* Since various apps limit the number of digits in exact results, there's no
-   * need to lay out or serialize too many digits in decimals. */
-  constexpr static size_t k_maxNumberOfSignificantDigitsInDecimals = 30;
 
   struct TextLengths {
-    size_t CharLength;
-    size_t GlyphLength;
-
-    constexpr bool operator==(const TextLengths& other) const = default;
+    int CharLength;
+    int GlyphLength;
   };
   /* If the buffer size is too small to display the right number of significant
    * digits, the function forces the scientific mode. If the buffer is still too
@@ -70,12 +65,12 @@ class PrintFloat {
    * ConvertFloatToText returns the number of characters that have been written
    * in buffer (excluding the last \0 character). */
   template <class T>
-  static TextLengths ConvertFloatToText(T d, char* buffer, size_t bufferSize,
-                                        size_t availableGlyphLength,
-                                        size_t numberOfSignificantDigits,
+  static TextLengths ConvertFloatToText(T d, char* buffer, int bufferSize,
+                                        int availableGlyphLength,
+                                        int numberOfSignificantDigits,
                                         Preferences::PrintFloatMode mode);
   template <class T>
-  constexpr static size_t SignificantDecimalDigits() {
+  constexpr static int SignificantDecimalDigits() {
     return sizeof(T) == sizeof(double) ? k_maxNumberOfSignificantDigits
                                        : k_floatNumberOfSignificantDigits;
   }
@@ -86,24 +81,23 @@ class PrintFloat {
 
   // Engineering notation
   static int EngineeringExponentFromBase10Exponent(int exponent);
-  static size_t EngineeringMinimalNumberOfDigits(int exponentBase10,
-                                                 int exponentEngineering) {
+  static int EngineeringMinimalNumberOfDigits(int exponentBase10,
+                                              int exponentEngineering) {
     int result = exponentBase10 - exponentEngineering + 1;
     assert(result > 0 && result <= 3);
-    return static_cast<size_t>(result);
+    return result;
   }
-  static size_t EngineeringNumberOfZeroesToAdd(
-      size_t engineeringMinimalNumberOfDigits, size_t numberOfDigits) {
-    int number = static_cast<int>(engineeringMinimalNumberOfDigits) -
-                 static_cast<int>(numberOfDigits);
-    return static_cast<size_t>(number > 0 ? number : 0);
+  static int EngineeringNumberOfZeroesToAdd(
+      int engineeringMinimalNumberOfDigits, int numberOfDigits) {
+    int number = engineeringMinimalNumberOfDigits - numberOfDigits;
+    return number > 0 ? number : 0;
   }
 
  private:
   template <class T>
   static TextLengths ConvertFloatToTextPrivate(
-      T f, char* buffer, size_t bufferSize, size_t availableGlyphLength,
-      size_t numberOfSignificantDigits, Preferences::PrintFloatMode mode);
+      T f, char* buffer, int bufferSize, int availableGlyphLength,
+      int numberOfSignificantDigits, Preferences::PrintFloatMode mode);
 
   class Long final {
    public:
@@ -123,7 +117,7 @@ class PrintFloat {
 
    private:
     constexpr static int64_t k_base = 1000000000;
-    constexpr static size_t k_numberOfDigits = 2;
+    constexpr static int k_numberOfDigits = 2;
     constexpr static size_t k_maxNumberOfCharsForDigit = 9;
 
     bool m_negative;
@@ -139,7 +133,7 @@ class PrintFloat {
    * available, without returning any warning.
    * Warning: the buffer is not null terminated but is ensured to hold
    * bufferLength chars. */
-  static void PrintLongWithDecimalMarker(char* buffer, size_t bufferLength,
+  static void PrintLongWithDecimalMarker(char* buffer, int bufferLength,
                                          Long& i, int decimalMarkerPosition);
 };
 

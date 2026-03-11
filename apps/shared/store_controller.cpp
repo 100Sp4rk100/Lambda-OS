@@ -7,6 +7,8 @@
 #include <assert.h>
 #include <escher/metric.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 #include <algorithm>
 
 using namespace Poincare;
@@ -14,17 +16,17 @@ using namespace Escher;
 
 namespace Shared {
 
-StoreController::StoreController(Responder* parentResponder,
-                                 DoublePairStore* store,
-                                 ButtonRowController* header,
-                                 Context* parentContext)
+StoreController::StoreController(Responder *parentResponder,
+                                 DoublePairStore *store,
+                                 ButtonRowController *header,
+                                 Context *parentContext)
     : EditableCellTableViewController(parentResponder, &m_prefacedTableView),
       ButtonRowDelegate(header, nullptr),
       StoreColumnHelper(this, parentContext, this),
       m_prefacedTableView(0, this, &m_selectableTableView, this, this),
       m_store(store),
       m_widthManager(this) {
-  m_prefacedTableView.setBackgroundColor(Palette::WallScreenDark);
+  m_prefacedTableView.setBackgroundColor(Theme::ThemeGestion::getColor("WallScreenDark"));
   m_prefacedTableView.setCellOverlap(0, 0);
   m_prefacedTableView.setMargins(k_margins);
   for (int i = 0; i < k_maxNumberOfDisplayableCells; i++) {
@@ -33,7 +35,7 @@ StoreController::StoreController(Responder* parentResponder,
   }
 }
 
-bool StoreController::textFieldDidFinishEditing(AbstractTextField* textField,
+bool StoreController::textFieldDidFinishEditing(AbstractTextField *textField,
                                                 Ion::Events::Event event) {
   // First row is not editable.
   assert(selectedRow() != 0);
@@ -65,7 +67,7 @@ int StoreController::numberOfColumns() const {
          DoublePairStore::k_numberOfSeries;
 }
 
-HighlightCell* StoreController::reusableCell(int index, int type) {
+HighlightCell *StoreController::reusableCell(int index, int type) {
   assert(index >= 0);
   switch (type) {
     case k_titleCellType:
@@ -89,34 +91,34 @@ int StoreController::typeAtLocation(int column, int row) const {
   return row == 0 ? k_titleCellType : k_editableCellType;
 }
 
-void StoreController::fillCellForLocation(HighlightCell* cell, int column,
+void StoreController::fillCellForLocation(HighlightCell *cell, int column,
                                           int row) {
   // Handle hidden cells
   const int numberOfElementsInCol = numberOfElementsInColumn(column);
   if (row > numberOfElementsInCol + 1) {
-    Escher::AbstractEvenOddEditableTextCell* myCell =
-        static_cast<Escher::AbstractEvenOddEditableTextCell*>(cell);
+    Escher::AbstractEvenOddEditableTextCell *myCell =
+        static_cast<Escher::AbstractEvenOddEditableTextCell *>(cell);
     myCell->editableTextCell()->textField()->setText("");
     myCell->setVisible(false);
     return;
   }
   if (typeAtLocation(column, row) == k_editableCellType) {
-    Escher::AbstractEvenOddEditableTextCell* myCell =
-        static_cast<Escher::AbstractEvenOddEditableTextCell*>(cell);
+    Escher::AbstractEvenOddEditableTextCell *myCell =
+        static_cast<Escher::AbstractEvenOddEditableTextCell *>(cell);
     myCell->setVisible(true);
     KDColor textColor =
         (m_store->seriesIsActive(m_store->seriesAtColumn(column)) ||
          m_store->numberOfPairsOfSeries(m_store->seriesAtColumn(column)) == 0)
-            ? KDColorBlack
-            : Palette::GrayDark;
+            ? Theme::ThemeGestion::getColor("KDColorBlack")
+            : Theme::ThemeGestion::getColor("GrayDark");
     myCell->editableTextCell()->textField()->setTextColor(textColor);
   }
   fillCellForLocationWithDisplayMode(
-      cell, column, row, MathPreferences::SharedPreferences()->displayMode(),
+      cell, column, row, Preferences::SharedPreferences()->displayMode(),
       AbstractEvenOddBufferTextCell::k_defaultPrecision);
 }
 
-KDCoordinate StoreController::separatorBeforeColumn(int column) const {
+KDCoordinate StoreController::separatorBeforeColumn(int column) {
   return column > 0 && m_store->relativeColumn(column) == 0
              ? Escher::Metric::TableSeparatorThickness
              : 0;
@@ -128,20 +130,20 @@ void StoreController::viewWillAppear() {
   EditableCellTableViewController::viewWillAppear();
 }
 
-void StoreController::setTitleCellText(HighlightCell* cell, int column) {
+void StoreController::setTitleCellText(HighlightCell *cell, int column) {
   // Default : put column name in titleCell
-  BufferFunctionTitleCell* myTitleCell =
-      static_cast<BufferFunctionTitleCell*>(cell);
-  fillColumnName(column, const_cast<char*>(myTitleCell->text()));
+  BufferFunctionTitleCell *myTitleCell =
+      static_cast<BufferFunctionTitleCell *>(cell);
+  fillColumnName(column, const_cast<char *>(myTitleCell->text()));
 }
 
-void StoreController::setTitleCellStyle(HighlightCell* cell, int column) {
+void StoreController::setTitleCellStyle(HighlightCell *cell, int column) {
   int seriesIndex = m_store->seriesAtColumn(column);
-  Shared::BufferFunctionTitleCell* myCell =
-      static_cast<Shared::BufferFunctionTitleCell*>(cell);
+  Shared::BufferFunctionTitleCell *myCell =
+      static_cast<Shared::BufferFunctionTitleCell *>(cell);
   // TODO Share GrayDark with graph/list_controller
   myCell->setColor(!m_store->seriesIsActive(seriesIndex)
-                       ? Palette::GrayDark
+                       ? Theme::ThemeGestion::getColor("GrayDark")
                        : DoublePairStore::colorOfSeriesAtIndex(seriesIndex));
   myCell->setFont(KDFont::Size::Small);
 }
@@ -164,7 +166,7 @@ bool StoreController::handleEvent(Ion::Events::Event event) {
 }
 
 void StoreController::handleDeleteEvent(bool authorizeNonEmptyRowDeletion,
-                                        bool* didDeleteRow) {
+                                        bool *didDeleteRow) {
   int col = selectedColumn();
   int row = selectedRow();
   assert(col >= 0 && col < numberOfColumns());
@@ -188,16 +190,11 @@ void StoreController::handleDeleteEvent(bool authorizeNonEmptyRowDeletion,
   resetMemoizedFormulasOfEmptyColumns(series);
 }
 
-void StoreController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (selectedRow() < 0 || selectedColumn() < 0) {
-      selectCellAtLocation(0, 0);
-    }
-    EditableCellTableViewController::handleResponderChainEvent(event);
-  } else {
-    EditableCellTableViewController::handleResponderChainEvent(event);
+void StoreController::didBecomeFirstResponder() {
+  if (selectedRow() < 0 || selectedColumn() < 0) {
+    selectCellAtLocation(0, 0);
   }
+  EditableCellTableViewController::didBecomeFirstResponder();
 }
 
 bool StoreController::deleteCellValue(int series, int i, int j,
@@ -206,13 +203,13 @@ bool StoreController::deleteCellValue(int series, int i, int j,
                                      authorizeNonEmptyRowDeletion);
 }
 
-StackViewController* StoreController::stackController() const {
-  return static_cast<StackViewController*>(
+StackViewController *StoreController::stackController() const {
+  return static_cast<StackViewController *>(
       parentResponder()->parentResponder());
 }
 
-Escher::TabViewController* StoreController::tabController() const {
-  return static_cast<Escher::TabViewController*>(
+Escher::TabViewController *StoreController::tabController() const {
+  return static_cast<Escher::TabViewController *>(
       parentResponder()->parentResponder()->parentResponder());
 }
 
@@ -268,8 +265,7 @@ void StoreController::loadMemoizedFormulasFromSnapshot() {
   }
 }
 
-void StoreController::memoizeFormula(const Poincare::Layout& formula,
-                                     int index) {
+void StoreController::memoizeFormula(Poincare::Layout formula, int index) {
   m_memoizedFormulas[index] = formula;
   StoreApp::storeApp()->storeAppSnapshot()->memoizeFormula(formula, index);
 }

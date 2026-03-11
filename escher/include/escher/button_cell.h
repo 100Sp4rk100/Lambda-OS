@@ -9,6 +9,8 @@
 #include <escher/palette.h>
 #include <escher/responder.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 class ButtonCell : public HighlightCell, public Responder {
@@ -18,7 +20,7 @@ class ButtonCell : public HighlightCell, public Responder {
   ButtonCell(Responder* parentResponder, I18n::Message textBody,
              Escher::Invocation invocation, Style style = Style::None,
              KDFont::Size fontSize = KDFont::Size::Large,
-             KDColor textColor = KDColorBlack);
+             KDColor textColor = Theme::ThemeGestion::getColor("KDColorBlack"));
 
   void drawRect(KDContext* ctx, KDRect rect) const override;
   KDSize minimalSizeForOptimalDisplay() const override;
@@ -26,7 +28,7 @@ class ButtonCell : public HighlightCell, public Responder {
   void setHighlighted(bool highlight) override;
   Responder* responder() override { return this; }
 
-  virtual KDColor highlightedBackgroundColor() const { return Palette::Select; }
+  virtual KDColor highlightedBackgroundColor() const { return Theme::ThemeGestion::getColor("Select"); }
   void setMessage(I18n::Message message) {
     m_messageTextView.setMessage(message);
   }
@@ -65,7 +67,7 @@ class SimpleButtonCell : public ButtonCell {
   SimpleButtonCell(Responder* parentResponder, I18n::Message textBody,
                    Invocation invocation,
                    KDFont::Size font = KDFont::Size::Small,
-                   KDColor textColor = KDColorBlack)
+                   KDColor textColor = Theme::ThemeGestion::getColor("KDColorBlack"))
       : ButtonCell(parentResponder, textBody, invocation, Style::None, font,
                    textColor) {}
 };

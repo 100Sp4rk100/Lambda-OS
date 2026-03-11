@@ -1,12 +1,48 @@
+#include <assert.h>
 #include <ion.h>
 #include <omg/ieee754.h>
+#include <poincare/complex.h>
+#include <poincare/layout_helper.h>
 #include <poincare/random.h>
+#include <poincare/serialization_helper.h>
+
+#include <cmath>
 
 namespace Poincare {
 
+int RandomNode::numberOfChildren() const {
+  return Random::s_functionHelper.numberOfChildren();
+}
+
+Layout RandomNode::createLayout(Preferences::PrintFloatMode floatDisplayMode,
+                                int numberOfSignificantDigits,
+                                Context *context) const {
+  return LayoutHelper::Prefix(
+      Random(this), floatDisplayMode, numberOfSignificantDigits,
+      Random::s_functionHelper.aliasesList().mainAlias(), context);
+}
+
+size_t RandomNode::serialize(char *buffer, size_t bufferSize,
+                             Preferences::PrintFloatMode floatDisplayMode,
+                             int numberOfSignificantDigits) const {
+  return SerializationHelper::Prefix(
+      this, buffer, bufferSize, floatDisplayMode, numberOfSignificantDigits,
+      Random::s_functionHelper.aliasesList().mainAlias());
+}
+
 template <typename T>
-T random() {
-  /* Source: Frédéric Goualard. Generating Random Floating-Point Numbers by
+Evaluation<T> RandomNode::templateApproximate(
+    const ApproximationContext &approximationContext) const {
+  if (approximationContext.withinReduce()) {
+    // Return NAN to prevent the reduction from assuming anything at this point
+    return Complex<T>::Undefined();
+  }
+  return Complex<T>::Builder(Random::random<T>());
+}
+
+template <typename T>
+T Random::random() {
+  /* source: Frédéric Goualard. Generating Random Floating-Point Numbers by
    * Dividing Integers: a Case Study. Proceedings of ICCS 2020, Jun 2020,
    * Amsterdam, Netherlands. ffhal-02427338
    *
@@ -29,7 +65,7 @@ T random() {
   } else {
     assert(sizeof(T) == sizeof(double));
     uint64_t r;
-    uint32_t* rAddress = (uint32_t*)&r;
+    uint32_t *rAddress = (uint32_t *)&r;
     *rAddress = Ion::random();
     *(rAddress + 1) = Ion::random();
     r = r & ((static_cast<uint64_t>(1) << p) - 1);
@@ -38,7 +74,11 @@ T random() {
   }
 }
 
-template float random();
-template double random();
+template Evaluation<float> RandomNode::templateApproximate<float>(
+    const ApproximationContext &approximationContext) const;
+template Evaluation<double> RandomNode::templateApproximate<double>(
+    const ApproximationContext &approximationContext) const;
+template float Random::random();
+template double Random::random();
 
 }  // namespace Poincare

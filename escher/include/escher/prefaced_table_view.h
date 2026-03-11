@@ -26,6 +26,11 @@ class PrefacedTableView : public View,
       SelectableTableViewDelegate* delegate = nullptr,
       PrefacedTableViewDelegate* prefacedTableViewDelegate = nullptr);
 
+  // Responder
+  void didBecomeFirstResponder() override {
+    App::app()->setFirstResponder(m_mainTableView);
+  }
+
   // SelectableTableViewDelegate
   void tableViewDidChangeSelectionAndDidScroll(
       SelectableTableView* t, int previousSelectedCol, int previousSelectedRow,
@@ -57,10 +62,6 @@ class PrefacedTableView : public View,
   SelectableTableView* m_mainTableView;
   PrefacedTableViewDelegate* m_prefacedDelegate;
   KDCoordinate m_mainTableViewTopMargin;
-
- protected:
-  // Responder
-  void handleResponderChainEvent(Responder::ResponderChainEvent event) override;
 
  private:
   // View

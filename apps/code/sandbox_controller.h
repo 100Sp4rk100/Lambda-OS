@@ -20,13 +20,11 @@ class SandboxController : public Escher::ViewController {
   void viewWillAppear() override;
   void viewDidDisappear() override;
   bool handleEvent(Ion::Events::Event event) override;
-  Escher::ViewController::TitlesDisplay titlesDisplay() const override {
+  Escher::ViewController::TitlesDisplay titlesDisplay() override {
     return Escher::ViewController::TitlesDisplay::DisplayNoTitle;
   }
 
  private:
-  void privateModalViewAltersFirstResponder(
-      FirstResponderAlteration alteration) override;
   void redrawWindow();
   Escher::SolidColorView m_solidColorView;
 };

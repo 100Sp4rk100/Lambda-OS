@@ -5,6 +5,8 @@
 #include <escher/cell_widget.h>
 #include <escher/highlight_cell.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 #include <algorithm>
 namespace Escher {
 
@@ -75,7 +77,7 @@ class AbstractMenuCell : public Bordered, public HighlightCell {
       Metric::CellVerticalElementMargin;
 
   static KDColor BackgroundColor(bool highlighted) {
-    return highlighted ? Palette::Select : KDColorWhite;
+    return highlighted ? Theme::ThemeGestion::getColor("Select") : Theme::ThemeGestion::getColor("KDColorWhite");
   }
 
   AbstractMenuCell();

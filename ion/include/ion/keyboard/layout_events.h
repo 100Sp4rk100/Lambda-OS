@@ -2,7 +2,7 @@
 #define ION_KEYBOARD_LAYOUT_EVENTS_H
 
 #include <ion/events.h>
-#include <omg/code_point.h>
+#include <ion/unicode/code_point.h>
 #include <string.h>
 
 #include "event_data.h"
@@ -16,12 +16,12 @@ extern const EventData s_dataForEvent[Event::k_specialEventsOffset];
 extern const char* const s_nameForEvent[255];
 
 inline const char* Event::name() const {
-  assert(strlen(s_nameForEvent[id()]) > 0);
-  return s_nameForEvent[id()];
+  assert(strlen(s_nameForEvent[m_id]) > 0);
+  return s_nameForEvent[m_id];
 }
 #endif
 
-#if ION_LOG_EVENTS_NAME
+#if ESCHER_LOG_EVENTS_NAME
 bool LogEvents();
 bool SetLogEvents(bool logEvents);
 #endif

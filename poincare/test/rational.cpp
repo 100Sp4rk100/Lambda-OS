@@ -1,218 +1,83 @@
-#include <limits.h>
-#include <poincare/include/poincare/additional_results_helper.h>
-#include <poincare/sign.h>
-#include <poincare/src/expression/k_tree.h>
-#include <poincare/src/expression/rational.h>
-#include <poincare/src/expression/systematic_reduction.h>
-#include <quiz.h>
+#include <poincare/rational.h>
 
 #include "helper.h"
 
 using namespace Poincare;
-using namespace Poincare::Internal;
 
-static bool integer_handler_same_absolute_value(IntegerHandler a,
-                                                IntegerHandler b) {
-  a.setSign(NonStrictSign::Positive);
-  b.setSign(NonStrictSign::Positive);
-  return IntegerHandler::Compare(a, b) == 0;
+static inline void assert_equal(const Rational i, const Rational j) {
+  quiz_assert(Rational::NaturalOrder(i, j) == 0);
+}
+static inline void assert_not_equal(const Rational i, const Rational j) {
+  quiz_assert(Rational::NaturalOrder(i, j) != 0);
 }
 
-static void assert_properties(const Tree* numerator, const Tree* denominator,
-                              Type expectedType, Sign sign) {
-  Tree* r = Rational::Push(numerator, denominator);
-  quiz_assert(r->type() == expectedType);
-  quiz_assert(sign == Rational::Sign(r));
-  integer_handler_same_absolute_value(Integer::Handler(numerator),
-                                      Rational::Numerator(r));
-  integer_handler_same_absolute_value(Integer::Handler(denominator),
-                                      Rational::Denominator(r));
-  r->removeTree();
+static inline void assert_lower(const Rational i, const Rational j) {
+  quiz_assert(Rational::NaturalOrder(i, j) < 0);
 }
 
-QUIZ_CASE(pcj_rational_properties) {
-  assert_properties(3_e, 8_e, Type::RationalPosShort,
-                    Sign::FiniteStrictlyPositive());
-  assert_properties(-1_e, 255_e, Type::RationalNegShort,
-                    Sign::FiniteStrictlyNegative());
-  assert_properties(1_e, -1_e, Type::MinusOne,
-                    Sign::FiniteStrictlyNegativeInteger());
-  assert_properties(-1_e, -2_e, Type::Half, Sign::FiniteStrictlyPositive());
-  assert_properties(127_e, -255_e, Type::RationalNegShort,
-                    Sign::FiniteStrictlyNegative());
-  assert_properties(0_e, 5_e, Type::Zero, Sign::Zero());
-  assert_properties(32134123_e, 812312312_e, Type::RationalPosBig,
-                    Sign::FiniteStrictlyPositive());
-  assert_properties(32134123_e, -812312312_e, Type::RationalNegBig,
-                    Sign::FiniteStrictlyNegative());
-  assert_properties(-32134123_e, 812312312_e, Type::RationalNegBig,
-                    Sign::FiniteStrictlyNegative());
-  assert_properties(-32134123_e, -812312312_e, Type::RationalPosBig,
-                    Sign::FiniteStrictlyPositive());
-  assert_properties(0_e, 812312312_e, Type::Zero, Sign::Zero());
-  assert_properties(0_e, -812312312_e, Type::Zero, Sign::Zero());
+static inline void assert_greater(const Rational i, const Rational j) {
+  quiz_assert(Rational::NaturalOrder(i, j) > 0);
 }
 
-static void assert_set_sign(const Tree* iNumerator, const Tree* iDenominator,
-                            NonStrictSign sign, const Tree* resNumerator,
-                            const Tree* resDenominator) {
-  Tree* i = Rational::Push(iNumerator, iDenominator);
-  Rational::SetSign(i, sign);
-  Tree* expected = Rational::Push(resNumerator, resDenominator);
-  quiz_assert(i->treeIsIdenticalTo(expected));
-  expected->removeTree();
-  i->removeTree();
+QUIZ_CASE(poincare_rational_order) {
+  assert_equal(Rational::Builder(123, 324), Rational::Builder(41, 108));
+  assert_not_equal(Rational::Builder(123, 234), Rational::Builder(42, 108));
+  assert_lower(Rational::Builder(123, 234), Rational::Builder(456, 567));
+  assert_lower(Rational::Builder(-123, 234), Rational::Builder(456, 567));
+  assert_greater(Rational::Builder(123, 234), Rational::Builder(-456, 567));
+  assert_greater(
+      Rational::Builder(123, 234),
+      Rational::Builder("123456789123456789", "12345678912345678910"));
 }
 
-QUIZ_CASE(pcj_rational_set_sign) {
-  assert_set_sign(0_e, 1_e, NonStrictSign::Negative, 0_e, 1_e);
-  assert_set_sign(0_e, 1_e, NonStrictSign::Positive, 0_e, 1_e);
-  assert_set_sign(2_e, 1_e, NonStrictSign::Negative, -2_e, 1_e);
-  assert_set_sign(-3_e, 4_e, NonStrictSign::Positive, 3_e, 4_e);
+QUIZ_CASE(poincare_rational_specific_properties) {
+  quiz_assert(Rational::Builder(0).isZero());
+  quiz_assert(!Rational::Builder(231).isZero());
+  quiz_assert(Rational::Builder(1).isOne());
+  quiz_assert(!Rational::Builder(-1).isOne());
+  quiz_assert(!Rational::Builder(1).isMinusOne());
+  quiz_assert(Rational::Builder(-1).isMinusOne());
+  quiz_assert(Rational::Builder(1, 2).isHalf());
+  quiz_assert(!Rational::Builder(-1).isHalf());
+  quiz_assert(Rational::Builder(-1, 2).isMinusHalf());
+  quiz_assert(!Rational::Builder(3, 2).isMinusHalf());
+  quiz_assert(Rational::Builder(10).isTen());
+  quiz_assert(!Rational::Builder(-1).isTen());
+  quiz_assert(Rational::Builder(-1).isInteger());
+  quiz_assert(Rational::Builder(9).isInteger());
+  quiz_assert(Rational::Builder(9, 3).isInteger());
+  quiz_assert(Rational::Builder(-9, 3).isInteger());
+  quiz_assert(!Rational::Builder(9, 10).isInteger());
+  Rational m1 = Rational::IntegerPower(Rational::Builder(2), Integer(1024));
+  quiz_assert(m1.numeratorOrDenominatorIsInfinity());
+  quiz_assert(!m1.integerDenominator().isZero());
 }
 
-QUIZ_CASE(pcj_rational_sign_of_ln) {
-  quiz_assert(Rational::ComplexSignOfLn(KLn(0_e)) == ComplexSign::Unknown());
-  quiz_assert(Rational::ComplexSignOfLn(KLn(1_e)) == ComplexSign::Zero());
-  quiz_assert(Rational::ComplexSignOfLn(KLn(2_e)) ==
-              ComplexSign(Sign::FiniteStrictlyPositive(), Sign::Zero()));
-  quiz_assert(Rational::ComplexSignOfLn(KLn(1_e / 4_e)) ==
-              ComplexSign(Sign::FiniteStrictlyNegative(), Sign::Zero()));
-  quiz_assert(Rational::ComplexSignOfLn(KLn(10_e / 11_e)) ==
-              ComplexSign(Sign::FiniteStrictlyNegative(), Sign::Zero()));
-  const Tree* veryBig = Integer::Push(UINT_MAX);
-  const Tree* lessBig = Integer::Push(UINT_MAX - 1);
-  const Tree* ln = SharedTreeStack->pushLn();
-  Tree* rational = Rational::Push(veryBig, lessBig);
-  quiz_assert(Rational::ComplexSignOfLn(ln) ==
-              ComplexSign(Sign::FiniteStrictlyPositive(), Sign::Zero()));
-  quiz_assert(Rational::ComplexSignOfLn(KLn(-1_e)) ==
-              ComplexSign(Sign::Zero(), Sign::FiniteStrictlyPositive()));
-  quiz_assert(Rational::ComplexSignOfLn(KLn(-4_e / 3_e)) ==
-              ComplexSign(Sign::FiniteStrictlyPositive(),
-                          Sign::FiniteStrictlyPositive()));
-  rational->removeTree();
-  Rational::Push(lessBig, veryBig);
-  Rational::SetSign(rational, NonStrictSign::Negative);
-  quiz_assert(Rational::ComplexSignOfLn(ln) ==
-              ComplexSign(Sign::FiniteStrictlyNegative(),
-                          Sign::FiniteStrictlyPositive()));
+static inline void assert_add_to(const Rational i, const Rational j,
+                                 const Rational k) {
+  quiz_assert(Rational::NaturalOrder(Rational::Addition(i, j), k) == 0);
 }
 
-static void assert_irreducible_form(const Tree* iNumerator,
-                                    const Tree* iDenominator,
-                                    const Tree* resNumerator,
-                                    const Tree* resDenominator) {
-  Tree* i = Rational::Push(iNumerator, iDenominator);
-  Tree* expected = Rational::Push(resNumerator, resDenominator);
-  Tree* result = i->cloneTree();
-  quiz_assert(result->treeIsIdenticalTo(expected));
-  result->removeTree();
-  expected->removeTree();
-  i->removeTree();
+QUIZ_CASE(poincare_rational_addition) {
+  assert_add_to(Rational::Builder(1, 2), Rational::Builder(1),
+                Rational::Builder(3, 2));
+  assert_add_to(Rational::Builder("18446744073709551616", "4294967296"),
+                Rational::Builder(8, 9), Rational::Builder("38654705672", "9"));
+  assert_add_to(Rational::Builder("18446744073709551616", "4294967296"),
+                Rational::Builder(-8, 9),
+                Rational::Builder("38654705656", "9"));
 }
 
-QUIZ_CASE(pcj_rational_irreducible_form) {
-  assert_irreducible_form(2_e, 6_e, 1_e, 3_e);
-  assert_irreducible_form(-15170_e, 50061_e, -10_e, 33_e);
-  assert_irreducible_form(123169_e, 123191_e, 123169_e, 123191_e);
+static inline void assert_pow_to(const Rational i, const Integer j,
+                                 const Rational k) {
+  quiz_assert(Rational::NaturalOrder(Rational::IntegerPower(i, j), k) == 0);
 }
 
-typedef Tree* (*BinaryOperation)(const Tree* i, const Tree* j);
-
-static void assert_operation(const Tree* iNumerator, const Tree* iDenominator,
-                             const Tree* jNumerator, const Tree* jDenominator,
-                             BinaryOperation operation,
-                             const Tree* resNumerator,
-                             const Tree* resDenominator) {
-  Tree* i = Rational::Push(iNumerator, iDenominator);
-  Tree* j = Rational::Push(jNumerator, jDenominator);
-  Tree* expected = Rational::Push(resNumerator, resDenominator);
-  Tree* result = operation(i, j);
-  SystematicReduction::ShallowReduce(result);
-  quiz_assert(result->treeIsIdenticalTo(expected));
-  result->removeTree();
-  expected->removeTree();
-  j->removeTree();
-  i->removeTree();
-}
-
-typedef Tree* (*TernaryOperation)(const Tree* i, const Tree* j, const Tree* k);
-
-static void assert_operation(const Tree* iNumerator, const Tree* iDenominator,
-                             const Tree* jNumerator, const Tree* jDenominator,
-                             const Tree* kNumerator, const Tree* kDenominator,
-                             TernaryOperation operation,
-                             const Tree* resNumerator,
-                             const Tree* resDenominator) {
-  Tree* i = Rational::Push(iNumerator, iDenominator);
-  Tree* j = Rational::Push(jNumerator, jDenominator);
-  Tree* k = Rational::Push(kNumerator, kDenominator);
-  Tree* expected = Rational::Push(resNumerator, resDenominator);
-  Tree* result = operation(i, j, k);
-  SystematicReduction::ShallowReduce(result);
-  quiz_assert(result->treeIsIdenticalTo(expected));
-  result->removeTree();
-  expected->removeTree();
-  k->removeTree();
-  j->removeTree();
-  i->removeTree();
-}
-
-QUIZ_CASE(pcj_rational_addition) {
-  assert_operation(1_e, 2_e, 1_e, 2_e, Rational::Addition, 1_e, 1_e);
-  assert_operation(1237_e, 5257_e, -3_e, 4_e, Rational::Addition, -10823_e,
-                   21028_e);
-  assert_operation(1_e, 2_e, 1_e, 4_e, 2_e, 8_e, Rational::Addition, 1_e, 1_e);
-}
-
-QUIZ_CASE(pcj_rational_multiplication) {
-  assert_operation(1_e, 2_e, 1_e, 2_e, Rational::Multiplication, 1_e, 4_e);
-  assert_operation(23515_e, 7_e, 2_e, 23515_e, Rational::Multiplication, 2_e,
-                   7_e);
-  assert_operation(1_e, 2_e, 1_e, 2_e, 1_e, -2_e, Rational::Multiplication,
-                   -1_e, 8_e);
-}
-
-static inline Tree* IntegerPowerNoOverflow(const Tree* e1, const Tree* e2) {
-  Rational::IntegerOperationResult result = Rational::IntegerPower(e1, e2);
-  assert(!result.hasOverflown);
-  return result.tree;
-}
-
-QUIZ_CASE(pcj_rational_integer_power) {
-  assert_operation(3_e, 2_e, 3_e, 1_e, IntegerPowerNoOverflow, 27_e, 8_e);
-  assert_operation(1_e, 2_e, 10_e, 1_e, IntegerPowerNoOverflow, 1_e, 1024_e);
-  assert_operation(7123_e, 3_e, 2_e, 1_e, IntegerPowerNoOverflow, 50737129_e,
-                   9_e);
-}
-
-static const Tree* GetMixedFractionTree(const Tree* rational,
-                                        bool mixedFractionsEnabled) {
-  return AdditionalResultsHelper::CreateMixedFraction(
-             Expression::Builder(rational), mixedFractionsEnabled)
-      .tree();
-}
-
-QUIZ_CASE(pcj_rational_create_mixed_fraction) {
-  // 7/5 = 1 2/5
-  assert_trees_are_equal(GetMixedFractionTree(7_e / 5_e, true),
-                         KMixedFraction(1_e, KDiv(2_e, 5_e)));
-  assert_trees_are_equal(GetMixedFractionTree(7_e / 5_e, false),
-                         KAdd(1_e, KDiv(2_e, 5_e)));
-  // -7/5 = -1 2/5
-  assert_trees_are_equal(GetMixedFractionTree(-7_e / 5_e, true),
-                         KOpposite(KMixedFraction(1_e, KDiv(2_e, 5_e))));
-  assert_trees_are_equal(GetMixedFractionTree(-7_e / 5_e, false),
-                         KSub(KOpposite(1_e), KDiv(2_e, 5_e)));
-  // 2/3 = 0 2/3
-  assert_trees_are_equal(GetMixedFractionTree(2_e / 3_e, true),
-                         KMixedFraction(0_e, KDiv(2_e, 3_e)));
-  assert_trees_are_equal(GetMixedFractionTree(-2_e / 3_e, false),
-                         KSub(0_e, KDiv(2_e, 3_e)));
-  // -28/101 = -0 28/101
-  assert_trees_are_equal(GetMixedFractionTree(-28_e / 101_e, true),
-                         KOpposite(KMixedFraction(0_e, KDiv(28_e, 101_e))));
-  assert_trees_are_equal(GetMixedFractionTree(-28_e / 101_e, false),
-                         KSub(0_e, KDiv(28_e, 101_e)));
+QUIZ_CASE(poincare_rational_power) {
+  assert_pow_to(Rational::Builder(4, 5),
+                Rational::Builder(3).signedIntegerNumerator(),
+                Rational::Builder(64, 125));
+  assert_pow_to(Rational::Builder(4, 5),
+                Rational::Builder(-3).signedIntegerNumerator(),
+                Rational::Builder(125, 64));
 }

@@ -1,9 +1,9 @@
 #include "layout_field.h"
 
 #include <apps/i18n.h>
-#include <apps/math_preferences.h>
-#include <poincare/helpers/symbol.h>
-#include <poincare/k_tree.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/horizontal_layout.h>
+#include <poincare/symbol.h>
 
 using namespace Poincare;
 
@@ -14,7 +14,22 @@ void LayoutField::updateCursorBeforeInsertion() {
     return;
   }
   KDSize previousSize = minimalSizeForOptimalDisplay();
-  *cursor() = m_insertionCursor;
+  Layout insertionLayout = m_insertionCursor.layout();
+  int maxPossiblePosition =
+      LayoutCursor::RightmostPossibleCursorPosition(insertionLayout);
+  cursor()->safeSetLayout(insertionLayout, OMG::Direction::Left());
+  /* The cursor position can be greater than the max possible position if the
+   * layout was beautified when the cursor left the position.
+   * Example:
+   * - Input []
+   * - Go down
+   * - Input "pi"
+   * - Go up until being in the history
+   * - Press EXE on the last calculation result
+   * It's too complicated for now to track the new position of the cursor after
+   * beautification so we just set a valid position. */
+  cursor()->safeSetPosition(
+      std::min(maxPossiblePosition, m_insertionCursor.position()));
   reload(previousSize);
   resetInsertionCursor();
 }
@@ -25,10 +40,6 @@ bool LayoutField::handleEvent(Ion::Events::Event event) {
    * is done here. */
   if (event == Ion::Events::Up) {
     if (m_insertionCursor.isUninitialized()) {
-      /* Beautify and save the cursor before moving up, otherwise moving up may
-       * beautify and the copied cursor will be pointing to the pre-beautified
-       * layout. */
-      cursor()->beautifyLeft(nullptr);
       m_insertionCursor = *cursor();
       /* Ensure insertion cursor will stay valid even when the current layout is
        * exited */
@@ -38,7 +49,7 @@ bool LayoutField::handleEvent(Ion::Events::Event event) {
     resetInsertionCursor();
   }
   if (event != Ion::Events::Division && event.isKeyPress()) {
-    m_divisionCycleWithAns = OMG::Troolean::Unknown;
+    m_divisionCycleWithAns = TrinaryBoolean::Unknown;
   }
   if (event == Ion::Events::Back) {
     return false;
@@ -47,32 +58,41 @@ bool LayoutField::handleEvent(Ion::Events::Event event) {
       (event == Ion::Events::Multiplication || event == Ion::Events::Plus ||
        event == Ion::Events::Power || event == Ion::Events::Square ||
        event == Ion::Events::Sto)) {
-    insertText(SymbolHelper::AnsMainAlias());
+    insertText(Symbol::k_ansAliases.mainAlias());
   }
   if (event == Ion::Events::Minus && isEditing() &&
-      layout().tree()->treeIsIdenticalTo("-"_l)) {
-    // Turn single - to Ans -
-    setText(SymbolHelper::AnsMainAlias());
+      fieldContainsSingleMinusSymbol()) {
+    setText(Symbol::k_ansAliases.mainAlias());
     // The Minus symbol will be addded by Escher::LayoutField::handleEvent
   }
   if (event == Ion::Events::Division && isEditing()) {
-    if (m_divisionCycleWithAns == OMG::Troolean::Unknown) {
+    if (m_divisionCycleWithAns == TrinaryBoolean::Unknown) {
       m_currentStep = DivisionCycleStep::Start;
       m_divisionCycleWithAns =
-          isEmpty() ? OMG::Troolean::True : OMG::Troolean::False;
+          isEmpty() ? TrinaryBoolean::True : TrinaryBoolean::False;
     }
     return handleDivision();
   }
   return Escher::LayoutField::handleEvent(event);
 }
 
+bool LayoutField::fieldContainsSingleMinusSymbol() const {
+  if (layout().isHorizontal() && layout().numberOfChildren() == 1) {
+    Layout child = layout().childAtIndex(0);
+    if (child.type() == LayoutNode::Type::CodePointLayout) {
+      return static_cast<CodePointLayout &>(child).codePoint() == '-';
+    }
+  }
+  return false;
+}
+
 bool LayoutField::handleDivision() {
-  assert(m_divisionCycleWithAns != OMG::Troolean::Unknown);
+  assert(m_divisionCycleWithAns != TrinaryBoolean::Unknown);
   bool mixedFractionsEnabled =
-      MathPreferences::SharedPreferences()->mixedFractionsAreEnabled();
+      Preferences::SharedPreferences()->mixedFractionsAreEnabled();
   Ion::Events::Event event = Ion::Events::Division;
 
-  if (m_divisionCycleWithAns == OMG::Troolean::True) {
+  if (m_divisionCycleWithAns == TrinaryBoolean::True) {
     /* When we are in the "Ans" case, the cycle is the following :
      * Start -> DenominatorOfAnsFraction -> NumeratorOfEmptyFraction (->
      * MixedFraction) -> DenominatorOfAnsFraction -> etc with the mixed fraction
@@ -97,10 +117,10 @@ bool LayoutField::handleDivision() {
         assert(m_currentStep == DivisionCycleStep::Start ||
                m_currentStep == DivisionCycleStep::MixedFraction);
         m_currentStep = DivisionCycleStep::DenominatorOfAnsFraction;
-        insertText(SymbolHelper::AnsMainAlias());
+        insertText(Symbol::k_ansAliases.mainAlias());
     }
   } else if (mixedFractionsEnabled) {
-    assert(m_divisionCycleWithAns == OMG::Troolean::False);
+    assert(m_divisionCycleWithAns == TrinaryBoolean::False);
     bool editionIn1D = linearMode();
     bool handled = true;
     /* When we are in NOT the "Ans" case, the cycle is the following :
@@ -127,7 +147,7 @@ bool LayoutField::handleDivision() {
           m_currentStep = DivisionCycleStep::NumeratorOfEmptyFraction;
         }
         if (!handled) {
-          m_divisionCycleWithAns = OMG::Troolean::Unknown;
+          m_divisionCycleWithAns = TrinaryBoolean::Unknown;
         }
         return handled;
       case DivisionCycleStep::NumeratorOfEmptyFraction:

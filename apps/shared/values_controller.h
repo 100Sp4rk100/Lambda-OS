@@ -31,9 +31,12 @@ class ValuesController : public EditableCellTableViewController,
   void initView() override;
   void viewWillAppear() override;
   void viewDidDisappear() override;
+  TELEMETRY_ID("Values");
 
   // Responder
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
+  void willExitResponderChain(Escher::Responder* nextFirstResponder) override;
 
   // TableViewDataSource
   int numberOfColumns() const override;
@@ -125,10 +128,6 @@ class ValuesController : public EditableCellTableViewController,
   }
 
   Escher::PrefacedTwiceTableView m_prefacedTwiceTableView;
-
- protected:
-  void handleResponderChainEvent(
-      Escher::Responder::ResponderChainEvent event) override;
 
  private:
   // Specialization depending on the abscissa names (x, n, t...)

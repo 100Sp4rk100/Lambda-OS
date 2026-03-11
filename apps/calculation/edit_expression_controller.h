@@ -30,6 +30,7 @@ class EditExpressionController : public Escher::ViewController,
 
   /* ViewController */
   Escher::View* view() override { return &m_contentView; }
+  void didBecomeFirstResponder() override;
   void viewWillAppear() override;
 
   /* MathLayoutFieldDelegate */
@@ -39,7 +40,7 @@ class EditExpressionController : public Escher::ViewController,
   bool layoutFieldDidFinishEditing(Escher::LayoutField* layoutField,
                                    Ion::Events::Event event) override;
   void layoutFieldDidChangeSize(Escher::LayoutField* layoutField) override;
-  bool isAcceptableExpression(const Poincare::UserExpression expression,
+  bool isAcceptableExpression(const Poincare::Expression expression,
                               Poincare::Context* context) override;
   bool shouldInsertTextForStoEvent(
       Escher::LayoutField* layoutField) const override {
@@ -50,11 +51,8 @@ class EditExpressionController : public Escher::ViewController,
     return true;
   }
 
-  void insertLayout(Poincare::Layout layout);
+  void insertTextBody(const char* text);
   void restoreInput();
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   class ContentView : public Escher::View {
@@ -75,13 +73,13 @@ class EditExpressionController : public Escher::ViewController,
   };
 
   void reloadView();
+  void clearWorkingBuffer() { m_workingBuffer[0] = 0; }
   void memoizeInput();
-  void clearLastInput() { m_lastInput = Poincare::Layout(); }
 
+  char m_workingBuffer[k_layoutBufferMaxSize];
   HistoryController* m_historyController;
   CalculationStore* m_calculationStore;
   ContentView m_contentView;
-  Poincare::Layout m_lastInput;
 };
 
 }  // namespace Calculation

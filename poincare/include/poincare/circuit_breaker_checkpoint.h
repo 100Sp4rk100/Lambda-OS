@@ -2,28 +2,27 @@
 #define POINCARE_CIRCUIT_BREAKER_CHECKPOINT
 
 #include <ion/circuit_breaker.h>
-
-#include "pool_checkpoint.h"
+#include <poincare/checkpoint.h>
 
 #define CircuitBreakerRun(checkpoint) \
   (CheckpointRun(checkpoint,          \
-                 Ion::CircuitBreaker::setCheckpoint(checkpoint.otype())))
+                 Ion::CircuitBreaker::setCheckpoint(checkpoint.type())))
 
 namespace Poincare {
 
-class CircuitBreakerCheckpoint final : public PoolCheckpoint {
+class CircuitBreakerCheckpoint final : public Checkpoint {
  public:
-  explicit CircuitBreakerCheckpoint(Ion::CircuitBreaker::CheckpointType type)
+  CircuitBreakerCheckpoint(Ion::CircuitBreaker::CheckpointType type)
       : m_type(type) {}
-  /* The destructor will call ~PoolCheckpoint, and thus
-   * PoolCheckpoint::discard(), so we call unset instead of discard. */
-  ~CircuitBreakerCheckpoint() { unset(); }
+  /* The desctructor will call ~Checkpoint, and thus Checkpoint::discard(), so
+   * we call unset instead of discard. */
+  virtual ~CircuitBreakerCheckpoint() { unset(); }
 
-  Ion::CircuitBreaker::CheckpointType otype() const { return m_type; }
+  Ion::CircuitBreaker::CheckpointType type() const { return m_type; }
   bool setActive(Ion::CircuitBreaker::Status status);
   void discard() const override {
     unset();
-    PoolCheckpoint::discard();
+    Checkpoint::discard();
   }
 
  private:

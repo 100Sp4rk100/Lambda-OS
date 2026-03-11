@@ -1,7 +1,6 @@
 #ifndef CALCULATION_ADDITIONAL_RESULTS_TYPE_CONTROLLER_H
 #define CALCULATION_ADDITIONAL_RESULTS_TYPE_CONTROLLER_H
 
-#include <poincare/context.h>
 #include <poincare/expression.h>
 
 namespace Calculation {
@@ -33,55 +32,43 @@ struct AdditionalResultsType {
   }
 
   static AdditionalResultsType AdditionalResultsForExpressions(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput,
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput,
       const Poincare::Preferences::CalculationPreferences
-          calculationPreferences,
-      Poincare::Context* context);
+          calculationPreferences);
 
   static bool ForbidAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput);
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput);
 
-  static bool HasComplex(const Poincare::UserExpression approximateOutput,
+  static bool HasComplex(const Poincare::Expression approximateOutput,
                          const Poincare::Preferences::CalculationPreferences
-                             calculationPreferences,
-                         Poincare::Context* context);
-  static bool HasDirectTrigo(const Poincare::UserExpression input,
-                             const Poincare::UserExpression exactOutput,
+                             calculationPreferences);
+  static bool HasDirectTrigo(const Poincare::Expression input,
+                             const Poincare::Expression exactOutput,
                              const Poincare::Preferences::CalculationPreferences
-                                 calculationPreferences,
-                             Poincare::Context* context);
+                                 calculationPreferences);
   static bool HasInverseTrigo(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput,
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
       const Poincare::Preferences::CalculationPreferences
-          calculationPreferences,
-      Poincare::Context* context);
-  static bool HasUnit(const Poincare::UserExpression exactOutput,
+          calculationPreferences);
+  static bool HasUnit(const Poincare::Expression exactOutput,
                       const Poincare::Preferences::CalculationPreferences
                           calculationPreferences);
-  static bool HasVector(const Poincare::UserExpression exactOutput,
-                        const Poincare::UserExpression approximateOutput,
+  static bool HasVector(const Poincare::Expression exactOutput,
+                        const Poincare::Expression approximateOutput,
                         const Poincare::Preferences::CalculationPreferences
-                            calculationPreferences,
-                        Poincare::Context* context);
-  static bool HasMatrix(const Poincare::UserExpression approximateOutput);
-  static bool HasFunction(const Poincare::UserExpression input,
-                          const Poincare::UserExpression approximateOutput);
+                            calculationPreferences);
+  static bool HasMatrix(const Poincare::Expression approximateOutput);
+  static bool HasFunction(const Poincare::Expression input,
+                          const Poincare::Expression approximateOutput);
   static bool HasScientificNotation(
-      const Poincare::UserExpression approximateOutput,
+      const Poincare::Expression approximateOutput,
       const Poincare::Preferences::CalculationPreferences
-          calculationPreferences,
-      Poincare::Context* context);
-  static bool HasPositiveInteger(const Poincare::UserExpression);
-  static bool HasRational(const Poincare::UserExpression);
+          calculationPreferences);
+  static bool HasInteger(const Poincare::Expression exactOutput);
+  static bool HasRational(const Poincare::Expression exactOutput);
 };
-
-constexpr AdditionalResultsType NoAdditionalResult{.empty = true};
 
 }  // namespace Calculation
 

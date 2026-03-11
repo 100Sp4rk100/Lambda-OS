@@ -3,12 +3,10 @@
 #include <apps/global_preferences.h>
 #include <apps/shared/poincare_helpers.h>
 #include <omg/round.h>
-#include <poincare/helpers/trigonometry.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
-#include <poincare/sign.h>
-#include <poincare/src/expression/projection.h>
-#include <poincare/trigonometry.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/horizontal_layout.h>
+#include <poincare/vertical_offset_layout.h>
+#include <poincare_expressions.h>
 #include <string.h>
 
 #include "../app.h"
@@ -20,97 +18,81 @@ using namespace Shared;
 namespace Calculation {
 
 void VectorListController::computeAdditionalResults(
-    const UserExpression input, const UserExpression exactOutput,
-    const UserExpression approximateOutput) {
-  Context* context = App::app()->localContext();
+    const Expression input, const Expression exactOutput,
+    const Expression approximateOutput) {
   assert(AdditionalResultsType::HasVector(exactOutput, approximateOutput,
-                                          m_calculationPreferences, context));
+                                          m_calculationPreferences));
   static_assert(
       k_maxNumberOfRows >= k_maxNumberOfOutputRows,
       "k_maxNumberOfRows must be greater than k_maxNumberOfOutputRows");
 
-  Internal::ProjectionContext ctx = {
-      .m_complexFormat = complexFormat(),
-      .m_angleUnit = angleUnit(),
-      .m_symbolic = SymbolicComputation::ReplaceAllSymbols,
-      .m_context = context};
-  assert(!Internal::Projection::UpdateComplexFormatWithExpressionInput(
-      exactOutput, &ctx));
+  Context *context = App::app()->localContext();
+  ComputationContext computationContext(context, complexFormat(), angleUnit());
+  computationContext.updateComplexFormat(exactOutput);
 
   setShowIllustration(false);
   size_t index = 0;
-  UserExpression exactClone = exactOutput.clone();
+  Expression exactClone = exactOutput.clone();
 
   // 1. Vector norm
-  UserExpression norm = VectorHelper::BuildVectorNorm(exactClone, context,
-                                                      m_calculationPreferences);
+  Expression norm = VectorHelper::BuildVectorNorm(exactClone, context,
+                                                  m_calculationPreferences);
   assert(!norm.isUninitialized() && !norm.isUndefined());
-  setLineAtIndex(index++, UserExpression(), norm, &ctx);
+  setLineAtIndex(index++, Expression(), norm, computationContext);
 
   // 2. Normalized vector
-  SystemExpression approximatedNorm = PoincareHelpers::Approximate<double>(
+  Expression approximatedNorm = PoincareHelpers::Approximate<double>(
       norm, context,
       {.complexFormat = complexFormat(), .angleUnit = angleUnit()});
-  Sign sign = approximatedNorm.sign();
-  assert(!sign.canBeStrictlyNegative());
-  if (sign.canBeNull() || approximatedNorm.isPlusOrMinusInfinity()) {
+  if (approximatedNorm.isNull(context) != TrinaryBoolean::False ||
+      Expression::IsInfinity(approximatedNorm)) {
     return;
   }
-  UserExpression normalized =
-      UserExpression::Create(KDiv(KA, KB), {.KA = exactClone, .KB = norm});
-  bool reductionFailure = false;
+  Expression normalized = Division::Builder(exactClone, norm);
   PoincareHelpers::CloneAndSimplify(
       &normalized, context,
       {.complexFormat = complexFormat(),
        .angleUnit = angleUnit(),
-       .symbolicComputation = k_symbolicComputation},
-      &reductionFailure);
-  if (reductionFailure || !normalized.isMatrix()) {
+       .target = k_target,
+       .symbolicComputation = k_symbolicComputation});
+  if (normalized.type() != ExpressionNode::Type::Matrix) {
     // The reduction might have failed
     return;
   }
-  setLineAtIndex(index++, UserExpression(), normalized, &ctx);
+  setLineAtIndex(index++, Expression(), normalized, computationContext);
 
   // 3. Angle with x-axis
-  assert(approximateOutput.isMatrix());
-  Matrix vector = static_cast<const Matrix&>(approximateOutput);
+  assert(approximateOutput.type() == ExpressionNode::Type::Matrix);
+  Matrix vector = static_cast<const Matrix &>(approximateOutput);
   assert(vector.isVector());
-  if (vector.tree()->numberOfChildren() != 2) {
+  if (vector.numberOfChildren() != 2) {
     // Vector is not 2D
     return;
   }
-  assert(normalized.tree()->numberOfChildren() == 2);
-  UserExpression angle = UserExpression::Create(
-      KACos(KA), {.KA = normalized.cloneChildAtIndex(0)});
-  /* ComplexSign needs a reduced expression. Using approximation here, but a
-   * reduction would also work. */
-  SystemExpression yApprox = PoincareHelpers::Approximate<double>(
-      normalized.cloneChildAtIndex(1), context,
-      {.complexFormat = complexFormat(), .angleUnit = angleUnit()});
-  sign = yApprox.sign();
-  // HasVector should be false if any vector's child is complex.
-  if (sign.canBeStrictlyNegative() && !sign.canBeStrictlyPositive()) {
-    angle = UserExpression::Create(
-        KSub(KA, KB),
-        {.KA = Trigonometry::Period(ctx.m_angleUnit), .KB = angle});
+  assert(normalized.numberOfChildren() == 2);
+  Expression angle = ArcCosine::Builder(normalized.childAtIndex(0));
+  if (normalized.childAtIndex(1).isPositive(context) == TrinaryBoolean::False) {
+    angle = Subtraction::Builder(
+        Trigonometry::AnglePeriodInAngleUnit(computationContext.angleUnit()),
+        angle);
   }
-  float angleApproximation = angle.approximateToRealScalar<float>(
-      angleUnit(), complexFormat(), context);
+  float angleApproximation = PoincareHelpers::ApproximateToScalar<float>(
+      angle, context,
+      {.complexFormat = complexFormat(), .angleUnit = angleUnit()});
   if (!std::isfinite(angleApproximation)) {
     return;
   }
-  setLineAtIndex(
-      index++,
-      Poincare::SymbolHelper::BuildSymbol(UCodePointGreekSmallLetterTheta),
-      angle, &ctx);
+  setLineAtIndex(index++,
+                 Poincare::Symbol::Builder(UCodePointGreekSmallLetterTheta),
+                 angle, computationContext);
 
   // 4. Illustration
-  float xApproximation =
-      vector.cloneChildAtIndex(0).approximateToRealScalar<float>(
-          angleUnit(), complexFormat(), context);
-  float yApproximation =
-      vector.cloneChildAtIndex(1).approximateToRealScalar<float>(
-          angleUnit(), complexFormat(), context);
+  float xApproximation = PoincareHelpers::ApproximateToScalar<float>(
+      vector.childAtIndex(0), context,
+      {.complexFormat = complexFormat(), .angleUnit = angleUnit()});
+  float yApproximation = PoincareHelpers::ApproximateToScalar<float>(
+      vector.childAtIndex(1), context,
+      {.complexFormat = complexFormat(), .angleUnit = angleUnit()});
   if (!std::isfinite(xApproximation) || !std::isfinite(yApproximation) ||
       (OMG::LaxToZero(xApproximation) == 0.f &&
        OMG::LaxToZero(yApproximation) == 0.f)) {

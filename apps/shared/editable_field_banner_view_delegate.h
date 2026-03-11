@@ -14,11 +14,11 @@ class EditableFieldBannerViewDelegate {
  public:
   EditableFieldBannerViewDelegate(Escher::Responder* parentResponder,
                                   Escher::TextFieldDelegate* textFieldDelegate)
-      : m_editableFieldLabel({.style = BannerView::k_bannerFieldFormat.style,
+      : m_editableFieldLabel({.style = BannerView::k_bannerFieldFormat().style,
                               .horizontalAlignment = KDGlyph::k_alignRight}),
         m_editableField(parentResponder, m_textBody, k_bufferSize,
                         textFieldDelegate,
-                        {.style = BannerView::k_bannerFieldFormat.style,
+                        {.style = BannerView::k_bannerFieldFormat().style,
                          .horizontalAlignment = KDGlyph::k_alignLeft}),
         m_editableView(&m_editableFieldLabel, &m_editableField) {
     m_textBody[0] = 0;

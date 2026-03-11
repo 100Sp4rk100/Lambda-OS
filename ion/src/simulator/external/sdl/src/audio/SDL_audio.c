@@ -959,7 +959,7 @@ SDL_AudioInit(const char *driver_name)
     SDL_zero(current_audio);
     SDL_zeroa(open_devices);
 
-    /* Select the proper audio driver */
+    /* LAMDA_gray_light_palette the proper audio driver */
     if (driver_name == NULL) {
         driver_name = SDL_getenv("SDL_AUDIODRIVER");
     }

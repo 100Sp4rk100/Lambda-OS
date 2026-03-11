@@ -6,7 +6,7 @@
 
 #include <array>
 
-#include "stat_icon.h"
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Shared;
 using namespace Escher;
@@ -19,14 +19,13 @@ I18n::Message App::Descriptor::upperName() const {
   return I18n::Message::StatsAppCapital;
 }
 
-const Image* App::Descriptor::icon() const { return ImageStore::StatIcon; }
+const Image *App::Descriptor::icon() const { return Theme::ThemeGestion::getIconImage("StatIcon"); }
 
 App::Snapshot::Snapshot()
     : m_storeVersion(0),
       m_selectedSeries(-1),
       m_selectedIndex(DataView::k_defaultSelectedIndex) {
-  /* Register V1, V2, V3, ..., N1, N2, N3, ... as reserved names to the
-   * sharedStorage. */
+  // Register V1, V2, V3, N1, N2, N3 as reserved names to the sharedStorage.
   static_assert(std::size(DoublePairStore::k_statisticsColumNames) == 2,
                 "Number of reserved lists in statistics changed.");
   Ion::Storage::FileSystem::sharedFileSystem->recordNameVerifier()
@@ -36,9 +35,9 @@ App::Snapshot::Snapshot()
           std::size(DoublePairStore::k_statisticsColumNames));
 }
 
-App* App::Snapshot::unpack(Container* container) {
+App *App::Snapshot::unpack(Container *container) {
   return new (container->currentAppBuffer())
-      App(this, static_cast<AppsContainer*>(container)->globalContext());
+      App(this, static_cast<AppsContainer *>(container)->globalContext());
 }
 
 void App::Snapshot::reset() {
@@ -57,7 +56,7 @@ void App::Snapshot::countryWasUpdated() {
 
 constexpr static App::Descriptor sDescriptor;
 
-const App::Descriptor* App::Snapshot::descriptor() const {
+const App::Descriptor *App::Snapshot::descriptor() const {
   return &sDescriptor;
 }
 
@@ -94,12 +93,12 @@ App::GraphTab::GraphTab()
                       &m_graphMenuStackViewController, &m_graphTypeController,
                       &app()->m_store),
       m_boxHeader(&m_graphController, &m_boxController, &m_boxController),
-      m_histogramMainController(
+      m_histogramController(
           &m_histogramHeader, &m_histogramHeader, &app()->m_tabViewController,
           &m_graphMenuStackViewController, &m_graphTypeController,
           &app()->m_store, app()->snapshot()->storeVersion()),
-      m_histogramHeader(&m_graphController, &m_histogramMainController,
-                        &m_histogramMainController),
+      m_histogramHeader(&m_graphController, &m_histogramController,
+                        &m_histogramController),
       m_graphTypeController(&m_graphMenuStackViewController,
                             &app()->m_tabViewController,
                             &m_graphMenuStackViewController, &app()->m_store,
@@ -124,7 +123,7 @@ App::CalculationTab::CalculationTab()
                           &m_calculationAlternateEmptyViewController,
                           &m_calculationController) {}
 
-App::App(Snapshot* snapshot, Poincare::Context* parentContext)
+App::App(Snapshot *snapshot, Poincare::Context *parentContext)
     : StoreApp(snapshot, &m_inputViewController),
       m_store(AppsContainerHelper::sharedAppsContainerGlobalContext(),
               snapshot->userPreferences()),
@@ -143,7 +142,7 @@ App::App(Snapshot* snapshot, Poincare::Context* parentContext)
 }
 
 void App::activeViewDidBecomeFirstResponder(
-    Escher::ViewController* activeViewController) {
+    Escher::ViewController *activeViewController) {
   if (m_store.graphViewHasBeenInvalidated()) {
     m_tabs.tab<GraphTab>()->m_graphMenuStackViewController.push(
         &m_tabs.tab<GraphTab>()->m_graphTypeController);
@@ -152,7 +151,7 @@ void App::activeViewDidBecomeFirstResponder(
   }
 }
 
-void App::didBecomeActive(Escher::Window* windows) {
+void App::didBecomeActive(Escher::Window *windows) {
   // Sorted indexes are not kept in the snapshot, they have been invalidated.
   m_store.invalidateSortedIndexes();
   SharedApp::didBecomeActive(windows);

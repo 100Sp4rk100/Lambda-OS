@@ -741,12 +741,12 @@ def print_compressed_implementation(data, path, locales):
     # Write the translate method
     code = """
 void unpackUniversal() {
-  OMG::Memory::Decompress(universalCompressed, (uint8_t *)uncompressedText, universalCompressedSize, universalUncompressedSize);
+  Ion::decompress(universalCompressed, (uint8_t *)uncompressedText, universalCompressedSize, universalUncompressedSize);
 }
 
 void unpackLocalized(int selectedLanguage) {
   assert(selectedLanguage >= 0 && selectedLanguage < NumberOfLanguages);
-  OMG::Memory::Decompress(localizedCompressed[selectedLanguage], (uint8_t *)(uncompressedText + universalUncompressedSize), localizedCompressedSizes[selectedLanguage], localizedUncompressedSize);
+  Ion::decompress(localizedCompressed[selectedLanguage], (uint8_t *)(uncompressedText + universalUncompressedSize), localizedCompressedSizes[selectedLanguage], localizedUncompressedSize);
 }
 
 // Last loaded language

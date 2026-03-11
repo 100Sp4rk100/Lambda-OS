@@ -11,7 +11,7 @@
 #include "graph/frequency_controller.h"
 #include "graph/graph_type_controller.h"
 #include "graph/graph_view_model.h"
-#include "graph/histogram_main_controller.h"
+#include "graph/histogram_controller.h"
 #include "graph/normal_probability_controller.h"
 #include "stats/calculation_controller.h"
 #include "store.h"
@@ -24,30 +24,22 @@ class App : public Shared::StoreApp, Escher::AlternateViewDelegate {
    public:
     I18n::Message name() const override;
     I18n::Message upperName() const override;
-    const Escher::Image* icon() const override;
+    const Escher::Image *icon() const override;
   };
 
   class Snapshot : public Shared::StoreApp::Snapshot {
    public:
     Snapshot();
 
-    App* unpack(Escher::Container* container) override;
+    App *unpack(Escher::Container *container) override;
     void reset() override;
     void countryWasUpdated() override;
-    const Descriptor* descriptor() const override;
-    uint32_t* storeVersion() { return &m_storeVersion; }
-    GraphViewModel* graphViewModel() { return &m_graphViewModel; }
-    UserPreferences* userPreferences() { return &m_userPreferences; }
-    int8_t selectedSeries() const { return m_selectedSeries; }
-    int16_t selectedIndex() const { return m_selectedIndex; }
-
-    void setSelectedSeries(int8_t selectedSeries) {
-      m_selectedSeries = selectedSeries;
-    }
-
-    void setSelectedIndex(int16_t selectedIndex) {
-      m_selectedIndex = selectedIndex;
-    }
+    const Descriptor *descriptor() const override;
+    uint32_t *storeVersion() { return &m_storeVersion; }
+    GraphViewModel *graphViewModel() { return &m_graphViewModel; }
+    UserPreferences *userPreferences() { return &m_userPreferences; }
+    int8_t *selectedSeries() { return &m_selectedSeries; }
+    int16_t *selectedIndex() { return &m_selectedIndex; }
 
    private:
     uint32_t m_storeVersion;
@@ -57,20 +49,22 @@ class App : public Shared::StoreApp, Escher::AlternateViewDelegate {
     int16_t m_selectedIndex;
   };
 
-  static App* app() { return static_cast<App*>(Escher::App::app()); }
+  static App *app() { return static_cast<App *>(Escher::App::app()); }
 
-  Shared::StoreController* storeController() override {
+  TELEMETRY_ID("Statistics");
+
+  Shared::StoreController *storeController() override {
     return &m_tabs.tab<StoreTab>()->m_storeController;
   }
-  Escher::InputViewController* inputViewController() {
+  Escher::InputViewController *inputViewController() {
     return &m_inputViewController;
   }
-  Snapshot* snapshot() const {
-    return static_cast<Snapshot*>(Escher::App::snapshot());
+  Snapshot *snapshot() const {
+    return static_cast<Snapshot *>(Escher::App::snapshot());
   }
 
  private:
-  App(Snapshot* snapshot, Poincare::Context* parentContext);
+  App(Snapshot *snapshot, Poincare::Context *parentContext);
   int activeViewControllerIndex() const override {
     return GraphViewModel::IndexOfGraphView(
         snapshot()->graphViewModel()->selectedGraphView());
@@ -79,13 +73,13 @@ class App : public Shared::StoreApp, Escher::AlternateViewDelegate {
     return Escher::ViewController::TitlesDisplay::NeverDisplayOwnTitle;
   }
   void activeViewDidBecomeFirstResponder(
-      Escher::ViewController* activeViewController) override;
-  void didBecomeActive(Escher::Window* window) override;
+      Escher::ViewController *activeViewController) override;
+  void didBecomeActive(Escher::Window *window) override;
 
   struct StoreTab : public Escher::Tab {
     StoreTab();
-    constexpr static I18n::Message k_title = I18n::Message::DataTab;
-    Escher::ViewController* top() override {
+    static constexpr I18n::Message k_title = I18n::Message::DataTab;
+    Escher::ViewController *top() override {
       return &m_storeStackViewController;
     }
     StoreController m_storeController;
@@ -95,8 +89,8 @@ class App : public Shared::StoreApp, Escher::AlternateViewDelegate {
 
   struct GraphTab : public Escher::Tab {
     GraphTab();
-    constexpr static I18n::Message k_title = I18n::Message::StatisticsGraphTab;
-    Escher::ViewController* top() override {
+    static constexpr I18n::Message k_title = I18n::Message::StatisticsGraphTab;
+    Escher::ViewController *top() override {
       return &m_graphMenuAlternateEmptyViewController;
     }
     NormalProbabilityController m_normalProbabilityController;
@@ -109,7 +103,7 @@ class App : public Shared::StoreApp, Escher::AlternateViewDelegate {
     Escher::ButtonRowController m_frequencyHeader;
     BoxController m_boxController;
     Escher::ButtonRowController m_boxHeader;
-    HistogramMainController m_histogramMainController;
+    HistogramController m_histogramController;
     Escher::ButtonRowController m_histogramHeader;
     GraphTypeController m_graphTypeController;
     Escher::AlternateViewController m_graphController;
@@ -120,8 +114,8 @@ class App : public Shared::StoreApp, Escher::AlternateViewDelegate {
 
   struct CalculationTab : public Escher::Tab {
     CalculationTab();
-    constexpr static I18n::Message k_title = I18n::Message::StatTab;
-    Escher::ViewController* top() override { return &m_calculationHeader; }
+    static constexpr I18n::Message k_title = I18n::Message::StatTab;
+    Escher::ViewController *top() override { return &m_calculationHeader; }
     CalculationController m_calculationController;
     Escher::AlternateEmptyViewController
         m_calculationAlternateEmptyViewController;
@@ -130,7 +124,7 @@ class App : public Shared::StoreApp, Escher::AlternateViewDelegate {
   };
 
   Store m_store;
-  Poincare::Context* m_context;
+  Poincare::Context *m_context;
   Escher::InputViewController m_inputViewController;
   Escher::TabUnion<StoreTab, GraphTab, CalculationTab> m_tabs;
   Escher::TabUnionViewController m_tabViewController;

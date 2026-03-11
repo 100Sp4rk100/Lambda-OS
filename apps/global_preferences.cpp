@@ -1,7 +1,6 @@
 #include "global_preferences.h"
 
 #include "apps_container_helper.h"
-#include "math_preferences.h"
 
 GlobalPreferences* GlobalPreferences::SharedGlobalPreferences() {
   static GlobalPreferences* ptr = Ion::Storage::FileSystem::sharedFileSystem
@@ -12,14 +11,15 @@ GlobalPreferences* GlobalPreferences::SharedGlobalPreferences() {
 }
 
 void GlobalPreferences::countryHasChanged(bool updateSnapshots) {
-  MathPreferences::SharedPreferences()->setCombinatoricSymbols(
+  Poincare::Preferences::SharedPreferences()->setCombinatoricSymbols(
       combinatoricsSymbols());
-  MathPreferences::SharedPreferences()->enableMixedFractions(mixedFractions());
-  MathPreferences::SharedPreferences()->setLogarithmBasePosition(
+  Poincare::Preferences::SharedPreferences()->enableMixedFractions(
+      mixedFractions());
+  Poincare::Preferences::SharedPreferences()->setLogarithmBasePosition(
       logarithmBasePosition());
-  MathPreferences::SharedPreferences()->setLogarithmKeyEvent(
+  Poincare::Preferences::SharedPreferences()->setLogarithmKeyEvent(
       logarithmKeyEvent());
-  MathPreferences::SharedPreferences()->setParabolaParameter(
+  Poincare::Preferences::SharedPreferences()->setParabolaParameter(
       parabolaParameter());
   if (!updateSnapshots) {
     return;
@@ -39,11 +39,11 @@ void GlobalPreferences::setBrightnessLevel(int brightnessLevel) {
 }
 
 int GlobalPreferences::sequencesInitialRank() const {
-  switch (countryPreferences().sequencesInitialRank()) {
+  switch (preferences().sequencesInitialRank()) {
     case CountryPreferences::SequencesInitialRank::Zero:
       return 0;
     default:
-      assert(countryPreferences().sequencesInitialRank() ==
+      assert(preferences().sequencesInitialRank() ==
              CountryPreferences::SequencesInitialRank::One);
       return 1;
   }

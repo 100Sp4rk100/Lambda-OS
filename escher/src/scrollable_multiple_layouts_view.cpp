@@ -3,32 +3,29 @@
 
 #include <algorithm>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Poincare;
 
 namespace Escher {
-
-// TODO: move the whole file to apps/shared and use i18n ?
-const char* k_almostEqual = "≈";
-const char* k_equal = "=";
 
 AbstractScrollableMultipleLayoutsView::ContentCell::ContentCell(
     float horizontalAlignment, KDFont::Size font)
     : m_rightLayoutView({.style = {.font = font}}),
       m_approximateSign(
-          {.style = {.glyphColor = Palette::GrayVeryDark, .font = font},
+          k_defaultApproximateMessage,
+          {.style = {.glyphColor = Theme::ThemeGestion::getColor("GrayVeryDark"), .font = font},
            .horizontalAlignment = KDGlyph::k_alignCenter}),
       m_centeredLayoutView({.style = {.font = font}}),
       m_selectedSubviewPosition(SubviewPosition::Center),
       m_displayCenter(true),
       m_displayableCenter(true),
       m_rightIsStrictlyEqual(false),
-      m_horizontalAlignment(horizontalAlignment) {
-  m_approximateSign.setText(k_almostEqual);
-}
+      m_horizontalAlignment(horizontalAlignment) {}
 
 KDColor AbstractScrollableMultipleLayoutsView::ContentCell::backgroundColor()
     const {
-  KDColor background = m_even ? KDColorWhite : Palette::WallScreen;
+  KDColor background = m_even ? Theme::ThemeGestion::getColor("KDColorWhite") : Theme::ThemeGestion::getColor("WallScreen");
   return background;
 }
 
@@ -46,25 +43,25 @@ void AbstractScrollableMultipleLayoutsView::ContentCell::
   bool highlight = isHighlighted();
   KDColor color =
       highlight && m_selectedSubviewPosition == SubviewPosition::Center
-          ? Palette::Select
+          ? Theme::ThemeGestion::getColor("Select")
           : defaultColor;
   m_centeredLayoutView.setBackgroundColor(color);
   color = highlight && m_selectedSubviewPosition == SubviewPosition::Right
-              ? Palette::Select
+              ? Theme::ThemeGestion::getColor("Select")
               : defaultColor;
   m_rightLayoutView.setBackgroundColor(color);
   m_approximateSign.setBackgroundColor(defaultColor);
   if (leftLayoutView()) {
     color = highlight && m_selectedSubviewPosition == SubviewPosition::Left
-                ? Palette::Select
+                ? Theme::ThemeGestion::getColor("Select")
                 : defaultColor;
     leftLayoutView()->setBackgroundColor(color);
   }
 }
 
 void AbstractScrollableMultipleLayoutsView::ContentCell::reloadTextColor() {
-  m_rightLayoutView.setTextColor(displayCenter() ? Palette::GrayVeryDark
-                                                 : KDColorBlack);
+  m_rightLayoutView.setTextColor(displayCenter() ? Theme::ThemeGestion::getColor("GrayVeryDark")
+                                                 : Theme::ThemeGestion::getColor("KDColorBlack"));
 }
 
 KDSize AbstractScrollableMultipleLayoutsView::ContentCell::
@@ -95,7 +92,8 @@ void AbstractScrollableMultipleLayoutsView::ContentCell::setDisplayCenter(
 void AbstractScrollableMultipleLayoutsView::ContentCell::
     setExactAndApproximateAreStriclyEqual(bool isEqual) {
   m_rightIsStrictlyEqual = isEqual;
-  approximateSign()->setText(isEqual ? k_equal : k_almostEqual);
+  approximateSign()->setMessage(isEqual ? I18n::Message::Equal
+                                        : I18n::Message::AlmostEqual);
   reloadTextColor();
 }
 
@@ -129,7 +127,7 @@ KDCoordinate AbstractScrollableMultipleLayoutsView::ContentCell::baseline(
   // Left view
   KDCoordinate leftViewBaseline =
       (leftLayoutView() && !leftLayoutView()->layout().isUninitialized())
-          ? leftLayoutView()->layout()->baseline(leftLayoutView()->font())
+          ? leftLayoutView()->layout().baseline(leftLayoutView()->font())
           : 0;
   if (leftBaseline != nullptr) {
     *leftBaseline = leftViewBaseline;
@@ -137,7 +135,7 @@ KDCoordinate AbstractScrollableMultipleLayoutsView::ContentCell::baseline(
 
   // Center view
   KDCoordinate centerViewBaseline =
-      displayCenter() ? m_centeredLayoutView.layout()->baseline(font()) : 0;
+      displayCenter() ? m_centeredLayoutView.layout().baseline(font()) : 0;
   if (centerBaseline != nullptr) {
     *centerBaseline = centerViewBaseline;
   }
@@ -146,7 +144,7 @@ KDCoordinate AbstractScrollableMultipleLayoutsView::ContentCell::baseline(
   KDCoordinate rightViewBaseline =
       m_rightLayoutView.layout().isUninitialized()
           ? 0
-          : m_rightLayoutView.layout()->baseline(font());
+          : m_rightLayoutView.layout().baseline(font());
   if (rightBaseline != nullptr) {
     *rightBaseline = rightViewBaseline;
   }
@@ -384,7 +382,7 @@ bool AbstractScrollableMultipleLayoutsView::handleEvent(
               contentOffset().x() <
           bounds().width();
     }
-    // Select center
+    // LAMDA_gray_light_palette center
     if ((event == Ion::Events::Left &&
          selectedSubviewPosition() == SubviewPosition::Right &&
          centeredLayoutIsVisibleOnTheLeft) ||
@@ -394,7 +392,7 @@ bool AbstractScrollableMultipleLayoutsView::handleEvent(
       setSelectedSubviewPosition(SubviewPosition::Center);
       return true;
     }
-    // Select left
+    // LAMDA_gray_light_palette left
     if ((event == Ion::Events::Left &&
          selectedSubviewPosition() == SubviewPosition::Right &&
          leftIsVisible) ||

@@ -20,8 +20,8 @@ void KDContext::fillRect(KDRect rect, KDColor color) {
 }
 
 /* Note: we support the case where workingBuffer IS equal to pixels */
-void KDContext::fillRectWithPixels(KDRect rect, const KDColor* pixels,
-                                   KDColor* workingBuffer) {
+void KDContext::fillRectWithPixels(KDRect rect, const KDColor *pixels,
+                                   KDColor *workingBuffer) {
   KDRect absoluteRect = absoluteFillRect(rect);
 
   if (absoluteRect.isEmpty()) {
@@ -55,8 +55,8 @@ void KDContext::fillRectWithPixels(KDRect rect, const KDColor* pixels,
     for (KDCoordinate j = 0; j < absoluteRect.height(); j++) {
       KDRect absoluteRow = KDRect(absoluteRect.x(), absoluteRect.y() + j,
                                   absoluteRect.width(), 1);
-      KDColor* rowPixels =
-          (KDColor*)pixels + startingI + rect.width() * (startingJ + j);
+      KDColor *rowPixels =
+          (KDColor *)pixels + startingI + rect.width() * (startingJ + j);
       pushRect(absoluteRow, rowPixels);
     }
   } else {
@@ -71,8 +71,7 @@ void KDContext::fillRectWithPixels(KDRect rect, const KDColor* pixels,
 }
 
 void KDContext::fillRectWithMask(KDRect rect, KDColor color, KDColor background,
-                                 const uint8_t* mask, KDColor* workingBuffer,
-                                 bool horizontalFlip, bool verticalFlip) {
+                                 const uint8_t *mask, KDColor *workingBuffer) {
   KDRect absoluteRect = absoluteFillRect(rect);
 
   /* Caution:
@@ -80,40 +79,19 @@ void KDContext::fillRectWithMask(KDRect rect, KDColor color, KDColor background,
    * has been clipped. Therefore we cannot assume that the mask can be read as a
    * continuous area. */
 
-  KDCoordinate startingI =
-      horizontalFlip
-          ? rect.translatedBy(m_origin).right() - m_clippingRect.right()
-          : m_clippingRect.x() - rect.translatedBy(m_origin).x();
-  KDCoordinate startingJ =
-      verticalFlip
-          ? rect.translatedBy(m_origin).bottom() - m_clippingRect.bottom()
-          : m_clippingRect.y() - rect.translatedBy(m_origin).y();
+  KDCoordinate startingI = m_clippingRect.x() - rect.translatedBy(m_origin).x();
+  KDCoordinate startingJ = m_clippingRect.y() - rect.translatedBy(m_origin).y();
   startingI = std::max<KDCoordinate>(0, startingI);
   startingJ = std::max<KDCoordinate>(0, startingJ);
-  KDColor* currentPixelAddress = workingBuffer;
-  int deltaCol = 1;
-  int deltaRow = 0;  // columns increment rows naturally
-  if (horizontalFlip) {
-    currentPixelAddress += absoluteRect.width() - 1;
-    deltaCol = -1;
-    deltaRow = 2;
-  }
-  if (verticalFlip) {
-    currentPixelAddress += absoluteRect.width() * (absoluteRect.height() - 1);
-    deltaRow -= 2;
-  }
-  deltaRow *= absoluteRect.width();
-  const uint8_t* currentMaskAddress =
-      mask + startingI + rect.width() * startingJ;
   for (KDCoordinate j = 0; j < absoluteRect.height(); j++) {
     for (KDCoordinate i = 0; i < absoluteRect.width(); i++) {
+      KDColor *currentPixelAddress =
+          workingBuffer + i + absoluteRect.width() * j;
+      const uint8_t *currentMaskAddress =
+          mask + i + startingI + rect.width() * (j + startingJ);
       *currentPixelAddress =
           KDColor::Blend(background, color, *currentMaskAddress);
-      currentMaskAddress++;
-      currentPixelAddress += deltaCol;
     }
-    currentMaskAddress += rect.width() - absoluteRect.width();
-    currentPixelAddress += deltaRow;
   }
   pushRect(absoluteRect, workingBuffer);
 }
@@ -121,7 +99,7 @@ void KDContext::fillRectWithMask(KDRect rect, KDColor color, KDColor background,
 /* Mask's size must be rect.size. Same for WorkingBuffer.
  * TODO: should we avoid pullRect by giving a 'memory' working buffer? */
 void KDContext::blendRectWithMask(KDRect rect, KDColor color,
-                                  const uint8_t* mask, KDColor* workingBuffer) {
+                                  const uint8_t *mask, KDColor *workingBuffer) {
   KDRect absoluteRect = absoluteFillRect(rect);
 
   /* Caution:
@@ -136,9 +114,9 @@ void KDContext::blendRectWithMask(KDRect rect, KDColor color,
   startingJ = std::max<KDCoordinate>(0, startingJ);
   for (KDCoordinate j = 0; j < absoluteRect.height(); j++) {
     for (KDCoordinate i = 0; i < absoluteRect.width(); i++) {
-      KDColor* currentPixelAddress =
+      KDColor *currentPixelAddress =
           workingBuffer + i + absoluteRect.width() * j;
-      const uint8_t* currentMaskAddress =
+      const uint8_t *currentMaskAddress =
           mask + i + startingI + rect.width() * (j + startingJ);
       *currentPixelAddress =
           KDColor::Blend(*currentPixelAddress, color, *currentMaskAddress);

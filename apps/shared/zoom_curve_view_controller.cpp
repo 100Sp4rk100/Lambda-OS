@@ -22,7 +22,7 @@ bool ZoomCurveViewController::handleEvent(Ion::Events::Event event) {
 void ZoomCurveViewController::viewWillAppear() {
   interactiveCurveViewRange()->setOffscreenYAxis(offscreenYAxis());
   /* Force a reload in case some curves were interrupted. */
-  curveView()->reload(true, false, true);
+  curveView()->reload(true);
 }
 
 bool ZoomCurveViewController::handleZoom(Ion::Events::Event event) {
@@ -34,8 +34,8 @@ bool ZoomCurveViewController::handleZoom(Ion::Events::Event event) {
 }
 
 bool ZoomCurveViewController::handleEnter() {
-  Escher::StackViewController* stack =
-      static_cast<Escher::StackViewController*>(parentResponder());
+  Escher::StackViewController *stack =
+      static_cast<Escher::StackViewController *>(parentResponder());
   stack->pop();
   return true;
 }

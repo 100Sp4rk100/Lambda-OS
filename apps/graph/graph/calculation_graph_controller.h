@@ -4,8 +4,8 @@
 #include <apps/shared/continuous_function_store.h>
 #include <apps/shared/function_banner_delegate.h>
 #include <apps/shared/simple_interactive_curve_view_controller.h>
-#include <omg/ring_buffer.h>
-#include <poincare/solver/point_of_interest_list.h>
+#include <ion/ring_buffer.h>
+#include <poincare/point_of_interest.h>
 
 #include "banner_view.h"
 #include "graph_view.h"
@@ -45,16 +45,16 @@ class CalculationGraphController
 
   Shared::ContinuousFunctionStore* functionStore() const;
   Poincare::Coordinate2D<double> computeNewPointOfInterestFromAbscissa(
-      double start, OMG::HorizontalDirection direction, bool stretch);
+      double start, OMG::HorizontalDirection direction);
   virtual Poincare::Solver<double>::Interest specialInterest() const {
     return Poincare::Solver<double>::Interest::None;
   }
   virtual Poincare::Coordinate2D<double> computeNewPointOfInterest(
-      double start, double max, Poincare::Context* context, bool stretch) {
-    return computeAtLeastOnePointOfInterest(start, max, context, stretch).xy();
+      double start, double max, Poincare::Context* context) {
+    return computeAtLeastOnePointOfInterest(start, max, context).xy();
   }
   Poincare::PointOfInterest computeAtLeastOnePointOfInterest(
-      double start, double max, Poincare::Context* context, bool stretch);
+      double start, double max, Poincare::Context* context);
 
   GraphView* m_graphView;
   BannerView* m_bannerView;

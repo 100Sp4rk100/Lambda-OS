@@ -5,7 +5,8 @@
 #include <escher/even_odd_cell_with_ellipsis.h>
 #include <escher/scrollable_layout_view.h>
 #include <escher/scrollable_multiple_layouts_view.h>
-#include <omg/troolean.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 #include "calculation.h"
 
@@ -52,7 +53,7 @@ class HistoryViewCell : public Escher::EvenOddCell, public Escher::Responder {
   Responder* responder() override { return this; }
   Poincare::Layout layout() const override;
   KDColor backgroundColor() const override {
-    return m_even ? KDColorWhite : Escher::Palette::WallScreen;
+    return m_even ? Theme::ThemeGestion::getColor("KDColorWhite") : Theme::ThemeGestion::getColor("WallScreen");
   }
   void resetMemoization();
   void setCalculation(Calculation* calculation, bool expanded,
@@ -64,6 +65,7 @@ class HistoryViewCell : public Escher::EvenOddCell, public Escher::Responder {
   int numberOfSubviews() const override { return 2 + isDisplayingEllipsis(); }
   View* subviewAtIndex(int index) override;
   void layoutSubviews(bool force = false) override;
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
   Escher::ScrollableTwoLayoutsView* outputView() {
     return &m_scrollableOutputView;
@@ -71,9 +73,6 @@ class HistoryViewCell : public Escher::EvenOddCell, public Escher::Responder {
   Escher::ScrollableLayoutView* inputView() { return &m_inputView; }
   bool hasEllipsis() const { return m_hasEllipsis; }
   KDCoordinate minimalHeightForOptimalDisplay();
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   constexpr static KDCoordinate k_resultWidth = 80;
@@ -100,7 +99,7 @@ class HistoryViewCell : public Escher::EvenOddCell, public Escher::Responder {
   Escher::ScrollableTwoLayoutsView m_scrollableOutputView;
   Escher::EvenOddCellWithEllipsis m_ellipsis;
   HistoryViewCellDataSource* m_dataSource;
-  OMG::Troolean m_calculationExpanded;
+  Poincare::TrinaryBoolean m_calculationExpanded;
   bool m_calculationSingleLine;
 };
 

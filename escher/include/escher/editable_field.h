@@ -5,8 +5,7 @@
 #include <escher/text_cursor_view.h>
 #include <ion.h>
 #include <ion/events.h>
-#include <omg/code_point.h>
-#include <poincare/layout.h>
+#include <ion/unicode/code_point.h>
 
 namespace Escher {
 
@@ -21,25 +20,15 @@ class EditableField : public TextCursorView::WithBlinkingCursor<
                                    bool forceCursorRightOfText = false) {
     return false;
   }
-  virtual bool handleEventWithLayout(Poincare::Layout layout,
-                                     bool forceCursorRightOfText = false) {
-    return false;
-  }
   virtual bool handleStoreEvent() { return false; }
   bool handleXNT(int currentIndex, CodePoint startingXNT);
 
  protected:
-  constexpr static const char* k_logWithBase10 = "log(\x11,10)";
-  // FIXME Factorized with I18n::Message::MixedFractionCommand
-  constexpr static const char* k_emptyMixedFraction = "\x11 \x11/\x11";
-
   bool privateHandleBoxEvent(Ion::Events::Event event);
   virtual bool prepareToEdit() {
     assert(false);
     return false;
   }
-  virtual size_t getTextFromEvent(Ion::Events::Event event, char* buffer,
-                                  size_t bufferSize);
 
  private:
   virtual bool findXNT(char* buffer, size_t bufferSize, int xntIndex,

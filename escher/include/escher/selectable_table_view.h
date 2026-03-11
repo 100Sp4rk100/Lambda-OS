@@ -36,7 +36,6 @@ class SelectableTableView : public TableView, public Responder {
     totalNumberOfRows() > 0 ? selectRow(0) : selectRow(-1);
   }
 
-  // TODO: selectedCell should have a const an a non-const version
   HighlightCell* selectedCell();
   void selectCellAtLocation(int col, int row, bool setFirstResponder = true,
                             bool withinTemporarySelection = false);
@@ -46,8 +45,11 @@ class SelectableTableView : public TableView, public Responder {
   void deselectTable(bool withinTemporarySelection = false);
   void reloadData(bool setFirstResponder = true, bool resetMemoization = true);
 
+  void didBecomeFirstResponder() override;
+  void didEnterResponderChain(Responder* previousFirstResponder) override;
+  void willExitResponderChain(Responder* nextFirstResponder) override;
+
  protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
   void layoutSubviews(bool force = false) override;
   SelectableTableViewDataSource* m_selectionDataSource;
   SelectableTableViewDelegate* m_delegate;

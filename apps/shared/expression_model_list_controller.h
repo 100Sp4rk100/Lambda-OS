@@ -25,8 +25,8 @@ class ExpressionModelListController
   ExpressionModelListController(Escher::Responder* parentResponder,
                                 I18n::Message text);
   virtual void editExpression(Ion::Events::Event event);
-  virtual bool editSelectedRecordWithLayout(Poincare::Layout layout);
-  virtual Poincare::Layout getLayoutForSelectedRecord() const;
+  virtual bool editSelectedRecordWithText(const char* text);
+  virtual void getTextForSelectedRecord(char* text, size_t size) const;
   bool handleEventOnExpression(Ion::Events::Event event,
                                bool inTemplateMenu = false);
   bool handleEventOnExpressionInTemplateMenu(Ion::Events::Event event) {
@@ -97,7 +97,7 @@ class ExpressionModelListController
   virtual int maxNumberOfDisplayableRows() const = 0;
   void finishEdition();
   bool addEmptyModel();
-  virtual bool shouldCompleteEquation(Poincare::UserExpression expression,
+  virtual bool shouldCompleteEquation(Poincare::Expression expression,
                                       CodePoint symbol) {
     return false;
   }
@@ -106,7 +106,7 @@ class ExpressionModelListController
     assert(false);
     return true;
   }
-  virtual bool isValidExpressionModel(Poincare::UserExpression expression) {
+  virtual bool isValidExpressionModel(Poincare::Expression expression) {
     return true;
   }
   virtual int numberOfRowsForRecord(Ion::Storage::Record record) const {

@@ -2,21 +2,23 @@
 #include <escher/subapp_cell.h>
 #include <kandinsky/font.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 #include <algorithm>
 
 namespace Escher {
 
 SubappCell::SubappCell() {
-  m_icon.setBackgroundColor(KDColorWhite);
+  m_icon.setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
   m_title.setFont(KDFont::Size::Large);
   m_subTitle.setFont(KDFont::Size::Small);
-  m_subTitle.setTextColor(Palette::GrayDark);
+  m_subTitle.setTextColor(Theme::ThemeGestion::getColor("GrayDark"));
 }
 
 void SubappCell::drawRect(KDContext* ctx, KDRect rect) const {
-  KDColor backColor = isHighlighted() ? Palette::Select : KDColorWhite;
+  KDColor backColor = isHighlighted() ? Theme::ThemeGestion::getColor("Select") : Theme::ThemeGestion::getColor("KDColorWhite");
   drawInnerRect(ctx, bounds(), backColor);
-  drawBorderOfRect(ctx, bounds(), Palette::GrayBright);
+  drawBorderOfRect(ctx, bounds(), Theme::ThemeGestion::getColor("GrayBright"));
 }
 
 void SubappCell::setHighlighted(bool highlighted) {

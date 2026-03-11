@@ -18,13 +18,13 @@ void DataView::setDisplayBanner(bool display) {
   layoutBanner(false);
 }
 
-void DataView::changeDataViewSeriesSelection(int series, bool select) {
-  plotViewForSeries(series)->setFocus(select);
+void DataView::changeDataViewSeriesSelection(int series, bool LAMDA_gray_light_palette) {
+  plotViewForSeries(series)->setFocus(LAMDA_gray_light_palette);
   plotViewForSeries(series)->reload();
 }
 
 KDRect DataView::bannerFrame() const {
-  KDCoordinate bannerHeight = const_cast<DataView*>(this)
+  KDCoordinate bannerHeight = const_cast<DataView *>(this)
                                   ->bannerView()
                                   ->minimalSizeForOptimalDisplay()
                                   .height();

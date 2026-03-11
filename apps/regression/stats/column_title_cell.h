@@ -3,6 +3,8 @@
 
 #include "even_odd_double_buffer_text_cell.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Regression {
 
 class ColumnTitleCell : public EvenOddDoubleBufferTextCell {
@@ -11,7 +13,7 @@ class ColumnTitleCell : public EvenOddDoubleBufferTextCell {
       : EvenOddDoubleBufferTextCell(
             parentResponder, {.style = {.font = KDFont::Size::Small},
                               .horizontalAlignment = KDGlyph::k_alignCenter}),
-        m_functionColor(Escher::Palette::Red) {}
+        m_functionColor(Theme::ThemeGestion::getColor("Red")) {}
   virtual void setColor(KDColor color);
   void drawRect(KDContext* ctx, KDRect rect) const override;
   void layoutSubviews(bool force = false) override;

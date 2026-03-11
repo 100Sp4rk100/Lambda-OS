@@ -1,6 +1,5 @@
 #include "box_controller.h"
 
-#include <apps/math_preferences.h>
 #include <poincare/print.h>
 
 #include "../app.h"
@@ -11,12 +10,12 @@ using namespace Escher;
 
 namespace Statistics {
 
-BoxController::BoxController(Responder* parentResponder,
-                             ButtonRowController* header,
-                             TabViewController* tabController,
-                             Escher::StackViewController* stackViewController,
-                             Escher::ViewController* typeViewController,
-                             Store* store)
+BoxController::BoxController(Responder *parentResponder,
+                             ButtonRowController *header,
+                             TabViewController *tabController,
+                             Escher::StackViewController *stackViewController,
+                             Escher::ViewController *typeViewController,
+                             Store *store)
     : MultipleDataViewController(parentResponder, tabController, header,
                                  stackViewController, typeViewController,
                                  store),
@@ -24,7 +23,7 @@ BoxController::BoxController(Responder* parentResponder,
       m_boxParameterController(nullptr, store, this),
       m_parameterButton(this, I18n::Message::StatisticsGraphSettings,
                         Invocation::Builder<BoxController>(
-                            [](BoxController* boxController, void* sender) {
+                            [](BoxController *boxController, void *sender) {
                               boxController->stackController()->push(
                                   boxController->boxParameterController());
                               return true;
@@ -32,10 +31,10 @@ BoxController::BoxController(Responder* parentResponder,
                             this),
                         KDFont::Size::Small) {}
 
-ButtonCell* BoxController::buttonAtIndex(
+ButtonCell *BoxController::buttonAtIndex(
     int index, ButtonRowController::Position position) const {
   return index == 0 ? GraphButtonRowDelegate::buttonAtIndex(index, position)
-                    : const_cast<SimpleButtonCell*>(&m_parameterButton);
+                    : const_cast<SimpleButtonCell *>(&m_parameterButton);
 }
 
 bool BoxController::handleEvent(Ion::Events::Event event) {
@@ -59,10 +58,9 @@ bool BoxController::reloadBannerView() {
   KDCoordinate previousHeight =
       m_view.bannerView()->minimalSizeForOptimalDisplay().height();
 
-  int precision =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+  int precision = Preferences::SharedPreferences()->numberOfSignificantDigits();
   Poincare::Preferences::PrintFloatMode displayMode =
-      MathPreferences::SharedPreferences()->displayMode();
+      Poincare::Preferences::SharedPreferences()->displayMode();
   constexpr int k_bufferSize =
       1 + Ion::Display::Width / KDFont::GlyphWidth(KDFont::Size::Small);
   char buffer[k_bufferSize] = "";
@@ -95,16 +93,16 @@ void BoxController::updateHorizontalIndexAfterSelectingNewSeries(
   int previousNumberOfLowerOutliers =
       m_store->numberOfLowerOutliers(previousSelectedSeries);
   if (selectedIndex() < previousNumberOfLowerOutliers) {
-    // Lower outliers were selected, select first lower outlier
+    // Lower outliers were selected, LAMDA_gray_light_palette first lower outlier
     resultIndex = 0;
   } else if (selectedIndex() <
              previousNumberOfLowerOutliers + Store::k_numberOfQuantiles) {
-    // Quartiles, max/min or median were selected, select same quantile
+    // Quartiles, max/min or median were selected, LAMDA_gray_light_palette same quantile
     resultIndex = selectedIndex() +
                   m_store->numberOfLowerOutliers(selectedSeries()) -
                   previousNumberOfLowerOutliers;
   } else {
-    // Upper outliers were selected, select first upper outlier
+    // Upper outliers were selected, LAMDA_gray_light_palette first upper outlier
     int numberOfUpperOutliers =
         m_store->numberOfUpperOutliers(selectedSeries());
     resultIndex = m_store->numberOfBoxPlotCalculations(selectedSeries()) -

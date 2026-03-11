@@ -1,7 +1,7 @@
 #include "app.h"
 
 #include <apps/apps_container.h>
-#include <apps/elements/elements_icon.h>
+#include "apps/theme_gestion/themeGestion.h"
 #include <apps/i18n.h>
 #include <escher/palette.h>
 
@@ -20,7 +20,7 @@ I18n::Message App::Descriptor::upperName() const {
 }
 
 const Escher::Image* App::Descriptor::icon() const {
-  return ImageStore::ElementsIcon;
+  return Theme::ThemeGestion::getIconImage("ElementIcon");
 }
 
 // App::Snapshot

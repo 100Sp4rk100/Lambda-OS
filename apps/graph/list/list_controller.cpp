@@ -4,10 +4,13 @@
 #include <apps/shared/function_name_helper.h>
 #include <assert.h>
 #include <escher/metric.h>
-#include <omg/utf8_helper.h>
-#include <poincare/code_points.h>
-#include <poincare/helpers/symbol.h>
-#include <poincare/layout.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/layout_helper.h>
+#include <poincare/matrix_layout.h>
+#include <poincare/string_layout.h>
+#include <poincare/symbol_abstract.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 #include "../app.h"
 
@@ -18,10 +21,10 @@ using namespace Poincare;
 namespace Graph {
 
 ListController::ListController(
-    Responder* parentResponder, ButtonRowController* header,
-    ButtonRowController* footer,
-    FunctionParameterController* functionParameterController,
-    DerivativeColumnParameterController* derivativeColumnParameterController)
+    Responder *parentResponder, ButtonRowController *header,
+    ButtonRowController *footer,
+    FunctionParameterController *functionParameterController,
+    DerivativeColumnParameterController *derivativeColumnParameterController)
     : Shared::FunctionListController(parentResponder, header, footer,
                                      I18n::Message::AddFunction),
       m_editableCell(this, this, &m_modelsStackController),
@@ -34,7 +37,7 @@ ListController::ListController(
 
 /* TableViewDataSource */
 
-HighlightCell* ListController::reusableCell(int index, int type) {
+HighlightCell *ListController::reusableCell(int index, int type) {
   assert(index >= 0 && index < reusableCellCount(type));
   if (type == k_editableCellType) {
     return &m_editableCell;
@@ -50,7 +53,7 @@ HighlightCell* ListController::reusableCell(int index, int type) {
 
 void ListController::viewWillAppear() {
   Shared::FunctionListController::viewWillAppear();
-  /* FunctionListcontroller::handleResponderChainEvent might not be called,
+  /* FunctionListcontroller::didEnterResponderChain might not be called,
    * (if the list tab is displayed but not selected using Back-Back)
    * therefore we also need to manually reload the table here. */
   selectableListView()->reloadData(false);
@@ -64,41 +67,41 @@ void ListController::viewDidDisappear() {
 
 // Fills buffer with a default function equation, such as "f(x)=", "y=" or
 // "r1(θ)="
-void ListController::fillWithDefaultFunctionEquation(char* buffer,
+void ListController::fillWithDefaultFunctionEquation(char *buffer,
                                                      size_t bufferSize,
                                                      CodePoint symbol) const {
   size_t length;
-  if (symbol == CodePoints::k_cartesianSymbol &&
+  if (symbol == ContinuousFunction::k_cartesianSymbol &&
       FunctionModelsParameterController::EquationsPrefered()) {
-    length = UTF8Helper::WriteCodePoint(buffer, bufferSize,
-                                        CodePoints::k_ordinateSymbol);
+    length = SerializationHelper::CodePoint(
+        buffer, bufferSize, ContinuousFunction::k_ordinateSymbol);
   } else {
     length = FunctionNameHelper::DefaultName(buffer, bufferSize, symbol);
     assert(0 < length && length < bufferSize - 1);
     length += Shared::Function::WithArgument(symbol, buffer + length,
                                              bufferSize - length);
   }
-  UTF8Helper::WriteCodePoint(buffer + length, bufferSize - length, '=');
+  SerializationHelper::CodePoint(buffer + length, bufferSize - length, '=');
 }
 
-bool ListController::shouldCompleteEquation(Poincare::UserExpression expression,
+bool ListController::shouldCompleteEquation(Poincare::Expression expression,
                                             CodePoint symbol) {
-  Dimension dimension = expression.dimension();
   /* We do not want to complete equation if expression is already an
-   * (in)equation, a point or a list of points. */
-  return !expression.isComparison() &&
-         (!dimension.isPoint() || symbol == CodePoints::k_parametricSymbol) &&
-         !dimension.isListOfPoints();
+   * (in)equation, a point or a list (of points). */
+  return expression.type() != ExpressionNode::Type::Comparison &&
+         (expression.type() != ExpressionNode::Type::Point ||
+          symbol == Symbol::k_parametricSymbol) &&
+         !expression.deepIsList(nullptr);
 }
 
-bool ListController::completeEquation(LayoutField* equationField,
+bool ListController::completeEquation(LayoutField *equationField,
                                       CodePoint symbol) {
   equationField->putCursorOnOneSide(OMG::Direction::Left());
   // Retrieve the edited function
   ExpiringPointer<ContinuousFunction> f =
       modelStore()->modelForRecord(selectedRecord());
   constexpr size_t k_bufferSize =
-      SymbolHelper::k_maxNameSize + sizeof("(θ)≥") - 1;
+      SymbolAbstractNode::k_maxNameSize + sizeof("(θ)≥") - 1;
   char buffer[k_bufferSize];
   if (f->isNull() || f->properties().status() ==
                          ContinuousFunctionProperties::Status::Undefined) {
@@ -117,7 +120,7 @@ bool ListController::completeEquation(LayoutField* equationField,
   return handled;
 }
 
-void ListController::layoutFieldDidHandleEvent(LayoutField* layoutField) {
+void ListController::layoutFieldDidHandleEvent(LayoutField *layoutField) {
   bool isVisible = m_editableCell.isTemplateButtonVisible();
   bool shouldBeVisible = m_editableCell.templateButtonShouldBeVisible();
 
@@ -130,7 +133,7 @@ void ListController::layoutFieldDidHandleEvent(LayoutField* layoutField) {
   m_editableCell.setTemplateButtonVisible(shouldBeVisible);
 }
 
-bool ListController::layoutFieldDidReceiveEvent(LayoutField* layoutField,
+bool ListController::layoutFieldDidReceiveEvent(LayoutField *layoutField,
                                                 Ion::Events::Event event) {
   assert(layoutField == this->layoutField());
   m_parameterColumnSelected = false;
@@ -158,7 +161,7 @@ bool ListController::layoutFieldDidReceiveEvent(LayoutField* layoutField,
 }
 
 void ListController::layoutFieldDidAbortEditing(
-    Escher::LayoutField* layoutField) {
+    Escher::LayoutField *layoutField) {
   assert(!m_editableCell.isTemplateButtonHighlighted());
   ExpressionModelListController::layoutFieldDidAbortEditing(layoutField);
 }
@@ -185,9 +188,9 @@ void ListController::editExpression(Ion::Events::Event event) {
   m_editableCell.setHighlighted(true);
 }
 
-bool ListController::editSelectedRecordWithLayout(Poincare::Layout layout) {
+bool ListController::editSelectedRecordWithText(const char *text) {
   GlobalContext::DeleteParametricComponentsOfRecord(selectedRecord());
-  bool result = FunctionListController::editSelectedRecordWithLayout(layout);
+  bool result = FunctionListController::editSelectedRecordWithText(text);
   GlobalContext::StoreParametricComponentsOfRecord(selectedRecord());
   return result;
 }
@@ -208,6 +211,7 @@ bool ListController::handleEvent(Ion::Events::Event event) {
   if (selectedRow() >= 0 && selectedRow() <= numberOfRows() &&
       !isAddEmptyRow(selectedRow()) && m_parameterColumnSelected &&
       (event == Ion::Events::OK || event == Ion::Events::EXE)) {
+    // Will open function parameter menu
     // Open function parameter menu
     int relativeRow;
     Ion::Storage::Record record = selectedRecord(&relativeRow);
@@ -229,7 +233,7 @@ bool ListController::handleEvent(Ion::Events::Event event) {
   return FunctionListController::handleEvent(event);
 }
 
-Shared::ListParameterController* ListController::parameterController() {
+Shared::ListParameterController *ListController::parameterController() {
   return m_functionParameterController;
 }
 
@@ -263,15 +267,15 @@ Poincare::Layout ListController::extraCellLayoutAtRow(int row) {
   assert(row < k_numberOfToolboxExtraCells);
   constexpr CodePoint codepoints[k_numberOfToolboxExtraCells] = {
       UCodePointInferiorEqual, UCodePointSuperiorEqual};
-  return Layout::CodePoint(codepoints[row]);
+  return CodePointLayout::Builder(codepoints[row]);
 }
 
-HighlightCell* ListController::functionCells(int row) {
+HighlightCell *ListController::functionCells(int row) {
   assert(row >= 0 && row < k_maxNumberOfDisplayableRows);
   return &m_expressionCells[row];
 }
 
-void ListController::fillCellForRow(HighlightCell* cell, int row) {
+void ListController::fillCellForRow(HighlightCell *cell, int row) {
   int type = typeAtRow(row);
   if (type != k_addNewModelCellType) {
     assert(type == k_expressionCellType || type == k_editableCellType);
@@ -281,7 +285,7 @@ void ListController::fillCellForRow(HighlightCell* cell, int row) {
     int derivationOrder =
         derivationOrderFromRelativeRow(f.pointer(), relativeRow);
     if (type == k_expressionCellType) {
-      FunctionCell* functionCell = static_cast<FunctionCell*>(cell);
+      FunctionCell *functionCell = static_cast<FunctionCell *>(cell);
       Layout layout;
       I18n::Message caption = I18n::Message::Default;
       bool hideMessage;
@@ -296,22 +300,22 @@ void ListController::fillCellForRow(HighlightCell* cell, int row) {
         char buffer[bufferSize];
         size_t length =
             f->nameWithArgument(buffer, bufferSize, derivationOrder);
-        layout = Layout::String(buffer, length);
+        layout = LayoutHelper::String(buffer, length);
         hideMessage = true;
       }
       functionCell->expressionCell()->setLayout(layout);
       functionCell->setMessage(caption);
       functionCell->setHideMessage(hideMessage);
-      KDColor textColor = f->isActive() ? KDColorBlack : Palette::GrayDark;
+      KDColor textColor = f->isActive() ? Theme::ThemeGestion::getColor("KDColorBlack") : Theme::ThemeGestion::getColor("GrayDark");
       functionCell->expressionCell()->setTextColor(textColor);
-      static_cast<FunctionCell*>(functionCell)
+      static_cast<FunctionCell *>(functionCell)
           ->setParameterSelected(m_parameterColumnSelected);
     }
     // f can be null if the entry was just created and is still empty.
     KDColor functionColor = (!f->isNull() && f->isActive())
                                 ? f->color(derivationOrder)
-                                : Palette::GrayDark;
-    static_cast<AbstractFunctionCell*>(cell)->setColor(functionColor);
+                                : Theme::ThemeGestion::getColor("GrayDark");
+    static_cast<AbstractFunctionCell *>(cell)->setColor(functionColor);
   }
   FunctionListController::fillCellForRow(cell, row);
 }
@@ -340,7 +344,7 @@ void ListController::addNewModelAction() {
   editExpression(Ion::Events::OK);
 }
 
-ContinuousFunctionStore* ListController::modelStore() const {
+ContinuousFunctionStore *ListController::modelStore() const {
   return App::app()->functionStore();
 }
 
@@ -349,13 +353,13 @@ int ListController::numberOfRowsForRecord(Ion::Storage::Record record) const {
   return 1 + f->displayPlotFirstDerivative() + f->displayPlotSecondDerivative();
 }
 
-int ListController::derivationOrderFromRelativeRow(ContinuousFunction* f,
+int ListController::derivationOrderFromRelativeRow(ContinuousFunction *f,
                                                    int relativeRow) const {
   return f->derivationOrderFromRelativeIndex(
       relativeRow, ContinuousFunction::DerivativeDisplayType::Plot);
 }
 
-bool ListController::isValidExpressionModel(UserExpression expression) {
+bool ListController::isValidExpressionModel(Expression expression) {
   ExpiringPointer<ContinuousFunction> f =
       modelStore()->modelForRecord(selectedRecord());
   if (FunctionNameHelper::ParametricComponentsNameError(expression,

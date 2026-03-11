@@ -14,11 +14,11 @@ class ComplexListController : public IllustratedExpressionsListController {
         m_complexGraphCell(&m_model) {}
 
   void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) override;
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) override;
 
  private:
+  constexpr static CodePoint k_symbol = 'z';
   IllustrationCell* illustrationCell() override { return &m_complexGraphCell; }
   I18n::Message messageAtIndex(int index) override;
   Poincare::Preferences::ComplexFormat complexFormToDisplay() const;

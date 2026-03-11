@@ -1,10 +1,7 @@
 #include "graph_view_model.h"
 
+#include "apps/theme_gestion/themeGestion.h"
 #include "assert.h"
-#include "box_icon.h"
-#include "cumulative_icon.h"
-#include "histogram_icon.h"
-#include "statistics_normal_icon.h"
 
 using namespace Statistics;
 
@@ -18,8 +15,8 @@ I18n::Message GraphViewModel::MessageForGraphView(GraphView graphView) {
 const Escher::Image* const GraphViewModel::ImageForGraphView(
     GraphView graphView) {
   const Escher::Image* const k_images[k_numberOfGraphViews] = {
-      ImageStore::HistogramIcon, ImageStore::BoxIcon,
-      ImageStore::CumulativeIcon, ImageStore::StatisticsNormalIcon};
+      Theme::ThemeGestion::getIconImage("HistogramIcon"), Theme::ThemeGestion::getIconImage("BoxIcon"),
+      Theme::ThemeGestion::getIconImage("CumulativeIcon"), Theme::ThemeGestion::getIconImage("StatisticsNormalIcon")};
   return k_images[IndexOfGraphView(graphView)];
 }
 

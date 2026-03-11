@@ -3,14 +3,9 @@
 
 #include <stdint.h>
 
-struct KDColorStruct {
-  uint16_t value;
-};
-
 class KDColor {
  public:
-  constexpr KDColor() : m_struct{0} {}
-  constexpr KDColor(KDColorStruct color) : m_struct{color} {}
+  constexpr KDColor() : m_value(0) {}
   // FIXME: This should not be needed, and is probably wasting CPU cycles
   constexpr static KDColor RGB16(uint16_t rgb) { return KDColor(rgb); }
   constexpr static KDColor RGB24(uint32_t rgb) {
@@ -21,23 +16,22 @@ class KDColor {
     return KDColor((r >> 3) << 11 | (g >> 2) << 5 | (b >> 3));
   }
   uint8_t red() const {
-    uint8_t r5 = (m_struct.value >> 11) & 0x1F;
+    uint8_t r5 = (m_value >> 11) & 0x1F;
     return Expand(r5, 5);
   }
 
   uint8_t green() const {
-    uint8_t g6 = (m_struct.value >> 5) & 0x3F;
+    uint8_t g6 = (m_value >> 5) & 0x3F;
     return Expand(g6, 6);
   }
 
   uint8_t blue() const {
-    uint8_t b5 = m_struct.value & 0x1F;
+    uint8_t b5 = m_value & 0x1F;
     return Expand(b5, 5);
   }
 
   static KDColor Blend(KDColor first, KDColor second, uint8_t alpha);
-  constexpr operator uint16_t() const { return m_struct.value; }
-  constexpr operator KDColorStruct() const { return {m_struct.value}; }
+  operator uint16_t() const { return m_value; }
 
   struct HSVColor {
     double H;  // Between 0.0 and 360.0 (360.0 excluded)
@@ -69,9 +63,9 @@ class KDColor {
            | (s >>
               (nBits - (8 - nBits)));  // Trick: let's try and fill the padding
   }
-  constexpr KDColor(uint16_t value) : m_struct{value} {}
+  constexpr KDColor(uint16_t value) : m_value(value) {}
 
-  KDColorStruct m_struct;
+  uint16_t m_value;
 };
 
 constexpr KDColor KDColorBlack = KDColor::RGB24(0x000000);
@@ -82,5 +76,9 @@ constexpr KDColor KDColorBlue = KDColor::RGB24(0x0000FF);
 constexpr KDColor KDColorYellow = KDColor::RGB24(0xFFFF00);
 constexpr KDColor KDColorOrange = KDColor::RGB24(0xFF9900);
 constexpr KDColor KDColorPurple = KDColor::RGB24(0xFF00DD);
+constexpr KDColor LAMDA_gray = KDColor::RGB24(0x3B3B3B);
+constexpr KDColor LAMDA_gray_light = KDColor::RGB24(0x5d5d5d);
+constexpr KDColor LAMDA_green = KDColor::RGB24(0x4AC514);
+constexpr KDColor LAMDA_green_light = KDColor::RGB24(0x66ed2a);
 
 #endif

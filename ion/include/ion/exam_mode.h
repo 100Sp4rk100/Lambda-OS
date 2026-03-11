@@ -5,13 +5,13 @@
 #include <kandinsky/color.h>
 #include <omg/bit_helper.h>
 #include <omg/code_guard.h>
-#include <stdio.h>
+
 namespace Ion {
 namespace ExamMode {
 
 using Int = ExamBytes::Int;
 
-CODE_GUARD(exam_mode_rulesets, 3405765083,  //
+CODE_GUARD(exam_mode_rulesets, 2664271436,  //
            enum class Ruleset
            : Int{
                Off = 0,
@@ -25,22 +25,8 @@ CODE_GUARD(exam_mode_rulesets, 3405765083,  //
                Pennsylvania,
                SouthCarolina,
                NorthCarolina,
-               SAT,
-               Uninitialized,
                NumberOfRulesets,
            };)
-
-// Number of exam modes (-1 for Uninitialized)
-constexpr static size_t k_numberOfModes =
-    static_cast<size_t>(Ruleset::NumberOfRulesets) - 1;
-
-// Number of active exam modes (-2 for Off and PressToTest)
-constexpr static size_t k_numberOfActiveModes = k_numberOfModes - 2;
-
-constexpr Ruleset toRuleset(Int value) {
-  assert(value < static_cast<Int>(Ruleset::NumberOfRulesets));
-  return static_cast<Ruleset>(value);
-}
 
 /* Encode exam mode permissions on a 16 bits integer.
  * The first bit "configurable" is set to 1 if "data" encodes press-to-test
@@ -64,12 +50,16 @@ class Configuration {
   constexpr static size_t k_dataSize = static_cast<size_t>(Bits::DataLast) -
                                        static_cast<size_t>(Bits::DataFirst) + 1;
 
-  static_assert(static_cast<size_t>(Ruleset::NumberOfRulesets) <= k_dataSize);
-
   explicit Configuration(Ruleset rules, Int flags = 0);
-  explicit Configuration(Int raw) : m_bits(raw) {}
+  Configuration() : Configuration(-1) {}
+  Configuration(Int raw) : m_bits(raw) {}
 
-  bool operator==(const Configuration&) const = default;
+  bool operator==(const Configuration& other) const {
+    return m_bits == other.m_bits;
+  }
+  bool operator!=(const Configuration& other) const {
+    return !(*this == other);
+  }
 
   Ruleset ruleset() const;
   Int flags() const;
@@ -84,9 +74,6 @@ class Configuration {
 
   bool configurable() const {
     return OMG::BitHelper::bitAtIndex(m_bits, Bits::Configurable);
-  }
-  bool cleared() const {
-    return OMG::BitHelper::bitAtIndex(m_bits, Bits::Cleared);
   }
   Int data() const {
     return OMG::BitHelper::bitsBetweenIndexes(m_bits, Bits::DataLast,

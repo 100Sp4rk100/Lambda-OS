@@ -20,7 +20,7 @@ class EquationModelsParameterController
   EquationModelsParameterController(Escher::Responder* parentResponder,
                                     EquationStore* equationStore,
                                     ListController* listController);
-  const char* title() const override;
+  const char* title() override;
   void viewWillAppear() override;
   bool handleEvent(Ion::Events::Event event) override;
   int numberOfRows() const override;
@@ -35,6 +35,8 @@ class EquationModelsParameterController
   constexpr static int k_emptyModelCellType = 0;
   constexpr static int k_modelCellType = 1;
   constexpr static int k_numberOfModels = 6;
+  constexpr static const char* k_models[k_numberOfModels] = {
+      "", "x+y=0", "x^2+x+1=0", "x+y+z=0", "x^3+x^2+x+1=0", "x+y+z+t=0"};
   Escher::StackViewController* stackController() const;
   constexpr static int k_numberOfExpressionCells = k_numberOfModels - 1;
   Escher::MenuCell<Escher::MessageTextView> m_emptyModelCell;

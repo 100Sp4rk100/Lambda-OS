@@ -13,8 +13,8 @@ QUIZ_CASE(omg_bit_helper) {
   BitHelper::setBitAtIndex(mask, 4, true);
   quiz_assert(BitHelper::bitAtIndex(mask, 4) == true);
   quiz_assert(BitHelper::countLeadingZeros(0x00F00000) == 8);
+  quiz_assert(BitHelper::countTrailingZeros(0x00F00000) == 20);
   quiz_assert(BitHelper::numberOfOnes(0x00F00000) == 4);
   quiz_assert(BitHelper::indexOfMostSignificantBit(0x00F00000) == 23);
-  quiz_assert(BitHelper::numberOfBitsToCountUpTo(static_cast<uint32_t>(16)) ==
-              4);
+  quiz_assert(BitHelper::numberOfBitsToCountUpTo(16) == 4);
 }

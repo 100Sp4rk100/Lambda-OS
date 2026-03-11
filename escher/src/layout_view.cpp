@@ -1,6 +1,6 @@
 #include <escher/layout_view.h>
 #include <escher/palette.h>
-#include <poincare/layout.h>
+#include <poincare/code_point_layout.h>
 
 #include <algorithm>
 
@@ -27,16 +27,16 @@ int LayoutView::numberOfLayouts() const {
 }
 
 KDSize LayoutView::minimalSizeForOptimalDisplay() const {
-  if (layout().isUninitialized()) {
+  if (m_layout.isUninitialized()) {
     return KDSizeZero;
   }
-  KDSize layoutSize = layout()->layoutSize(font(), cursor());
+  KDSize layoutSize = m_layout.layoutSize(font());
   return KDSize(layoutSize.width() + 2 * m_horizontalMargin,
                 layoutSize.height());
 }
 
 KDPoint LayoutView::drawingOrigin() const {
-  KDSize layoutSize = layout()->layoutSize(font(), cursor());
+  KDSize layoutSize = m_layout.layoutSize(font());
   return KDPoint(
       m_horizontalMargin +
           m_glyphFormat.horizontalAlignment *
@@ -47,9 +47,8 @@ KDPoint LayoutView::drawingOrigin() const {
 
 void LayoutView::drawRect(KDContext* ctx, KDRect rect) const {
   ctx->fillRect(rect, m_glyphFormat.style.backgroundColor);
-  if (!layout().isUninitialized()) {
-    layout().draw(ctx, drawingOrigin(), DefaultLayoutStyle(m_glyphFormat.style),
-                  cursor());
+  if (!m_layout.isUninitialized()) {
+    m_layout.draw(ctx, drawingOrigin(), m_glyphFormat.style, selection());
   }
 }
 

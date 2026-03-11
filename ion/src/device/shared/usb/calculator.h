@@ -3,14 +3,11 @@
 
 #include <assert.h>
 #include <config/internal_flash.h>
-#include <config/usb.h>
+#include <drivers/usb.h>
 #include <ion/usb.h>
 #include <stddef.h>
 
-#include <array>
-
 #include "dfu_interface.h"
-#include "dfu_interfaces.h"
 #include "stack/descriptor/bos_descriptor.h"
 #include "stack/descriptor/configuration_descriptor.h"
 #include "stack/descriptor/descriptor.h"
@@ -36,7 +33,7 @@ class Calculator : public Device {
       __attribute__((section(".dfu_entry_point")))
       // Make sure this symbol is not discarded at link time
       __attribute__((used));
-  Calculator(const char* serialNumber)
+  Calculator(const char* serialNumber, const char* stringDescriptor)
       : Device(&m_dfuInterface),
         m_deviceDescriptor(
             0x0210, /* bcdUSB: USB Specification Number which the device
@@ -46,8 +43,8 @@ class Calculator : public Device {
             0,   // bDeviceSUBClass: The subclass is defined by the interface.
             0,   // bDeviceProtocol: The protocol is defined by the interface.
             64,  // bMaxPacketSize0: Maximum packet size for endpoint 0
-            0x0483,             // idVendor: STMicroelectronics
-            Config::PID,        // idProduct
+            0x0483,             // idVendor
+            0xA291,             // idProduct
             Config::BCDDevice,  // bcdDevice: Device Release Number
             1,   /* iManufacturer: Index of the manufacturer name string, see
                   * m_descriptor */
@@ -73,10 +70,34 @@ class Calculator : public Device {
             2048, /* wTransferSize: Maximum number of bytes that the device can
                    * accept per control-write transaction */
             0x0100),  // bcdDFUVersion
+        m_interfaceFlashDescriptor(
+            0,                                    // bInterfaceNumber
+            k_dfuFlashInterfaceAlternateSetting,  // bAlternateSetting
+            0,    // bNumEndpoints: Other than endpoint 0
+            0xFE, /* bInterfaceClass: DFU
+                   * (https://www.usb.org/defined-class-codes) */
+            1,    // bInterfaceSubClass: DFU
+            2,  /* bInterfaceProtocol: DFU Mode (not DFU Runtime, which would be
+                 * 1) */
+            4,  // iInterface: Index of the Interface string, see m_descriptor
+            &m_interfaceSRAMDescriptor),
+        m_interfaceSRAMDescriptor(
+            0,                                   // bInterfaceNumber
+            k_dfuSRAMInterfaceAlternateSetting,  // bAlternateSetting
+            0,    // bNumEndpoints: Other than endpoint 0
+            0xFE, /* bInterfaceClass: DFU
+                   * (http://www.usb.org/developers/defined_class) */
+            1,    // bInterfaceSubClass: DFU
+            2,  /* bInterfaceProtocol: DFU Mode (not DFU Runtime, which would be
+                 * 1) */
+            5,  // iInterface: Index of the Interface string, see m_descriptor
+            &m_dfuFunctionalDescriptor),
         m_configurationDescriptor(
             // wTotalLength
             m_configurationDescriptor.BLength() +
-                interfaceDescriptorsTotalLength(),
+                m_interfaceFlashDescriptor.BLength() +
+                m_interfaceSRAMDescriptor.BLength() +
+                m_dfuFunctionalDescriptor.BLength(),
             1,                      // bNumInterfaces
             k_bConfigurationValue,  // bConfigurationValue
             0,     // iConfiguration: No string descriptor for the configuration
@@ -87,7 +108,7 @@ class Calculator : public Device {
                     *        when the host is in suspend)
                     * Bit 4..0: Reserved, set to 0 */
             0x32,  // bMaxPower: half of the Maximum Power Consumption
-            firstInterfaceDescriptor()),
+            &m_interfaceFlashDescriptor),
         m_webUSBPlatformDescriptor(k_webUSBVendorCode,
                                    k_webUSBLandingPageIndex),
         m_bosDescriptor(
@@ -96,24 +117,29 @@ class Calculator : public Device {
             1,  // bNumDeviceCapabilities
             &m_webUSBPlatformDescriptor),
         m_manufacturerStringDescriptor("NumWorks"),
-        m_productStringDescriptor(Config::ProductString),
+        m_productStringDescriptor("NumWorks Calculator"),
         m_serialNumberStringDescriptor(serialNumber),
+        m_interfaceFlashStringDescriptor(stringDescriptor),
+        // See note at the end of the file
+        m_interfaceSRAMStringDescriptor(Config::InterfaceSRAMStringDescriptor),
         m_microsoftOSStringDescriptor(k_microsoftOSVendorCode),
         m_workshopURLDescriptor(URLDescriptor::Scheme::HTTPS,
                                 "my.numworks.com"),
         m_extendedCompatIdDescriptor("WINUSB"),
-        m_descriptors{makeDescriptorList(
+        m_descriptors{
             &m_deviceDescriptor,              // Type = Device, Index = 0
             &m_configurationDescriptor,       // Type = Configuration, Index = 0
             &m_languageStringDescriptor,      // Type = String, Index = 0
             &m_manufacturerStringDescriptor,  // Type = String, Index = 1
             &m_productStringDescriptor,       // Type = String, Index = 2
             &m_serialNumberStringDescriptor,  // Type = String, Index = 3
-            &m_bosDescriptor                  // Type = BOS, Index = 0
-            )},
+            &m_interfaceFlashStringDescriptor,  // Type = String, Index = 4
+            &m_interfaceSRAMStringDescriptor,   // Type = String, Index = 5
+            &m_bosDescriptor                    // Type = BOS, Index = 0
+        },
         m_dfuInterface(this, &m_ep0, k_dfuFlashInterfaceAlternateSetting) {}
   void leave(uint32_t leaveAddress) override;
-  uint32_t addressPointer() const { return m_dfuInterface.leaveAddress(); }
+  uint32_t addressPointer() const { return m_dfuInterface.addressPointer(); }
   bool isErasingAndWriting() const {
     return m_dfuInterface.isErasingAndWriting();
   }
@@ -136,14 +162,6 @@ class Calculator : public Device {
   constexpr static uint8_t k_webUSBLandingPageIndex = 1;
   constexpr static uint8_t k_microsoftOSVendorCode = 2;
 
-  constexpr static size_t k_numberOfDescriptors = 7;
-  using DescriptorList = std::array<Descriptor*, k_numberOfDescriptors>;
-
-  constexpr static DescriptorList makeDescriptorList(auto&&... descriptors) {
-    static_assert(sizeof...(descriptors) == k_numberOfDescriptors);
-    return DescriptorList{descriptors...};
-  }
-
   // WebUSB and MicrosoftOSDescriptor commands
   bool getURLCommand(uint8_t* transferBuffer, uint16_t* transferBufferLength,
                      uint16_t transferBufferMaxLength);
@@ -154,6 +172,8 @@ class Calculator : public Device {
   // Descriptors
   DeviceDescriptor m_deviceDescriptor;
   DFUFunctionalDescriptor m_dfuFunctionalDescriptor;
+  InterfaceDescriptor m_interfaceFlashDescriptor;
+  InterfaceDescriptor m_interfaceSRAMDescriptor;
   ConfigurationDescriptor m_configurationDescriptor;
   WebUSBPlatformDescriptor m_webUSBPlatformDescriptor;
   BOSDescriptor m_bosDescriptor;
@@ -161,11 +181,13 @@ class Calculator : public Device {
   StringDescriptor m_manufacturerStringDescriptor;
   StringDescriptor m_productStringDescriptor;
   StringDescriptor m_serialNumberStringDescriptor;
+  StringDescriptor m_interfaceFlashStringDescriptor;
+  StringDescriptor m_interfaceSRAMStringDescriptor;
   MicrosoftOSStringDescriptor m_microsoftOSStringDescriptor;
   URLDescriptor m_workshopURLDescriptor;
   ExtendedCompatIDDescriptor m_extendedCompatIdDescriptor;
 
-  DescriptorList m_descriptors;
+  Descriptor* m_descriptors[9];
   /* m_descriptors contains only descriptors that sould be returned via the
    * method descriptor(uint8_t type, uint8_t index), so do not count descriptors
    * included in other descriptors or returned by other functions. */
@@ -190,8 +212,7 @@ class Calculator : public Device {
  * ● 1 digit for the sector type as follows:
  * – a (0x41): Readable
  * – b (0x42): Erasable
- * – c (0x43): Readable and Erasable
- * - d (0x44): Writeable
+ * – c (0x43): Readable and Erasabled (0x44): Writeable
  * – e (0x45): Readable and Writeable
  * – f (0x46): Erasable and Writeable
  * – g (0x47): Readable, Erasable and Writeable

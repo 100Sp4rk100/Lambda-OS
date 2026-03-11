@@ -1,7 +1,6 @@
-#include <assert.h>
 #include <quiz.h>
 #include <stddef.h>
-
+#include <assert.h>
 #include "helpers.h"
 
 QUIZ_CASE(liba_stddef) {

@@ -76,13 +76,13 @@ void PyplotPolicy::traceSegment(const AbstractPlotView* plotView,
 void PyplotPolicy::traceRect(const AbstractPlotView* plotView, KDContext* ctx,
                              KDRect r, PlotStore::Rect rect) const {
   KDCoordinate left = plotView->floatToKDCoordinatePixel(
-      OMG::Axis::Horizontal, rect.left());
+      AbstractPlotView::Axis::Horizontal, rect.left());
   KDCoordinate right = plotView->floatToKDCoordinatePixel(
-      OMG::Axis::Horizontal, rect.right());
+      AbstractPlotView::Axis::Horizontal, rect.right());
   KDCoordinate top = plotView->floatToKDCoordinatePixel(
-      OMG::Axis::Vertical, rect.top());
+      AbstractPlotView::Axis::Vertical, rect.top());
   KDCoordinate bottom = plotView->floatToKDCoordinatePixel(
-      OMG::Axis::Vertical, rect.bottom());
+      AbstractPlotView::Axis::Vertical, rect.bottom());
   KDRect pixelRect(
       left, top,
       std::max(right - left, 1),  // Rectangle should at least be visible

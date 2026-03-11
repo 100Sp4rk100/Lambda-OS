@@ -10,8 +10,6 @@ class GoToParameterController : public Shared::FunctionGoToParameterController {
   using Shared::FunctionGoToParameterController::
       FunctionGoToParameterController;
 
-  void setRecord(Ion::Storage::Record record);
-
  private:
   bool setParameterAtIndex(int parameterIndex, double f) override;
 };

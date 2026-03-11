@@ -4,38 +4,26 @@
 #include <kandinsky/coordinate.h>
 #include <kandinsky/point.h>
 
-struct KD1DMarginsStruct {
-  KDCoordinate firstMargin;
-  KDCoordinate secondMargin;
-};
-
-struct KDMarginsStruct {
-  KD1DMarginsStruct horizontal;
-  KD1DMarginsStruct vertical;
-};
-
 class KD1DMargins {
  public:
   constexpr KD1DMargins(KDCoordinate firstMargin, KDCoordinate secondMargin)
-      : m_struct{firstMargin, secondMargin} {}
-  constexpr KD1DMargins(KD1DMarginsStruct margins) : m_struct{margins} {}
-  constexpr KD1DMargins() : m_struct{0, 0} {}
-
-  constexpr operator KD1DMarginsStruct() const { return m_struct; }
+      : m_firstMargin(firstMargin), m_secondMargin(secondMargin) {}
+  constexpr KD1DMargins() : m_firstMargin(0), m_secondMargin(0) {}
 
  protected:
-  constexpr KDCoordinate firstMargin() const { return m_struct.firstMargin; }
-  constexpr KDCoordinate secondMargin() const { return m_struct.secondMargin; }
+  constexpr KDCoordinate firstMargin() const { return m_firstMargin; }
+  constexpr KDCoordinate secondMargin() const { return m_secondMargin; }
 
-  void setFirstMargin(KDCoordinate m) { m_struct.firstMargin = m; }
-  void setSecondMargin(KDCoordinate m) { m_struct.secondMargin = m; }
+  void setFirstMargin(KDCoordinate m) { m_firstMargin = m; }
+  void setSecondMargin(KDCoordinate m) { m_secondMargin = m; }
 
   constexpr KDCoordinate total() const {
-    return firstMargin() + secondMargin();
+    return m_firstMargin + m_secondMargin;
   }
 
  private:
-  KD1DMarginsStruct m_struct;
+  KDCoordinate m_firstMargin;
+  KDCoordinate m_secondMargin;
 };
 
 // KDHorizontalMargins(left, right)
@@ -44,12 +32,8 @@ class KDHorizontalMargins : public KD1DMargins {
  public:
   using KD1DMargins::KD1DMargins;
 
-  constexpr bool operator==(const KDHorizontalMargins& other) const {
+  constexpr bool operator==(const KDHorizontalMargins& other) {
     return other.left() == left() && other.right() == right();
-  }
-
-  constexpr operator KDMarginsStruct() const {
-    return {{left(), right()}, {0, 0}};
   }
 
   constexpr KDCoordinate left() const { return firstMargin(); }
@@ -67,12 +51,8 @@ class KDVerticalMargins : public KD1DMargins {
  public:
   using KD1DMargins::KD1DMargins;
 
-  constexpr bool operator==(const KDVerticalMargins& other) const {
+  constexpr bool operator==(const KDVerticalMargins& other) {
     return other.top() == top() && other.bottom() == bottom();
-  }
-
-  constexpr operator KDMarginsStruct() const {
-    return {{0, 0}, {top(), bottom()}};
   }
 
   constexpr KDCoordinate top() const { return firstMargin(); }
@@ -100,18 +80,13 @@ class KDMargins : public KDHorizontalMargins, public KDVerticalMargins {
       : KDHorizontalMargins(margin, margin),
         KDVerticalMargins(margin, margin) {}
   constexpr KDMargins() : KDHorizontalMargins(), KDVerticalMargins() {}
-  constexpr KDMargins(KDMarginsStruct margins)
-      : KDMargins(margins.horizontal, margins.vertical) {}
 
-  constexpr bool operator==(const KDMargins& other) const {
+  constexpr bool operator==(const KDMargins& other) {
     return other.horizontal() == horizontal() && other.vertical() == vertical();
   }
   // Unary minus
   constexpr KDMargins operator-() const {
     return KDMargins(-left(), -right(), -top(), -bottom());
-  }
-  constexpr operator KDMarginsStruct() const {
-    return {horizontal(), vertical()};
   }
 
   constexpr KDHorizontalMargins horizontal() const { return *this; }

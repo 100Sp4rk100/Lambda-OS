@@ -4,6 +4,8 @@
 #include <escher/palette.h>
 #include <poincare/print_float.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 EditableExpressionCell::EditableExpressionCell(
@@ -16,7 +18,7 @@ EditableExpressionCell::EditableExpressionCell(
 }
 
 void EditableExpressionCell::drawRect(KDContext* ctx, KDRect rect) const {
-  drawBorderOfRect(ctx, bounds(), Palette::GrayBright);
+  drawBorderOfRect(ctx, bounds(), Theme::ThemeGestion::getColor("GrayBright"));
 }
 
 void EditableExpressionCell::setHighlighted(bool highlight) {
@@ -29,13 +31,8 @@ void EditableExpressionCell::layoutSubviews(bool force) {
                 force);
 }
 
-void EditableExpressionCell::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(&m_layoutField);
-  } else {
-    Responder::handleResponderChainEvent(event);
-  }
+void EditableExpressionCell::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(&m_layoutField);
 }
 
 KDSize EditableExpressionCell::minimalSizeForOptimalDisplay() const {

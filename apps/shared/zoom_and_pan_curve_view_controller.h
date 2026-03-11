@@ -1,7 +1,6 @@
 #ifndef SHARED_ZOOM_AND_PAN_CURVE_VIEW_CONTROLLER_H
 #define SHARED_ZOOM_AND_PAN_CURVE_VIEW_CONTROLLER_H
 
-#include "poincare_helpers.h"
 #include "zoom_curve_view_controller.h"
 
 namespace Shared {
@@ -17,12 +16,8 @@ class ZoomAndPanCurveViewController : public ZoomCurveViewController {
 
  protected:
   bool handlePan(Ion::Events::Event event);
-  virtual float xMove() {
-    return PoincareHelpers::ToFloat(interactiveCurveViewRange()->xGridUnit());
-  }
-  virtual float yMove() {
-    return PoincareHelpers::ToFloat(interactiveCurveViewRange()->yGridUnit());
-  }
+  virtual float xMove() { return interactiveCurveViewRange()->xGridUnit(); }
+  virtual float yMove() { return interactiveCurveViewRange()->yGridUnit(); }
   float xFocus() override { return interactiveCurveViewRange()->xCenter(); }
   float yFocus() override { return interactiveCurveViewRange()->yCenter(); }
 };

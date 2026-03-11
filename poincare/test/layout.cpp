@@ -1,146 +1,191 @@
-#include <ion/display.h>
-#include <omg/unicode_helper.h>
-#include <poincare/src/expression/k_tree.h>
-#include <poincare/src/layout/grid.h>
-#include <poincare/src/layout/k_tree.h>
-#include <poincare/src/layout/layout_serializer.h>
-#include <poincare/src/layout/layout_span_decoder.h>
-#include <poincare/src/layout/layouter.h>
-#include <poincare/src/layout/multiplication_symbol.h>
-#include <poincare/src/layout/rack_layout_decoder.h>
-#include <poincare/src/layout/render.h>
+#include <poincare_layouts.h>
 
 #include "helper.h"
 
-using namespace Poincare::Internal;
+using namespace Poincare;
 
-void assert_expression_layouts_as(const Tree* expression, const Tree* layout,
-                                  bool linearMode = false,
-                                  bool compactMode = false,
-                                  int numberOfSignificantDigits = -1,
-                                  Preferences::PrintFloatMode floatMode =
-                                      Preferences::PrintFloatMode::Decimal,
-                                  OMG::Base base = OMG::Base::Decimal) {
-  Tree* l = Layouter::LayoutExpression(expression->cloneTree(), linearMode,
-                                       compactMode, numberOfSignificantDigits,
-                                       floatMode, base);
-  assert_trees_are_equal(l, layout);
-  l->removeTree();
+QUIZ_CASE(poincare_layout_constructors) {
+  HorizontalLayout e0 = HorizontalLayout::Builder();
+  AbsoluteValueLayout e1 = AbsoluteValueLayout::Builder(e0);
+  CodePointLayout e2 = CodePointLayout::Builder('a');
+  BinomialCoefficientLayout e3 = BinomialCoefficientLayout::Builder(e1, e2);
+  CeilingLayout e4 = CeilingLayout::Builder(e3);
+  ParenthesisLayout e5 = ParenthesisLayout::Builder();
+  CondensedSumLayout e7 = CondensedSumLayout::Builder(e4, e5, e3);
+  ConjugateLayout e8 = ConjugateLayout::Builder(e7);
+  CurlyBraceLayout e10 = CurlyBraceLayout::Builder();
+  FloorLayout e11 = FloorLayout::Builder(e10);
+  FractionLayout e12 = FractionLayout::Builder(e8, e11);
+  HorizontalLayout e13 = HorizontalLayout::Builder();
+  IntegralLayout e15 = IntegralLayout::Builder(e11, e12, e13, e10);
+  NthRootLayout e16 = NthRootLayout::Builder(e15);
+  MatrixLayout e17 = MatrixLayout::Builder();
+  HorizontalLayout e18 = HorizontalLayout::Builder();
+  HorizontalLayout e19 = HorizontalLayout::Builder();
+  HorizontalLayout e20 = HorizontalLayout::Builder();
+  ProductLayout e21 = ProductLayout::Builder(e17, e18, e19, e20);
+  HorizontalLayout e22 = HorizontalLayout::Builder();
+  HorizontalLayout e23 = HorizontalLayout::Builder();
+  HorizontalLayout e24 = HorizontalLayout::Builder();
+  SumLayout e25 = SumLayout::Builder(e21, e22, e23, e24);
+  VerticalOffsetLayout e26 = VerticalOffsetLayout::Builder(
+      e25, VerticalOffsetLayoutNode::VerticalPosition::Superscript);
+  CodePointLayout e27 = CodePointLayout::Builder('t');
+  FirstOrderDerivativeLayout e28 =
+      FirstOrderDerivativeLayout::Builder(e15, e27, e26);
+  HigherOrderDerivativeLayout e29 =
+      HigherOrderDerivativeLayout::Builder(e15, e27, e26, e21);
+  Layout e30 = LayoutHelper::String("Hé");
+  PiecewiseOperatorLayout e31 = PiecewiseOperatorLayout::Builder();
 }
 
-QUIZ_CASE(pcj_expression_to_layout) {
-  assert_expression_layouts_as(KAdd(1_e, 2_e, 3_e), "1+2+3"_l);
-  assert_expression_layouts_as(KSub(KAdd(1_e, 2_e), 3_e), "1+2-3"_l);
-  assert_expression_layouts_as(KSub(1_e, KAdd(2_e, 3_e)),
-                               "1-"_l ^ KParenthesesL("2+3"_l));
-  assert_expression_layouts_as(
-      KPow(KAdd("x"_e, "y"_e), 2_e),
-      KRackL(KParenthesesL("x+y"_l), KSuperscriptL("2"_l)));
-  assert_expression_layouts_as(
-      KPow(KMult("x"_e, "y"_e), 2_e),
-      KRackL(KParenthesesL("x·y"_l), KSuperscriptL("2"_l)));
-  assert_expression_layouts_as(KAdd(KMixedFraction(2_e, KDiv(1_e, 3_e)), 4_e),
-                               "2 1/3+4"_l, true);
-  // 12 345 - 54 321
-  const Tree* expected = "12"_l ^ KThousandsSeparatorL ^ "345"_l ^
-                         KOperatorSeparatorL ^ "-"_l ^ KOperatorSeparatorL ^
-                         "54"_l ^ KThousandsSeparatorL ^ "321"_l;
-  assert_expression_layouts_as(KAdd(12345_e, KOpposite(54321_e)), expected,
-                               false);
-  assert_expression_layouts_as(KAdd(12345_de, -54321_de), expected, false);
+QUIZ_CASE(poincare_layout_comparison) {
+  Layout e0 = CodePointLayout::Builder('a');
+  Layout e1 = CodePointLayout::Builder('a');
+  Layout e2 = CodePointLayout::Builder('b');
+  quiz_assert(e0.isIdenticalTo(e1));
+  quiz_assert(!e0.isIdenticalTo(e2));
 
-  assert_expression_layouts_as(9_e, "0b1001"_l, false, false, -1,
-                               Preferences::PrintFloatMode::Decimal,
-                               OMG::Base::Binary);
-  assert_expression_layouts_as(54321_e, "0b1101010000110001"_l, false, false,
-                               -1, Preferences::PrintFloatMode::Decimal,
-                               OMG::Base::Binary);
-  assert_expression_layouts_as(54321_e, "0xD431"_l, false, false, -1,
-                               Preferences::PrintFloatMode::Decimal,
-                               OMG::Base::Hexadecimal);
-  assert_expression_layouts_as(-123_e, "-123"_l, false, false, -1,
-                               Preferences::PrintFloatMode::Decimal,
-                               OMG::Base::Decimal);
-  assert_expression_layouts_as(KAdd("x"_e, KOpposite(KAdd("y"_e, "z"_e))),
-                               "x-"_l ^ KParenthesesL("y+z"_l));
-  assert_expression_layouts_as(KListSlice("L"_e, 2_e, 3_e),
-                               "L"_l ^ KParenthesesL("2,3"_l));
+  Layout e3 = HorizontalLayout::Builder();
+  Layout e4 = HorizontalLayout::Builder();
+  quiz_assert(e3.isIdenticalTo(e4));
+  quiz_assert(!e3.isIdenticalTo(e0));
 
-  assert_expression_layouts_as(KMult(KAdd(π_e, 1_e), KLogBase(7_e, 3_e)),
-                               KParenthesesL("π+1"_l) ^ "log"_l ^
-                                   KSubscriptL("3"_l) ^ KParenthesesL("7"_l));
+  Layout e5 = NthRootLayout::Builder(e0);
+  Layout e6 = NthRootLayout::Builder(e1);
+  Layout e7 = NthRootLayout::Builder(e2);
+  quiz_assert(e5.isIdenticalTo(e6));
+  quiz_assert(!e5.isIdenticalTo(e7));
+  quiz_assert(!e5.isIdenticalTo(e0));
 
-  Poincare::Preferences::SharedPreferences()->setLogarithmBasePosition(
-      Poincare::Preferences::LogarithmBasePosition::TopLeft);
-  assert_expression_layouts_as(KMult(KAdd(π_e, 1_e), KLogBase(7_e, 3_e)),
-                               KParenthesesL("π+1"_l) ^ "·"_l ^
-                                   KPrefixSuperscriptL("3"_l) ^ "log"_l ^
-                                   KParenthesesL("7"_l));
-  Poincare::Preferences::SharedPreferences()->setLogarithmBasePosition(
-      Poincare::Preferences::LogarithmBasePosition::BottomRight);
+  Layout e8 = VerticalOffsetLayout::Builder(
+      e5, VerticalOffsetLayoutNode::VerticalPosition::Superscript);
+  Layout e9 = VerticalOffsetLayout::Builder(
+      e6, VerticalOffsetLayoutNode::VerticalPosition::Superscript);
+  Layout e10 = VerticalOffsetLayout::Builder(
+      NthRootLayout::Builder(CodePointLayout::Builder('a')),
+      VerticalOffsetLayoutNode::VerticalPosition::Subscript);
+  quiz_assert(e8.isIdenticalTo(e9));
+  quiz_assert(!e8.isIdenticalTo(e10));
+  quiz_assert(!e8.isIdenticalTo(e0));
+
+  Layout e11 = SumLayout::Builder(e0, e3, e6, e2);
+  Layout e12 = SumLayout::Builder(
+      CodePointLayout::Builder('a'), HorizontalLayout::Builder(),
+      NthRootLayout::Builder(CodePointLayout::Builder('a')),
+      CodePointLayout::Builder('b'));
+  Layout e13 = ProductLayout::Builder(
+      CodePointLayout::Builder('a'), HorizontalLayout::Builder(),
+      NthRootLayout::Builder(CodePointLayout::Builder('a')),
+      CodePointLayout::Builder('b'));
+  quiz_assert(e11.isIdenticalTo(e12));
+  quiz_assert(!e11.isIdenticalTo(e13));
 }
 
-QUIZ_CASE(pcj_layout_decoder) {
-  const Tree* l = "123"_l;
-  CPLayoutDecoder d(l->child(0), 0, 3);
-  quiz_assert(d.nextCodePoint() == '1');
-  quiz_assert(d.nextCodePoint() == '2');
-  quiz_assert(d.nextCodePoint() == '3');
-  quiz_assert(d.nextCodePoint() == 0);
+QUIZ_CASE(poincare_layout_fraction_create) {
+  /*                         12
+   * 12|34+5 -> "Divide" -> --- + 5
+   *                        |34
+   * */
+  Layout layout = LayoutHelper::StringToCodePointsLayout("1234+5", 6);
+  LayoutCursor cursor(layout);
+  cursor.safeSetPosition(2);
+  cursor.addFractionLayoutAndCollapseSiblings(nullptr);
+  assert_layout_serializes_to(layout,
+                              "\u0012\u001212\u0013/\u001234\u0013\u0013+5");
+  quiz_assert(cursor.layout() == layout.childAtIndex(0).childAtIndex(1) &&
+              cursor.position() == 0);
+
+  /*                     |
+   * |34+5 -> "Divide" -> --- + 5
+   *                      34
+   * */
+  Layout lHalfEmptyFraction = LayoutHelper::StringToCodePointsLayout("34+5", 6);
+  LayoutCursor fractionCursor(lHalfEmptyFraction, OMG::Direction::Left());
+  fractionCursor.addFractionLayoutAndCollapseSiblings(nullptr);
+  assert_layout_serializes_to(lHalfEmptyFraction,
+                              "\u0012\u0012\u0013/\u001234\u0013\u0013+5");
+  quiz_assert(fractionCursor.layout() ==
+                  lHalfEmptyFraction.childAtIndex(0).childAtIndex(0) &&
+              fractionCursor.position() == 0);
+
+  /*
+   *  1                      1   3
+   * --- 3|4 -> "Divide" -> --- ---
+   *  2                      2  |4
+   * */
+  Layout l1 = HorizontalLayout::Builder(
+      FractionLayout::Builder(
+          HorizontalLayout::Builder(CodePointLayout::Builder('1')),
+          HorizontalLayout::Builder(CodePointLayout::Builder('2'))),
+      CodePointLayout::Builder('3'), CodePointLayout::Builder('4'));
+  LayoutCursor c1(l1);
+  c1.safeSetPosition(2);
+  c1.addFractionLayoutAndCollapseSiblings(nullptr);
+  assert_layout_serializes_to(
+      l1,
+      "\u0012\u00121\u0013/\u00122\u0013\u0013\u0012\u00123\u0013/"
+      "\u00124\u0013\u0013");
+  quiz_assert(c1.layout() == l1.childAtIndex(1).childAtIndex(1) &&
+              cursor.position() == 0);
+
+  /*
+   *                                sin(x)cos(x)
+   * sin(x)cos(x)|2 -> "Divide" -> --------------
+   *                                    |2
+   * */
+  Layout l2 = LayoutHelper::StringToCodePointsLayout("sin(x)cos(x)2", 13);
+  LayoutCursor c2(l2);
+  c2.safeSetPosition(l2.numberOfChildren() - 1);
+  c2.addFractionLayoutAndCollapseSiblings(nullptr);
+  assert_layout_serializes_to(
+      l2, "\u0012\u0012sin(x)cos(x)\u0013/\u00122\u0013\u0013");
+  quiz_assert(c2.layout() == l2.childAtIndex(0).childAtIndex(1) &&
+              cursor.position() == 0);
 }
 
-QUIZ_CASE(pcj_omg_code_point) {
-  LayoutSpan l(MakeSpan(Rack::From("123"_l)));
-  quiz_assert(CodePointSearch(l, '2') == 1);
-  quiz_assert(CodePointSearch(l, '4') == l.size());
-}
+QUIZ_CASE(poincare_layout_power) {
+  /*
+   *                      2|
+   * 12| -> "Square" -> 12 |
+   *
+   * */
+  Layout l1 = LayoutHelper::StringToCodePointsLayout("12", 2);
+  LayoutCursor c1(l1, OMG::Direction::Right());
+  c1.addEmptySquarePowerLayout(nullptr);
+  assert_layout_serializes_to(l1, "12^\u00122\u0013");
+  quiz_assert(c1.layout() == l1 && c1.position() == l1.numberOfChildren());
 
-#if 0
-QUIZ _CASE(pcj_layout_render) {
-  KDContext* ctx = Ion::Display::Context::SharedContext;
-  // TODO layoutCursor is nullptr and expected
-  Layout l = Layout(
-      KRackL("1+"_l,
-             KParenthesesL(KRackL(
-                 "2×"_l, KParenthesesL(KRackL("1+"_l, KFracL("1"_l, "2"_l))))),
-             /*KSuperscriptL("2"_l),*/ "-2"_l));
-  l.draw(ctx, KDPoint(10, 100), KDFont::Size::Large);
-}
-#endif
+  /*                        2|
+   *  2|                ( 2) |
+   * 1 | -> "Square" -> (1 ) |
+   *
+   * */
+  Layout l2 = HorizontalLayout::Builder(
+      CodePointLayout::Builder('1'),
+      VerticalOffsetLayout::Builder(
+          CodePointLayout::Builder('2'),
+          VerticalOffsetLayoutNode::VerticalPosition::Superscript));
+  LayoutCursor c2(l2.childAtIndex(1), OMG::Direction::Right());
+  c2.addEmptySquarePowerLayout(nullptr);
+  assert_layout_serializes_to(l2, "(1^\u00122\u0013)^\u00122\u0013");
+  quiz_assert(c2.layout() == l2 && c2.position() == l2.numberOfChildren());
 
-QUIZ_CASE(pcj_layout_multiplication_symbol) {
-  quiz_assert(MultiplicationSymbol(KMult(2_e, 3_e), false) == u'×');
-  quiz_assert(MultiplicationSymbol(KMult(2_e, "a"_e), false) == UCodePointNull);
-  quiz_assert(MultiplicationSymbol(KMult(2_e, KCos(π_e), KSqrt(2_e)), false) ==
-              u'·');
-}
-
-QUIZ_CASE(pcj_k_matrix_l) {
-  const Grid* mat = Grid::From(KMatrix1x1L("a"_l));
-  quiz_assert(mat->numberOfColumns() == 2);
-  quiz_assert(mat->numberOfRows() == 2);
-  quiz_assert(mat->childAt(0, 0)->treeIsIdenticalTo("a"_l));
-
-  mat = Grid::From(KMatrix2x2L("a"_l, "b"_l, "c"_l, "d"_l));
-  quiz_assert(mat->numberOfColumns() == 3);
-  quiz_assert(mat->numberOfRows() == 3);
-  quiz_assert(mat->childAt(1, 1)->treeIsIdenticalTo("d"_l));
-}
-
-void assert_layout_serializes_as(const Tree* layout,
-                                 const char* serialization) {
-  constexpr size_t bufferSize = 256;
-  char buffer[bufferSize];
-  LayoutSerializer::Serialize(layout, buffer);
-  remove_system_codepoints(buffer);
-  quiz_assert(strcmp(buffer, serialization) == 0);
-}
-
-QUIZ_CASE(pcj_layout_serialization) {
-  assert_layout_serializes_as(KRackL(KAbsL("42log"_l ^ KSubscriptL("123"_l) ^
-                                           KParenthesesLeftTempL("x"_l))),
-                              "abs(42log(x,123))");
-  assert_layout_serializes_as("1+"_l ^ KPrefixSuperscriptL("abc"_l) ^ "log"_l ^
-                                  KParenthesesLeftTempL("x"_l),
-                              "1+log(x,abc)");
+  /*                             (    2|)
+   * ( 2)|                       (( 2) |)
+   * (1 )| -> "Left" "Square" -> ((1 ) |)
+   * */
+  Layout l3 = HorizontalLayout::Builder(
+      ParenthesisLayout::Builder(HorizontalLayout::Builder(
+          CodePointLayout::Builder('1'),
+          VerticalOffsetLayout::Builder(
+              CodePointLayout::Builder('2'),
+              VerticalOffsetLayoutNode::VerticalPosition::Superscript))));
+  LayoutCursor c3(l3, OMG::Direction::Right());
+  bool dummy;
+  c3.move(OMG::Direction::Left(), false, &dummy);
+  c3.addEmptySquarePowerLayout(nullptr);
+  assert_layout_serializes_to(l3, "((1^\u00122\u0013)^\u00122\u0013)");
+  quiz_assert(c3.layout() == l3.childAtIndex(0).childAtIndex(0) &&
+              c3.position() == c3.layout().numberOfChildren());
 }

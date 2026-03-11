@@ -1,6 +1,5 @@
 #include "function_graph_view.h"
 
-#include <apps/shared/global_context.h>
 #include <assert.h>
 #include <float.h>
 #include <poincare/circuit_breaker_checkpoint.h>
@@ -45,10 +44,7 @@ void FunctionGraphPolicy::drawPlot(const AbstractPlotView* plotView,
     } else {
       setFunctionInterrupted(index);
       tidyModel(index, checkpoint.endOfPoolBeforeCheckpoint());
-      functionStore()->tidyDownstreamPoolFrom(
-          checkpoint.endOfPoolBeforeCheckpoint());
-      GlobalContext::s_sequenceStore->tidyDownstreamPoolFrom(
-          checkpoint.endOfPoolBeforeCheckpoint());
+      m_context->tidyDownstreamPoolFrom(checkpoint.endOfPoolBeforeCheckpoint());
     }
     firstDrawnRecord = false;
   }
@@ -97,12 +93,11 @@ FunctionGraphView::FunctionGraphView(InteractiveCurveViewRange* range,
   m_cursorView = cursorView;
 }
 
-void FunctionGraphView::reload(bool resetInterrupted, bool force,
-                               bool forceRedrawAxes) {
+void FunctionGraphView::reload(bool resetInterrupted, bool force) {
   if (force || resetInterrupted) {
     resetInterruption();
   }
-  AbstractPlotView::reload(resetInterrupted, force, forceRedrawAxes);
+  AbstractPlotView::reload(resetInterrupted, force);
 }
 
 void FunctionGraphView::selectRecord(Ion::Storage::Record record) {
@@ -150,9 +145,9 @@ void FunctionGraphView::reloadBetweenBounds(float start, float end) {
     return;
   }
   KDCoordinate pixelLowerBound =
-      floatToKDCoordinatePixel(OMG::Axis::Horizontal, start) - 2;
+      floatToKDCoordinatePixel(Axis::Horizontal, start) - 2;
   KDCoordinate pixelUpperBound =
-      floatToKDCoordinatePixel(OMG::Axis::Horizontal, end) + 4;
+      floatToKDCoordinatePixel(Axis::Horizontal, end) + 4;
   /* We exclude the banner frame from the dirty zone to avoid unnecessary
    * redrawing */
   KDRect dirtyZone(KDRect(pixelLowerBound, 0, pixelUpperBound - pixelLowerBound,

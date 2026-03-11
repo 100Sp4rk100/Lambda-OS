@@ -6,6 +6,8 @@
 #include <kandinsky/color.h>
 #include <kandinsky/rect.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 /* An oriented layout handles multiple views layouted alongside a main axis.
@@ -20,7 +22,7 @@ namespace Escher {
 
 class OrientedLayout : public View {
  public:
-  OrientedLayout(KDColor color = Palette::WallScreen)
+  OrientedLayout(KDColor color = Theme::ThemeGestion::getColor("WallScreen"))
       : m_backgroundColor(color),
         m_secondaryDirectionMargin(0),
         m_mainDirectionMargin(0) {}
@@ -47,7 +49,7 @@ class OrientedLayout : public View {
 /* View that lays out its subviews vertically.*/
 class VerticalLayout : public OrientedLayout {
  public:
-  VerticalLayout(KDColor color = Palette::WallScreen) : OrientedLayout(color) {}
+  VerticalLayout(KDColor color = Theme::ThemeGestion::getColor("WallScreen")) : OrientedLayout(color) {}
 
  private:
   // Main direction is along y, there is no need to adapt anything.
@@ -59,7 +61,7 @@ class VerticalLayout : public OrientedLayout {
 /* View that lays out its subviews horizontally.*/
 class HorizontalLayout : public OrientedLayout {
  public:
-  HorizontalLayout(KDColor color = Palette::WallScreen)
+  HorizontalLayout(KDColor color = Theme::ThemeGestion::getColor("WallScreen"))
       : OrientedLayout(color) {}
 
  private:

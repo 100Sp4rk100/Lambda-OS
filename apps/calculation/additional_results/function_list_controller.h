@@ -1,8 +1,8 @@
 #ifndef CALCULATION_FUNCTION_LIST_CONTROLLER_H
 #define CALCULATION_FUNCTION_LIST_CONTROLLER_H
 
-#include <omg/code_point.h>
-#include <poincare/code_points.h>
+#include <apps/shared/continuous_function_properties.h>
+#include <ion/unicode/code_point.h>
 
 #include "function_graph_cell.h"
 #include "function_model.h"
@@ -16,14 +16,13 @@ class FunctionListController : public IllustratedExpressionsListController {
       : IllustratedExpressionsListController(editExpressionController, true),
         m_graphCell(&m_model) {}
   void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) override;
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) override;
   void viewDidDisappear() override;
 
  private:
-  constexpr static char k_symbolName[2] = {
-      Poincare::CodePoints::k_cartesianSymbol, '\0'};
+  static constexpr CodePoint k_symbol =
+      Shared::ContinuousFunctionProperties::k_cartesianSymbol;
   constexpr static int k_maxNumberOfOutputRows = 1;
 
   IllustrationCell* illustrationCell() override { return &m_graphCell; }

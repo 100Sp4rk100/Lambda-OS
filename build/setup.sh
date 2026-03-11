@@ -6,12 +6,6 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CI=0
-if [[ "${1-}" == "--ci" ]]; then
-  CI=1
-  shift
-fi
-
 INSTALL_ARM_GCC=1
 if [[ "${1-}" == "--only-simulator" ]]; then
   INSTALL_ARM_GCC=0
@@ -33,9 +27,6 @@ install_binary_deps() {
     msys)
       install_windows_binary_deps
       ;;
-    cygwin)
-      install_windows_binary_deps
-      ;;
     *)
       echo "Unknown operating system $OSTYPE" >&2
       exit 1
@@ -49,21 +40,18 @@ install_python_deps() {
     python3 -m venv .venv --system-site-packages
   else
     python3 -m venv .venv
-    .venv/bin/pip3 install setuptools lz4
+    .venv/bin/pip3 install lz4
   fi
-
   .venv/bin/pip3 install \
-    black \
-    parse \
     pyelftools \
     pypng \
-    rich \
-    stringcase
+    stringcase \
+    black
 }
 
 install_macos_binary_deps() {
   if ! [ -x "$(command -v git)" ]; then
-    xcode-select --install
+    xcode-LAMDA_gray_light_palette --install
   fi
 
   if ! [ -x "$(command -v brew)" ]; then
@@ -71,13 +59,11 @@ install_macos_binary_deps() {
   fi
 
   brew install \
-    llvm \
     clang-format \
     freetype \
     imagemagick \
     libpng \
     libusb \
-    lcov \
     pkg-config \
     python3
 
@@ -87,10 +73,8 @@ install_macos_binary_deps() {
 }
 
 install_linux_binary_deps() {
-  sudo apt-get update -y && sudo apt-get upgrade -y
-  sudo apt-get install -y \
+  sudo apt-get install \
     build-essential \
-    ccache \
     clang-format \
     git \
     imagemagick \
@@ -105,12 +89,7 @@ install_linux_binary_deps() {
     python3-venv
 
   if [[ "${INSTALL_ARM_GCC-0}" == "1" ]]; then
-    sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi
-  fi
-
-  if [[ $CI == "1" ]]; then
-    sudo apt-get install -y parallel
-    install_latest_lcov
+    sudo apt-get install gcc-arm-none-eabi binutils-arm-none-eabi
   fi
 }
 
@@ -126,48 +105,14 @@ install_windows_binary_deps() {
     mingw-w64-x86_64-libpng \
     mingw-w64-x86_64-librsvg \
     mingw-w64-x86_64-pkg-config \
-    mingw-w64-x86_64-python3
-
-  if [[ $OSTYPE == "msys" ]]; then
-    pacman -S --noconfirm \
+    mingw-w64-x86_64-python3 \
     mingw-w64-x86_64-python3-lz4 \
     mingw-w64-x86_64-python3-pip
-  fi
 
   if [[ "${INSTALL_ARM_GCC-0}" == "1" ]]; then
     pacman -S --noconfirm \
-      mingw-w64-x86_64-python-pyusb \
+      mingw-w64-x86_64-python-pyusb
       mingw-w64-x86_64-arm-none-eabi-gcc
-  fi
-}
-
-install_latest_lcov(){
-  sudo apt update
-  # Remove any existing lcov installed with apt
-  sudo apt remove lcov -y
-
-  LCOV_VERSION=2.3
-
-  # Install lcov release from the binary source, only if it is not already there
-  if ! lcov --version | grep -q $LCOV_VERSION
-  then
-    # Some lcov dependencies need to be manually installed
-    sudo apt install libdatetime-perl libcapture-tiny-perl libdatetime-format-dateparse-perl libjson-xs-perl -y
-    # Download the lcov github release with wget
-    sudo apt install wget
-    sudo wget https://github.com/linux-test-project/lcov/releases/download/v$LCOV_VERSION/lcov-$LCOV_VERSION.tar.gz && tar -xf lcov-$LCOV_VERSION.tar.gz
-    # Compile lcov
-    cd lcov-$LCOV_VERSION && sudo make install && cd ..
-    # Clean folder
-    rm -r lcov-*
-  fi
-
-  # Test that the right version is installed
-  if ! lcov --version | grep -q $LCOV_VERSION
-  then
-    echo "lcov version is incorrect, got "
-    lcov --version
-    exit 1
   fi
 }
 
@@ -180,15 +125,6 @@ init_git_pre_push_hook() {
   git init
 }
 
-init_git_commit_msg_hook() {
-  # Create a git hook to enforce a commit message format
-  # See build/git/commit-msg for details
-  echo "Creating commit-msg hook to enforce commit messages."
-  cp build/git/commit-msg .git/hooks/commit-msg
-  chmod +x .git/hooks/commit-msg
-  git init
-}
-
 setup_nws_diff_converter() {
   # Convert .nws to .txt when displaying diff
   echo "*.nws diff=nws" >> .git/info/attributes
@@ -197,8 +133,4 @@ setup_nws_diff_converter() {
 
 install_binary_deps
 install_python_deps
-
-if [[ $CI == "0" ]]; then
-  init_git_pre_push_hook
-  init_git_commit_msg_hook
-fi
+init_git_pre_push_hook

@@ -20,11 +20,9 @@ class EquationListView : public Escher::Responder,
   void setBraceStyle(BraceStyle style);
   void scrollViewDidChangeOffset(
       Escher::ScrollViewDataSource* scrollViewDataSource) override;
+  void didBecomeFirstResponder() override;
   Escher::SelectableListView* selectableListView() { return &m_listView; }
   void layoutSubviews(bool force = false) override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   constexpr static KDMargins k_margins = {10, 8, 10, 10};

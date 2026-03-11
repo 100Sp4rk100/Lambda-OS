@@ -2,10 +2,9 @@
 
 #include <ion.h>
 #include <ion/display.h>
-#include <ion/keyboard/layout_events.h>
+#include <ion/unicode/utf8_decoder.h>
 #include <kandinsky/font.h>
 #include <omg/print.h>
-#include <omg/utf8_decoder.h>
 
 #include <cstdio>
 
@@ -20,10 +19,10 @@ namespace Simulator {
 constexpr static KDFont::Size k_fontSize = KDFont::Size::Large;
 constexpr static int k_glyphHeight = KDFont::GlyphHeight(k_fontSize);
 constexpr static int k_margin = 6;
-#if DEBUG && ION_LOG_EVENTS_NAME
-constexpr static int k_glyphWidth = KDFont::GlyphMaxWidth(k_fontSize);  // TODO
-constexpr static KDColor k_backgroundColor = KDColorBlack;
-constexpr static KDColor k_glyphColor = KDColorWhite;
+#if DEBUG && ESCHER_LOG_EVENTS_NAME
+constexpr static int k_glyphWidth = KDFont::GlyphWidth(k_fontSize);
+constexpr static KDColor k_backgroundColor = Theme::ThemeGestion::getColor("KDColorBlack");
+constexpr static KDColor k_glyphColor = Theme::ThemeGestion::getColor("Theme::ThemeGestion::getColor("KDColorWhite")");
 #endif
 
 Screenshot::Screenshot(const char* path) { init(path); }
@@ -42,7 +41,7 @@ void Screenshot::init(const char* path, bool eachStep, bool computeCRC32) {
   m_computeCRC32 = computeCRC32;
 }
 
-#if DEBUG && ION_LOG_EVENTS_NAME
+#if DEBUG && ESCHER_LOG_EVENTS_NAME
 static void drawEventNameInBuffer(Events::Event e, KDColor* pixelsBuffer,
                                   int width, int height, int abscissaOfDraw,
                                   int ordinateOfDraw) {
@@ -81,11 +80,6 @@ static void printInConsole(uint32_t crc) {
   Ion::Console::writeLine(crcBuffer);
 }
 
-constexpr static int k_maxHeight =
-    Display::HeightWithBorder + k_glyphHeight + 2 * k_margin;
-constexpr static int k_width = Display::WidthWithBorder;
-KDColor pixelsBuffer[k_maxHeight * k_width];
-
 void Screenshot::capture(Events::Event nextEvent) {
   m_stepNumber++;
   bool isLastScreenshot = nextEvent == Events::None;
@@ -93,7 +87,12 @@ void Screenshot::capture(Events::Event nextEvent) {
     return;
   }
 
-  int height = Display::HeightWithBorder;
+  constexpr static int k_maxHeight =
+      Display::Height + k_glyphHeight + 2 * k_margin;
+  constexpr static int k_width = Display::Width;
+  int height = Display::Height;
+
+  KDColor pixelsBuffer[k_maxHeight * k_width];
   for (int i = 0; i < height * k_width; i++) {
     pixelsBuffer[i] = Simulator::Framebuffer::address()[i];
   }
@@ -113,15 +112,14 @@ void Screenshot::capture(Events::Event nextEvent) {
     return;
   }
 
-#if DEBUG && ION_LOG_EVENTS_NAME
+#if DEBUG && ESCHER_LOG_EVENTS_NAME
   if (m_eachStep) {
     height = k_maxHeight;
-    for (int i = Display::HeightWithBorder * k_width; i < height * k_width;
-         i++) {
+    for (int i = Display::Height * k_width; i < height * k_width; i++) {
       pixelsBuffer[i] = k_backgroundColor;
     }
     drawEventNameInBuffer(nextEvent, pixelsBuffer, k_width, height, k_margin,
-                          Display::HeightWithBorder + k_margin);
+                          Display::Height + k_margin);
   }
 #endif
 

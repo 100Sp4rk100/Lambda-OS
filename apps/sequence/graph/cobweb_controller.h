@@ -1,13 +1,13 @@
 #ifndef SEQUENCE_COBWEB_CONTROLLER_H
 #define SEQUENCE_COBWEB_CONTROLLER_H
 
-#include <apps/shared/curve_view_cursor.h>
-#include <apps/shared/function_graph_controller.h>
-#include <apps/shared/sequence_store.h>
 #include <apps/shared/sum_graph_controller.h>
 #include <apps/shared/xy_banner_view.h>
 #include <poincare/layout.h>
 
+#include "apps/shared/curve_view_cursor.h"
+#include "apps/shared/function_graph_controller.h"
+#include "apps/shared/sequence_store.h"
 #include "cobweb_graph_view.h"
 #include "curve_view_range.h"
 #include "graph_view.h"
@@ -24,7 +24,8 @@ class CobwebController : public Shared::SimpleInteractiveCurveViewController,
                    Shared::XYBannerView* bannerView,
                    Shared::CursorView* cursorView,
                    Shared::SequenceStore* sequenceStore);
-  const char* title() const override;
+  const char* title() override;
+  TELEMETRY_ID("Cobweb");
   void viewWillAppear() override;
   void setRecord(Ion::Storage::Record record);
   bool isRecordSuitable() const;

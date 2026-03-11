@@ -4,7 +4,6 @@
 #include <apps/shared/plot_view_policies.h>
 
 #include "../store.h"
-#include "poincare/expression_or_float.h"
 
 namespace Statistics {
 
@@ -18,10 +17,10 @@ class LabeledAxisWithOptionalPercent
   }
 
  protected:
-  Poincare::ExpressionOrFloat tickStep(const Shared::AbstractPlotView* plotView,
-                                       OMG::Axis axis) const override;
-  int computeLabel(size_t labelIndex, const Shared::AbstractPlotView* plotView,
-                   OMG::Axis axis) override;
+  float tickStep(const Shared::AbstractPlotView* plotView,
+                 Shared::AbstractPlotView::Axis axis) const;
+  int computeLabel(int i, const Shared::AbstractPlotView* plotView,
+                   Shared::AbstractPlotView::Axis axis);
 
   PlotController* m_plotController;
 };

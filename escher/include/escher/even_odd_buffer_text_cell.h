@@ -43,7 +43,7 @@ class EvenOddBufferTextCell : public AbstractEvenOddBufferTextCell {
       "EvenOddBufferTextCell must be templated with a BufferTextView class");
 #endif
  public:
-  EvenOddBufferTextCell(KDGlyph::Format format = k_smallCellDefaultFormat)
+  EvenOddBufferTextCell(KDGlyph::Format format = k_smallCellDefaultFormat())
       : AbstractEvenOddBufferTextCell(), m_bufferTextView(format) {}
 
  private:

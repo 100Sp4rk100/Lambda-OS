@@ -4,6 +4,8 @@
 #include <escher/buffer_text_view.h>
 #include <escher/highlight_cell.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 class SmallBufferTextHighlightCell : public HighlightCell {
@@ -18,7 +20,7 @@ class SmallBufferTextHighlightCell : public HighlightCell {
     setChildFrame(&m_textView, bounds(), force);
   }
   void setHighlighted(bool highlight) override {
-    m_textView.setBackgroundColor(highlight ? Palette::Select : KDColorWhite);
+    m_textView.setBackgroundColor(highlight ? Theme::ThemeGestion::getColor("Select") : Theme::ThemeGestion::getColor("KDColorWhite"));
   }
 
  private:

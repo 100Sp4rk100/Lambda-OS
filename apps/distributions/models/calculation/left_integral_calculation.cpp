@@ -1,6 +1,7 @@
 #include "left_integral_calculation.h"
 
 #include <assert.h>
+#include <math.h>
 #include <poincare/preferences.h>
 
 #include <cmath>

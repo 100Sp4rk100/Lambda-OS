@@ -3,6 +3,8 @@
 
 #include <escher/selectable_list_view_controller.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 class ListWithTopAndBottomDataSource
@@ -15,7 +17,7 @@ class ListWithTopAndBottomDataSource
         m_bottomCell(bottomView) {}
 
   int numberOfRows() const override;
-  KDCoordinate separatorBeforeRow(int row) const override;
+  KDCoordinate separatorBeforeRow(int row) override;
   HighlightCell* reusableCell(int index, int type) override;
   int reusableCellCount(int type) const override;
 
@@ -83,12 +85,9 @@ class ListWithTopAndBottomController : public SelectableViewController,
   void selectFirstCell() { selectRow(firstCellIndex()); }
 
  protected:
-  constexpr static KDGlyph::Format k_messageFormat = {
-      .style = {.glyphColor = Escher::Palette::GrayDark,
-                .backgroundColor = Escher::Palette::WallScreen,
-                .font = KDFont::Size::Small},
-      .horizontalAlignment = KDGlyph::k_alignCenter};
+  static KDGlyph::Format k_messageFormat();
 
+  void didBecomeFirstResponder() override;
   void viewWillAppear() override;
   int innerRowFromRow(int row) const {
     assert(row >= m_outerDataSource.hasTopView());
@@ -103,9 +102,6 @@ class ListWithTopAndBottomController : public SelectableViewController,
   void setBottomView(View* view) { m_outerDataSource.setBottomView(view); }
 
   SelectableListView m_selectableListView;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   void resetSizeMemoization() override {

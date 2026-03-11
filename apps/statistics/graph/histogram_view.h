@@ -5,28 +5,19 @@
 #include <apps/shared/plot_view_policies.h>
 #include <poincare/print_float.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 #include "../store.h"
 
 namespace Statistics {
 
 class HistogramPlotPolicy : public Shared::PlotPolicy::WithHistogram {
- public:
-  void setSeries(int series) {
-    assert(0 <= series && series < Store::k_numberOfSeries);
-    m_series = series;
-  }
-
  protected:
-  constexpr static KDColor k_notSelectedHistogramColor =
-      Escher::Palette::GrayWhite;
-  constexpr static KDColor k_notSelectedHistogramBorderColor =
-      Escher::Palette::GrayMiddle;
-  constexpr static KDColor k_selectedBarColor = Escher::Palette::YellowDark;
 
-  void drawPlot(const Shared::AbstractPlotView*, KDContext* ctx,
+  void drawPlot(const Shared::AbstractPlotView *, KDContext *ctx,
                 KDRect rect) const;
 
-  Store* m_store;
+  Store *m_store;
   int m_series;
   double m_highlightedBarStart;
   double m_highlightedBarEnd;
@@ -37,13 +28,12 @@ class HistogramView
                               HistogramPlotPolicy, Shared::PlotPolicy::NoBanner,
                               Shared::PlotPolicy::NoCursor> {
  public:
-  HistogramView(Store* store, Shared::CurveViewRange* range);
+  HistogramView(Store *store, int series, Shared::CurveViewRange *range);
 
   // AbstractPlotView
-  void reload(bool resetInterruption = false, bool force = false,
-              bool forceRedrawAxes = false) override;
+  void reload(bool resetInterruption = false, bool force = false);
 
-  void setBarHighlight(double start, double end);
+  void setHighlight(double start, double end);
   void setDisplayLabels(bool display) { m_xAxis.setHidden(!display); }
 
  private:

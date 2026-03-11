@@ -5,8 +5,10 @@
 #include <apps/shared/function_name_helper.h>
 #include <apps/shared/global_context.h>
 #include <assert.h>
-#include <poincare/layout.h>
+#include <poincare/integer.h>
+#include <poincare/layout_helper.h>
 #include <poincare/preferences.h>
+#include <poincare/print_int.h>
 #include <string.h>
 
 #include "../app.h"
@@ -33,7 +35,7 @@ FunctionModelsParameterController::FunctionModelsParameterController(
      * entering exam mode or changing country which requires exiting the app and
      * rebuilding the cells when re-entering. */
     m_modelCells[i].subLabel()->setMessage(
-        MathPreferences::SharedPreferences()->examMode().forbidGraphDetails()
+        Preferences::SharedPreferences()->examMode().forbidGraphDetails()
             ? I18n::Message::Default
             : k_modelDescriptions[static_cast<int>(models[i]) - 1]);
   }
@@ -44,17 +46,17 @@ Escher::HighlightCell* FunctionModelsParameterController::cell(int row) {
   return &m_modelCells[row];
 }
 
-const char* FunctionModelsParameterController::title() const {
+const char* FunctionModelsParameterController::title() {
   return I18n::translate(I18n::Message::FunctionTemplates);
 }
 
 void FunctionModelsParameterController::viewWillAppear() {
   ViewController::viewWillAppear();
-  const Model* model = Models();
   for (int i = 0; i < k_numberOfExpressionCells; i++) {
+    Model model = Models()[i];
     char buffer[k_maxSizeOfNamedModel];
-    Poincare::UserExpression e = UserExpression::Parse(
-        ModelWithDefaultName(model[i], buffer, k_maxSizeOfNamedModel),
+    Poincare::Expression e = Expression::Parse(
+        ModelWithDefaultName(model, buffer, k_maxSizeOfNamedModel),
         nullptr);  // No context needed
     m_layouts[i] =
         e.createLayout(Poincare::Preferences::PrintFloatMode::Decimal,
@@ -75,7 +77,7 @@ const char* FunctionModelsParameterController::ModelWithDefaultName(
   bool polar = modelString[0] == 'r';
   size_t constantNameLength = 1 + polar;
   assert(modelString[constantNameLength] == '(');
-  CodePoint symbol = polar ? CodePoints::k_polarSymbol
+  CodePoint symbol = polar ? Shared::ContinuousFunction::k_polarSymbol
                            : CodePoint(modelString[constantNameLength + 1]);
   /* Model starts with a named function. If that name is already taken, use
    * another one. */
@@ -90,8 +92,9 @@ const char* FunctionModelsParameterController::ModelWithDefaultName(
 
 bool FunctionModelsParameterController::handleEvent(Ion::Events::Event event) {
   if (event == Ion::Events::OK || event == Ion::Events::EXE) {
-    bool success = m_listController->editSelectedRecordWithLayout(
-        m_layouts[selectedRow()]);
+    char buffer[k_maxSizeOfNamedModel];
+    m_layouts[selectedRow()].serializeForParsing(buffer, k_maxSizeOfNamedModel);
+    bool success = m_listController->editSelectedRecordWithText(buffer);
     assert(success);
     (void)success;  // Silence warnings
     App::app()->modalViewController()->dismissModal();
@@ -116,21 +119,13 @@ FunctionModelsParameterController::Models() {
       return layoutVariant1;
     case CountryPreferences::GraphTemplatesLayout::Variant2:
       return layoutVariant2;
-    case CountryPreferences::GraphTemplatesLayout::Variant3:
-      return layoutVariant3;
     default:
       return layoutDefault;
   }
 }
 
-bool FunctionModelsParameterController::EquationsPrefered() {
-  CountryPreferences::GraphTemplateDefault templateDefault =
-      GlobalPreferences::SharedGlobalPreferences()->graphTemplateDefault();
-  return CountryPreferences::GraphTemplateDefault::Equation == templateDefault;
-}
-
 bool FunctionModelsParameterController::ModelIsAllowed(Model model) {
-  ExamMode examMode = MathPreferences::SharedPreferences()->examMode();
+  ExamMode examMode = Preferences::SharedPreferences()->examMode();
   if (examMode.forbidInequalityGraphing() && model == Model::Inequality) {
     return false;
   }
@@ -142,7 +137,7 @@ bool FunctionModelsParameterController::ModelIsAllowed(Model model) {
 }
 
 const char* FunctionModelsParameterController::ModelString(Model model) {
-  if (MathPreferences::SharedPreferences()->examMode().forbidImplicitPlots()) {
+  if (Preferences::SharedPreferences()->examMode().forbidImplicitPlots()) {
     if (model == Model::Line || model == Model::LineVariant) {
       return k_lineModelWhenForbidden;
     }

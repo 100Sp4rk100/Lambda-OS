@@ -2,12 +2,15 @@
 
 namespace Escher {
 
+KDGlyph::Format AbstractWithEditableText::k_defaultFormat(){return {
+      .horizontalAlignment = KDGlyph::k_alignRight};}
+
 AbstractWithEditableText::AbstractWithEditableText(
     Responder* parentResponder, TextFieldDelegate* textFieldDelegate)
     : Responder(parentResponder),
       ChainedTextFieldDelegate(textFieldDelegate),
       m_textField(this, m_textBody, Poincare::PrintFloat::k_maxFloatCharSize,
-                  this, k_defaultFormat),
+                  this, k_defaultFormat()),
       m_editable(true) {
   m_textBody[0] = 0;
 }
@@ -34,16 +37,6 @@ void AbstractWithEditableText::textFieldDidAbortEditing(
   // Relayout to show sublabel
   relayout();
   ChainedTextFieldDelegate::textFieldDidAbortEditing(textField);
-}
-void AbstractWithEditableText::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (m_editable) {
-      App::app()->setFirstResponder(&m_textField);
-    }
-  } else {
-    Responder::handleResponderChainEvent(event);
-  }
 }
 
 }  // namespace Escher

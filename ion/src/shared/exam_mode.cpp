@@ -1,8 +1,9 @@
 #include <assert.h>
 #include <ion/authentication.h>
 #include <ion/exam_mode.h>
-#include <ion/external_apps.h>
 #include <ion/reset.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 #include "led.h"
 
@@ -15,22 +16,18 @@ static void updateLed(Configuration config) {
     constexpr uint16_t blinkPeriod = 1000;  // in ms
     constexpr float blinkDutyCycle = 0.1f;
     KDColor color = config.color();
-    if (color != KDColorBlack) {
+    if (color != Theme::ThemeGestion::getColor("KDColorBlack")) {
       LED::setColor(color);
       LED::setBlinking(blinkPeriod, blinkDutyCycle);
       LED::setLock(true);
     }
   } else {
     LED::setLock(false);
-    LED::setColor(KDColorBlack);
+    LED::setColor(Theme::ThemeGestion::getColor("KDColorBlack"));
   }
 }
 
 Configuration get() {
-  if (Authentication::clearanceLevel() ==
-      Authentication::ClearanceLevel::ThirdParty) {
-    return Configuration(Ruleset::Off);
-  }
   Configuration config(ExamBytes::read());
   if (config.isUninitialized() ||
       (Authentication::clearanceLevel() !=
@@ -50,18 +47,6 @@ Configuration get() {
 
 void set(Configuration config) {
   assert(!config.isUninitialized());
-  if (Authentication::clearanceLevel() ==
-      Authentication::ClearanceLevel::ThirdParty) {
-    if (config.isActive()) {
-      /* The device will reset on official firmware, and pick up the
-       * configuration left in the other slot. */
-      Reset::core();
-    }
-    return;
-  }
-#if ASSERTIONS
-  Configuration previousConfig(ExamBytes::read());
-#endif
   ExamBytes::write(config.raw());
   if (config.isActive() && Authentication::clearanceLevel() !=
                                Authentication::ClearanceLevel::NumWorks) {
@@ -70,35 +55,26 @@ void set(Configuration config) {
     Reset::core();
   }
   updateLed(config);
-  if (!config.isActive()) {
-#if ASSERTIONS
-    assert(previousConfig.isActive());
-    assert(Authentication::clearanceLevel() ==
-           Authentication::ClearanceLevel::NumWorks);
-#endif
-    // Apps are visible again, it may require a clearance level update.
-    Ion::ExternalApps::updateClearanceLevel(config.isActive());
-  }
 }
 
 // Class Configuration
 
 Configuration::Configuration(Ruleset rules, Int flags) : m_bits(0) {
   bool configurable = rules == Ruleset::PressToTest;
-  // Store "configurable" boolean at Bits::Configurable
   m_bits = OMG::BitHelper::withBitsBetweenIndexes(
       m_bits, static_cast<size_t>(Bits::Configurable),
       static_cast<size_t>(Bits::Configurable), static_cast<Int>(configurable));
-  // Store flags or ruleset between Bits::DataFirst and Bits::DataLast
   m_bits = OMG::BitHelper::withBitsBetweenIndexes(
       m_bits, static_cast<size_t>(Bits::DataLast),
       static_cast<size_t>(Bits::DataFirst),
       configurable ? flags : static_cast<Int>(rules));
+
+  assert(!isUninitialized());
 }
 
 Ruleset Configuration::ruleset() const {
   assert(!isUninitialized());
-  return configurable() ? Ruleset::PressToTest : toRuleset(data());
+  return configurable() ? Ruleset::PressToTest : static_cast<Ruleset>(data());
 }
 
 Int Configuration::flags() const {
@@ -107,13 +83,9 @@ Int Configuration::flags() const {
 }
 
 bool Configuration::isUninitialized() const {
-  if (cleared()) {
-    return true;
-  }
-  if (configurable()) {
-    return false;
-  }
-  return toRuleset(data()) == Ruleset::Uninitialized;
+  bool clearBit = OMG::BitHelper::bitAtIndex(m_bits, Bits::Cleared);
+  return clearBit || (!configurable() &&
+                      data() >= static_cast<Int>(Ruleset::NumberOfRulesets));
 }
 
 bool Configuration::isActive() const {
@@ -142,7 +114,7 @@ KDColor Configuration::color() const {
     case Ruleset::Portuguese:
       return k_portugueseLEDColor;
     default:
-      return KDColorBlack;
+      return Theme::ThemeGestion::getColor("KDColorBlack");
   }
 }
 

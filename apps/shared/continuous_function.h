@@ -10,15 +10,16 @@
  */
 
 #include <apps/i18n.h>
-#include <poincare/function_properties/conic.h>
-#include <poincare/helpers/scatter_plot_iterable.h>
-#include <poincare/point_or_scalar.h>
+#include <poincare/comparison.h>
+#include <poincare/conic.h>
 #include <poincare/preferences.h>
+#include <poincare/symbol_abstract.h>
 
 #include "continuous_function_cache.h"
 #include "continuous_function_properties.h"
 #include "function.h"
 #include "packed_range_1D.h"
+#include "scatter_plot_helper.h"
 
 namespace Shared {
 
@@ -31,9 +32,9 @@ class ContinuousFunction : public Function {
   constexpr static int k_maxDefaultNameSize = sizeof("f99");
 
   // Create a record with baseName
-  static ContinuousFunction NewModel(Ion::Storage::Record::ErrorStatus* error,
-                                     const char* baseName, KDColor color);
-  static bool IsFunctionAssignment(const Poincare::UserExpression e);
+  static ContinuousFunction NewModel(Ion::Storage::Record::ErrorStatus *error,
+                                     const char *baseName, KDColor color);
+  static bool IsFunctionAssignment(const Poincare::Expression e);
 
   // Builder
   ContinuousFunction(Ion::Storage::Record record = Record());
@@ -42,24 +43,27 @@ class ContinuousFunction : public Function {
     return m_model.properties(this);
   }
   Ion::Storage::Record::ErrorStatus updateNameIfNeeded(
-      Poincare::Context* context);
+      Poincare::Context *context);
 
   /* Function */
 
   CodePoint symbol() const override { return properties().symbol(); }
-
-  size_t nameWithoutArgument(char* buffer, size_t bufferSize,
+  // Return Message corresponding to ContinuousFunction's SymbolType
+  I18n::Message parameterMessageName() const override {
+    return properties().symbolMessage();
+  }
+  size_t nameWithoutArgument(char *buffer, size_t bufferSize,
                              int derivationOrder = 0);
   // Insert ContinuousFunction's name and argument in buffer ("f(x)" or "y")
-  size_t nameWithArgument(char* buffer, size_t bufferSize,
+  size_t nameWithArgument(char *buffer, size_t bufferSize,
                           int derivationOrder = 0) override;
   // Insert the value of the symbol in buffer
-  size_t printAbscissaValue(double cursorT, double cursorX, char* buffer,
+  size_t printAbscissaValue(double cursorT, double cursorX, char *buffer,
                             size_t bufferSize, int precision) override;
   // Insert the value of the evaluation in buffer
   size_t printFunctionValue(double cursorT, double cursorX, double cursorY,
-                            char* buffer, size_t bufferSize, int precision,
-                            Poincare::Context* context) override;
+                            char *buffer, size_t bufferSize, int precision,
+                            Poincare::Context *context) override;
   // Return true if the ContinuousFunction is active
   bool isActive() const override {
     return Function::isActive() && properties().isEnabled();
@@ -70,9 +74,9 @@ class ContinuousFunction : public Function {
   /* ExpressionModelHandle */
 
   Ion::Storage::Record::ErrorStatus setContent(
-      const Poincare::Layout& l, Poincare::Context* context) override;
+      const char *c, Poincare::Context *context) override;
   void tidyDownstreamPoolFrom(
-      const Poincare::PoolObject* treePoolCursor = nullptr) const override;
+      Poincare::TreeNode *treePoolCursor = nullptr) const override;
 
   /* Properties */
 
@@ -91,24 +95,23 @@ class ContinuousFunction : public Function {
   bool isNamed() const;
   /* If we can compute the ContinuousFunction intersections
    * isAlongY must be false, but it is checked by "isActiveInTable()".
-   * TODO: Handle more types of curves ?
+   * TODO : Handle more types of curves ?
    * If intersections are implemented for verticalLines, isActiveInTable might
    * need a change. */
   bool shouldDisplayIntersections() const {
-    return !isAlongY() && !properties().isOfDegreeTwo() &&
-           !properties().isScatterPlot() && isActive() &&
+    return isActiveInTable() &&
            properties().canComputeIntersectionsWithFunctionsAlongSameVariable();
   }
-  bool isDiscontinuousOnFloatInterval(float minBound, float maxBound,
-                                      Poincare::Context* context) const;
+  bool isDiscontinuousBetweenFloatValues(float x1, float x2,
+                                         Poincare::Context *context) const;
   // Compute line parameters (slope and intercept) from ContinuousFunction
-  void getLineParameters(double* slope, double* intercept,
-                         Poincare::Context* context) const;
+  void getLineParameters(double *slope, double *intercept,
+                         Poincare::Context *context) const;
   // Compute conic parameters from ContinuousFunction
   Poincare::CartesianConic cartesianConicParameters(
-      Poincare::Context* context) const;
+      Poincare::Context *context) const;
   // Return the number of subcurves to plot.
-  int numberOfSubCurves(bool includeDerivatives = false) const override {
+  int numberOfSubCurves(int includeDerivatives = false) const override {
     return m_model.numberOfSubCurves(this) +
            includeDerivatives *
                (displayPlotFirstDerivative() + displayPlotSecondDerivative());
@@ -118,41 +121,46 @@ class ContinuousFunction : public Function {
   /* Expression */
 
   // Return the unaltered equation expression, replacing unknown symbols.
-  Poincare::UserExpression originalEquation() const {
+  Poincare::Expression originalEquation() const {
     return m_model.originalEquation(this, symbol());
   }
   // Update plotType as well as tMin and tMax values.
-  void updateModel(Poincare::Context* context, bool wasCartesian);
-  Poincare::SystemFunction expressionApproximated(
-      Poincare::Context* context, int derivationOrder = 0) const {
+  void updateModel(Poincare::Context *context, bool wasCartesian);
+  Poincare::Expression expressionApproximated(Poincare::Context *context,
+                                              int derivationOrder = 0) const {
     return m_model.expressionApproximated(this, context, derivationOrder);
   }
-  Poincare::SystemExpression parametricForm(Poincare::Context* context) const {
-    return m_model.parametricForm(this, context);
+  Poincare::Expression parametricForm(Poincare::Context *context,
+                                      bool approximated = false) const {
+    return m_model.parametricForm(this, context, approximated);
   }
 
   /* Evaluation */
 
   Poincare::Coordinate2D<double> evaluate2DAtParameter(
-      double t, Poincare::Context* context, int curveIndex = 0) const {
+      double t, Poincare::Context *context, int curveIndex = 0) const {
     return templatedApproximateAtParameter(t, context, curveIndex);
   }
   Poincare::Coordinate2D<float> evaluateXYAtParameter(
-      float t, Poincare::Context* context, int curveIndex = 0) const override {
+      float t, Poincare::Context *context, int curveIndex = 0) const override {
     return m_cache
                ? m_cache->valueForParameter(this, context, t, curveIndex)
                : privateEvaluateXYAtParameter<float>(t, context, curveIndex);
   }
   Poincare::Coordinate2D<double> evaluateXYAtParameter(
-      double t, Poincare::Context* context, int curveIndex = 0) const override {
+      double t, Poincare::Context *context, int curveIndex = 0) const override {
     return privateEvaluateXYAtParameter<double>(t, context, curveIndex);
   }
   template <typename T>
   Poincare::Coordinate2D<T> evaluateXYDerivativeAtParameter(
-      T t, Poincare::Context* context, int derivationOrder) const {
+      T t, Poincare::Context *context, int derivationOrder) const {
     return templatedApproximateAtParameter(
         t, context, subCurveIndexFromDerivationOrder(derivationOrder));
   }
+
+  double evaluateCurveParameter(int index, double cursorT, double cursorX,
+                                double cursorY,
+                                Poincare::Context *context) const;
 
   /* Derivative */
 
@@ -188,16 +196,16 @@ class ContinuousFunction : public Function {
                                        DerivativeDisplayType type) const;
   int derivationOrderFromSubCurveIndex(int subCurveIndex) const override;
   int subCurveIndexFromDerivationOrder(int derivationOrder) const;
-  void valuesToDisplayOnDerivativeCurve(int derivationOrder, bool* image,
-                                        bool* firstDerivative,
-                                        bool* secondDerivative) const;
+  void valuesToDisplayOnDerivativeCurve(int derivationOrder, bool *image,
+                                        bool *firstDerivative,
+                                        bool *secondDerivative) const;
 
   // Approximate derivative at t, on given sub curve if there is one
   template <typename T>
-  Poincare::PointOrRealScalar<T> approximateDerivative(
-      T t, Poincare::Context* context, int derivationOrder = 1,
-      bool useDomain = true) const;
-  double approximateSlope(double t, Poincare::Context* context) const;
+  Poincare::Evaluation<T> approximateDerivative(T t, Poincare::Context *context,
+                                                int derivationOrder = 1,
+                                                bool useDomain = true) const;
+  double approximateSlope(double t, Poincare::Context *context) const;
 
   /* tMin, tMax and tAuto */
 
@@ -218,30 +226,40 @@ class ContinuousFunction : public Function {
   /* Solver */
 
   // If m_expressionApproximated is based on costly algorithm
-  bool approximationBasedOnCostlyAlgorithms(Poincare::Context* context) const;
+  bool approximationBasedOnCostlyAlgorithms(Poincare::Context *context) const;
   /* A solver will be run from 'start' to 'end' on this function. Trim 'start'
    * and 'end' to the interval of definition. */
-  void trimResolutionInterval(double* start, double* end) const;
+  void trimResolutionInterval(double *start, double *end) const;
 
   /* Integral */
 
   // Return the expression of the integral between start and end
-  Poincare::SystemExpression sumBetweenBounds(
-      double start, double end, Poincare::Context* context) const override;
+  Poincare::Expression sumBetweenBounds(
+      double start, double end, Poincare::Context *context) const override;
 
   /* Cache */
 
-  ContinuousFunctionCache* cache() const { return m_cache; }
-  void setCache(ContinuousFunctionCache* v) { m_cache = v; }
+  ContinuousFunctionCache *cache() const { return m_cache; }
+  void setCache(ContinuousFunctionCache *v) { m_cache = v; }
   void didBecomeInactive() override { m_cache = nullptr; }
 
   constexpr static char k_unnamedRecordFirstChar = '?';
+  constexpr static CodePoint k_cartesianSymbol =
+      ContinuousFunctionProperties::k_cartesianSymbol;
+  constexpr static CodePoint k_parametricSymbol =
+      ContinuousFunctionProperties::k_parametricSymbol;
+  constexpr static CodePoint k_polarSymbol =
+      ContinuousFunctionProperties::k_polarSymbol;
+  constexpr static CodePoint k_radiusSymbol =
+      ContinuousFunctionProperties::k_radiusSymbol;
+  constexpr static CodePoint k_ordinateSymbol =
+      ContinuousFunctionProperties::k_ordinateSymbol;
+  constexpr static CodePoint k_unnamedExpressionSymbol = k_cartesianSymbol;
 
   /* Scatter plot helper */
-  Poincare::ScatterPlotIterable iterateScatterPlot(
-      Poincare::Context* context) const {
+  ScatterPlotIterable iterateScatterPlot(Poincare::Context *context) const {
     assert(properties().isScatterPlot());
-    return Poincare::ScatterPlotIterable(expressionReduced(context));
+    return ScatterPlotIterable(expressionReduced(context));
   }
 
  private:
@@ -257,18 +275,18 @@ class ContinuousFunction : public Function {
   /* Expressions */
 
   // Return the expression representing the equation for computations
-  Poincare::SystemExpression expressionReducedForAnalysis(
-      Poincare::Context* context) const {
+  Poincare::Expression expressionReducedForAnalysis(
+      Poincare::Context *context) const {
     return m_model.expressionReducedForAnalysis(this, context);
   }
   // Return the reduced expression of the derivative
-  Poincare::SystemExpression expressionDerivateReduced(
-      Poincare::Context* context, int derivationOrder) const {
+  Poincare::Expression expressionDerivateReduced(Poincare::Context *context,
+                                                 int derivationOrder) const {
     return m_model.expressionDerivateReduced(this, context, derivationOrder);
   }
   // Return the reduced expression of the slope (dy/dx)
-  Poincare::SystemFunctionScalar expressionSlopeReduced(
-      Poincare::Context* context) const {
+  Poincare::Expression expressionSlopeReduced(
+      Poincare::Context *context) const {
     return m_model.expressionSlopeReduced(this, context);
   }
 
@@ -280,11 +298,11 @@ class ContinuousFunction : public Function {
   // Evaluate XY at parameter (distinct from approximation with Polar types)
   template <typename T>
   Poincare::Coordinate2D<T> privateEvaluateXYAtParameter(
-      T t, Poincare::Context* context, int subCurveIndex = -1) const;
+      T t, Poincare::Context *context, int subCurveIndex = 0) const;
   // Approximate XY at parameter
   template <typename T>
   Poincare::Coordinate2D<T> templatedApproximateAtParameter(
-      T t, Poincare::Context* context, int subCurveIndex = -1) const;
+      T t, Poincare::Context *context, int subCurveIndex = 0) const;
 
   /* Record */
 
@@ -366,10 +384,10 @@ class ContinuousFunction : public Function {
   // Return metadata size
   size_t metaDataSize() const override { return sizeof(RecordDataBuffer); }
   // Return record data
-  RecordDataBuffer* recordData() const {
+  RecordDataBuffer *recordData() const {
     assert(!isNull());
-    return reinterpret_cast<RecordDataBuffer*>(
-        const_cast<void*>(value().buffer));
+    return reinterpret_cast<RecordDataBuffer *>(
+        const_cast<void *>(value().buffer));
   }
 
   /* Model */
@@ -377,66 +395,63 @@ class ContinuousFunction : public Function {
   class Model : public ExpressionModel {
    public:
     // Return the expression to plot.
-    Poincare::SystemExpression expressionReduced(
-        const Ion::Storage::Record* record,
-        Poincare::Context* context) const override;
+    Poincare::Expression expressionReduced(
+        const Ion::Storage::Record *record,
+        Poincare::Context *context) const override;
     /* Return the expression reduced with approximated non symbols for faster
      * plot */
-    Poincare::SystemFunction expressionApproximated(
-        const Ion::Storage::Record* record, Poincare::Context* context,
+    Poincare::Expression expressionApproximated(
+        const Ion::Storage::Record *record, Poincare::Context *context,
         int derivationOrder = 0) const;
     // Return the expression reduced, and computes plotType
-    Poincare::SystemExpression expressionReducedForAnalysis(
-        const Ion::Storage::Record* record, Poincare::Context* context) const;
+    Poincare::Expression expressionReducedForAnalysis(
+        const Ion::Storage::Record *record, Poincare::Context *context) const;
     // Return the expression of the named function (right side of the equal)
-    Poincare::UserExpression expressionClone(
-        const Ion::Storage::Record* record) const override;
-    const Poincare::Internal::Tree* expressionTree(
-        const Ion::Storage::Record* record) const override;
+    Poincare::Expression expressionClone(
+        const Ion::Storage::Record *record) const override;
     // Return the entire expression that the user input. Replace symbols.
-    Poincare::UserExpression originalEquation(
-        const Ion::Storage::Record* record, CodePoint symbol) const;
+    Poincare::Expression originalEquation(const Ion::Storage::Record *record,
+                                          CodePoint symbol) const;
     /* Return the expression representing the equation
      * (turns "f(x)=xy" into "xy" and "xy=a" into "xy-a") */
-    Poincare::UserExpression expressionEquation(
-        const Ion::Storage::Record* record, Poincare::Context* context,
-        Poincare::ComparisonJunior::Operator* computedEquationType = nullptr,
-        ContinuousFunctionProperties::SymbolType* computedFunctionSymbol =
+    Poincare::Expression expressionEquation(
+        const Ion::Storage::Record *record, Poincare::Context *context,
+        Poincare::ComparisonNode::OperatorType *computedEquationType = nullptr,
+        ContinuousFunctionProperties::SymbolType *computedFunctionSymbol =
             nullptr,
-        bool* isCartesianEquation = nullptr) const;
+        bool *isCartesianEquation = nullptr) const;
     // Return the derivative of the expression to plot.
-    Poincare::SystemExpression expressionDerivateReduced(
-        const Ion::Storage::Record* record, Poincare::Context* context,
+    Poincare::Expression expressionDerivateReduced(
+        const Ion::Storage::Record *record, Poincare::Context *context,
         int derivationOrder) const;
     // Return the slope (dy/dx)
-    Poincare::SystemFunctionScalar expressionSlopeReduced(
-        const Ion::Storage::Record* record, Poincare::Context* context) const;
+    Poincare::Expression expressionSlopeReduced(
+        const Ion::Storage::Record *record, Poincare::Context *context) const;
     // Rename the record if needed. Record pointer might get corrupted.
     Ion::Storage::Record::ErrorStatus renameRecordIfNeeded(
-        Ion::Storage::Record* record, Poincare::Context* context) const;
-    // Build the expression from layout, handling f(x)=... cartesian equations
-    Poincare::UserExpression buildExpressionFromLayout(
-        Poincare::Layout l, CodePoint symbol = 0,
-        Poincare::Context* context = nullptr) const override;
+        Ion::Storage::Record *record, Poincare::Context *context) const;
+    // Build the expression from text, handling f(x)=... cartesian equations
+    Poincare::Expression buildExpressionFromText(
+        const char *c, CodePoint symbol = 0,
+        Poincare::Context *context = nullptr) const override;
     // Tidy the model
     void tidyDownstreamPoolFrom(
-        const Poincare::PoolObject* treePoolCursor) const override;
+        Poincare::TreeNode *treePoolCursor) const override;
     // m_plotType getter
     ContinuousFunctionProperties properties(
-        const Ion::Storage::Record* record) const;
-    int numberOfSubCurves(const Ion::Storage::Record* record) const;
+        const Ion::Storage::Record *record) const;
+    int numberOfSubCurves(const Ion::Storage::Record *record) const;
     // Reset m_plotType to Uninitialized type
     void resetProperties() const { m_properties.reset(); }
-    Poincare::SystemExpression parametricForm(
-        const Ion::Storage::Record* record, Poincare::Context* context) const;
+    Poincare::Expression parametricForm(const Ion::Storage::Record *record,
+                                        Poincare::Context *context,
+                                        bool approximated = false) const;
 
    private:
-    static CodePoint CodePointForSymbol(const Poincare::UserExpression& symbol);
-
     // Return address of the record's expression
-    void* expressionAddress(const Ion::Storage::Record* record) const override;
+    void *expressionAddress(const Ion::Storage::Record *record) const override;
     // Return size of the record's expression
-    size_t expressionSize(const Ion::Storage::Record* record) const override;
+    size_t expressionSize(const Ion::Storage::Record *record) const override;
 
     void setStorageChangeFlag() const override;
 
@@ -444,22 +459,20 @@ class ContinuousFunction : public Function {
     /* m_expression is used for values in table.
      * m_expressionApproximated is used for plot, autozoom and points of
      * interest.
-     * m_expressionForAnalysis is used for analysis.
      */
-    mutable Poincare::SystemExpression m_expressionForAnalysis;
-    mutable Poincare::SystemFunction m_expressionApproximated;
-    mutable Poincare::SystemExpression m_expressionFirstDerivate;
-    mutable Poincare::SystemFunction m_expressionFirstDerivateApproximated;
-    mutable Poincare::SystemExpression m_expressionSecondDerivate;
-    mutable Poincare::SystemFunction m_expressionSecondDerivateApproximated;
-    mutable Poincare::SystemFunctionScalar m_expressionSlope;
+    mutable Poincare::Expression m_expressionApproximated;
+    mutable Poincare::Expression m_expressionFirstDerivate;
+    mutable Poincare::Expression m_expressionFirstDerivateApproximated;
+    mutable Poincare::Expression m_expressionSecondDerivate;
+    mutable Poincare::Expression m_expressionSecondDerivateApproximated;
+    mutable Poincare::Expression m_expressionSlope;
   };
 
   // Return model pointer
-  const ExpressionModel* model() const override { return &m_model; }
+  const ExpressionModel *model() const override { return &m_model; }
 
   Model m_model;
-  mutable ContinuousFunctionCache* m_cache;
+  mutable ContinuousFunctionCache *m_cache;
 };
 
 }  // namespace Shared

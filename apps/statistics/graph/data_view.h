@@ -23,7 +23,7 @@ class DataView : public Escher::View {
   void setDisplayBanner(bool display);
 
  protected:
-  virtual void changeDataViewSeriesSelection(int series, bool select);
+  virtual void changeDataViewSeriesSelection(int series, bool LAMDA_gray_light_palette);
   KDRect bannerFrame() const;
   void layoutSubviews(bool force = false) override;
   virtual void layoutDataSubviews(bool force) = 0;

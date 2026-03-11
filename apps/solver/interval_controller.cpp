@@ -2,7 +2,6 @@
 
 #include <apps/i18n.h>
 #include <assert.h>
-#include <poincare/circuit_breaker_checkpoint.h>
 #include <string.h>
 
 #include "app.h"
@@ -12,10 +11,10 @@ using namespace Shared;
 
 namespace Solver {
 
-IntervalController::IntervalController(Responder* parentResponder)
+IntervalController::IntervalController(Responder *parentResponder)
     : SingleRangeController(parentResponder, &m_confirmPopUpController),
       m_confirmPopUpController(Invocation::Builder<IntervalController>(
-          [](IntervalController* controller, void* sender) {
+          [](IntervalController *controller, void *sender) {
             controller->stackController()->pop();
             return true;
           },
@@ -23,7 +22,7 @@ IntervalController::IntervalController(Responder* parentResponder)
   m_okButton.setMessage(I18n::Message::ResolveEquation);
 }
 
-const char* IntervalController::title() const {
+const char *IntervalController::title() {
   return I18n::translate(I18n::Message::SearchInverval);
 }
 
@@ -38,7 +37,6 @@ bool IntervalController::handleEvent(Ion::Events::Event event) {
 }
 
 I18n::Message IntervalController::parameterMessage(int index) const {
-  assert(index == 0 || index == 1);
   return index == 0 ? I18n::Message::XMin : I18n::Message::XMax;
 }
 
@@ -47,50 +45,32 @@ double IntervalController::limit() const {
 }
 
 void IntervalController::extractParameters() {
-  SystemOfEquations* system = App::app()->system();
+  SystemOfEquations *system = App::app()->system();
   m_rangeParam = system->approximateSolvingRange();
   m_autoParam = system->autoApproximateSolvingRange();
 }
 
 void IntervalController::confirmParameters() {
-  SystemOfEquations* system = App::app()->system();
+  SystemOfEquations *system = App::app()->system();
   system->setApproximateSolvingRange(m_rangeParam);
 }
 
 bool IntervalController::parametersAreDifferent() {
-  SystemOfEquations* system = App::app()->system();
+  SystemOfEquations *system = App::app()->system();
   return m_rangeParam != system->approximateSolvingRange();
 }
 
 void IntervalController::setAutoRange() {
-  SystemOfEquations* system = App::app()->system();
-  Poincare::CircuitBreakerCheckpoint checkpoint(
-      Ion::CircuitBreaker::CheckpointType::Back);
-  if (CircuitBreakerRun(checkpoint)) {
-    system->autoComputeApproximateSolvingRange(App::app()->localContext());
-    m_rangeParam = system->approximateSolvingRange();
-  } else {
-    App::app()->equationStore()->tidyDownstreamPoolFrom(
-        checkpoint.endOfPoolBeforeCheckpoint());
-    system->cancelApproximateSolve();
-    m_autoParam = false;
-  }
+  SystemOfEquations *system = App::app()->system();
+  system->autoComputeApproximateSolvingRange(App::app()->localContext());
+  m_rangeParam = system->approximateSolvingRange();
 }
 
 void IntervalController::pop(bool onConfirmation) {
   if (onConfirmation) {
-    SystemOfEquations* system = App::app()->system();
-    Poincare::CircuitBreakerCheckpoint checkpoint(
-        Ion::CircuitBreaker::CheckpointType::Back);
-    if (CircuitBreakerRun(checkpoint)) {
-      system->approximateSolve(App::app()->localContext());
-    } else {
-      App::app()->equationStore()->tidyDownstreamPoolFrom(
-          checkpoint.endOfPoolBeforeCheckpoint());
-      system->cancelApproximateSolve(m_autoParam, m_rangeParam);
-    }
+    App::app()->system()->approximateSolve(App::app()->localContext());
   }
-  StackViewController* stack = stackController();
+  StackViewController *stack = stackController();
   stack->pop();
 }
 

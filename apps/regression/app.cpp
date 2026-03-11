@@ -6,7 +6,7 @@
 
 #include <array>
 
-#include "regression_icon.h"
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Shared;
 using namespace Escher;
@@ -21,18 +21,16 @@ I18n::Message App::Descriptor::upperName() const {
   return I18n::Message::RegressionAppCapital;
 }
 
-const Image* App::Descriptor::icon() const {
-  return ImageStore::RegressionIcon;
+const Image *App::Descriptor::icon() const {
+  return Theme::ThemeGestion::getIconImage("RegressionIcon");
 }
 
 App::Snapshot::Snapshot()
     : m_graphSelectedDotIndex(-1),
       m_selectedCurveIndex(-1),
       m_regressionTypes{Model::Type::None, Model::Type::None,
-                        Model::Type::None, Model::Type::None,
-                        Model::Type::None, Model::Type::None} {
-  /* Register X1, X2, X3, ..., Y1, Y2, Y3, ... as reserved lists to the
-   * sharedStorage. */
+                        Model::Type::None} {
+  // Register X1, X2, X3, Y1, Y2, Y3 as reserved lists to the sharedStorage.
   static_assert(std::size(DoublePairStore::k_regressionColumNames) == 2,
                 "Number of reserved lists in regression changed.");
   Ion::Storage::FileSystem::sharedFileSystem->recordNameVerifier()
@@ -41,16 +39,16 @@ App::Snapshot::Snapshot()
           Shared::DoublePairStore::k_numberOfSeries,
           std::size(DoublePairStore::k_regressionColumNames));
 
-  // Register R1, R2, R3 ... as reserved functions to the sharedStorage.
+  // Register R1, R2, and R3 as reserved functions to the sharedStorage.
   Ion::Storage::FileSystem::sharedFileSystem->recordNameVerifier()
       ->registerArrayOfReservedNames(
           &Store::k_functionName, Ion::Storage::regressionExtension,
           Shared::DoublePairStore::k_numberOfSeries, 1);
 }
 
-App* App::Snapshot::unpack(Container* container) {
+App *App::Snapshot::unpack(Container *container) {
   return new (container->currentAppBuffer())
-      App(this, static_cast<AppsContainer*>(container)->globalContext());
+      App(this, static_cast<AppsContainer *>(container)->globalContext());
 }
 
 void App::Snapshot::reset() {
@@ -61,7 +59,7 @@ void App::Snapshot::reset() {
 
 constexpr static App::Descriptor sDescriptor;
 
-const App::Descriptor* App::Snapshot::descriptor() const {
+const App::Descriptor *App::Snapshot::descriptor() const {
   return &sDescriptor;
 }
 
@@ -100,7 +98,7 @@ App::CalculationTab::CalculationTab()
                           &m_calculationAlternateEmptyViewController,
                           &m_calculationController) {}
 
-App::App(Snapshot* snapshot, Poincare::Context* parentContext)
+App::App(Snapshot *snapshot, Poincare::Context *parentContext)
     : StoreApp(snapshot, &m_inputViewController),
       m_store(AppsContainerHelper::sharedAppsContainerGlobalContext(),
               snapshot->storePreferences(), snapshot->regressionTypes()),

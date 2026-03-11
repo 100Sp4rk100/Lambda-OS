@@ -4,7 +4,6 @@
 #include <apps/shared/continuous_function.h>
 #include <apps/shared/continuous_function_store.h>
 #include <apps/shared/function_graph_view.h>
-#include <poincare/solver/solver.h>
 
 #include "interest_view.h"
 
@@ -15,14 +14,13 @@ class GraphView : public Shared::FunctionGraphView,
   friend class InterestView;
 
  public:
-  GraphView(Shared::InteractiveCurveViewRange* graphRange,
-            Shared::CurveViewCursor* cursor, Shared::BannerView* bannerView,
-            Shared::MemoizedCursorView* cursorView);
+  GraphView(Shared::InteractiveCurveViewRange *graphRange,
+            Shared::CurveViewCursor *cursor, Shared::BannerView *bannerView,
+            Shared::MemoizedCursorView *cursorView);
 
   // FunctionGraphView
-  void reload(bool resetInterrupted = false, bool force = false,
-              bool forceRedrawAxes = false) override;
-  void drawRect(KDContext* ctx, KDRect rect) const override;
+  void reload(bool resetInterrupted = false, bool force = false) override;
+  void drawRect(KDContext *ctx, KDRect rect) const override;
   int selectedRecordIndex() const override;
 
   /* We override setAreaHighlightColor to make it reload nothing as the
@@ -31,12 +29,11 @@ class GraphView : public Shared::FunctionGraphView,
    * of the graph where the area under the curve is colored. */
   void setAreaHighlightColor(bool highlightColor) override{};
   int numberOfDrawnRecords() const override;
-  void drawRecord(Ion::Storage::Record record, int index, KDContext* ctx,
+  void drawRecord(Ion::Storage::Record record, int index, KDContext *ctx,
                   KDRect rect, bool firstDrawnRecord) const override;
-  void tidyModel(int i,
-                 const Poincare::PoolObject* treePoolCursor) const override;
+  void tidyModel(int i, Poincare::TreeNode *treePoolCursor) const override;
   void setFocus(bool focus) override;
-  Shared::ContinuousFunctionStore* functionStore() const override;
+  Shared::ContinuousFunctionStore *functionStore() const override;
 
   void setInterest(Poincare::Solver<double>::Interest interest) {
     m_interest = interest;
@@ -49,35 +46,34 @@ class GraphView : public Shared::FunctionGraphView,
   constexpr static int k_externRectMargin = 2;
   constexpr static Shared::Dots::Size k_dotSize = Shared::Dots::Size::Tiny;
 
-  static bool FunctionIsDiscontinuousOnFloatInterval(float minBound,
-                                                     float maxBound,
-                                                     void* model,
-                                                     void* context);
-  Escher::View* ornamentView() const override {
-    return const_cast<InterestView*>(&m_interestView);
+  static bool FunctionIsDiscontinuousBetweenFloatValues(float x1, float x2,
+                                                        void *model,
+                                                        void *context);
+  Escher::View *ornamentView() const override {
+    return const_cast<InterestView *>(&m_interestView);
   }
-  void drawCartesian(KDContext* ctx, KDRect rect, Shared::ContinuousFunction* f,
+  void drawCartesian(KDContext *ctx, KDRect rect, Shared::ContinuousFunction *f,
                      Ion::Storage::Record record, float tMin, float tMax,
                      float tStep, DiscontinuityTest discontinuity,
-                     OMG::Axis axis) const;
-  void drawPolar(KDContext* ctx, KDRect rect, Shared::ContinuousFunction* f,
+                     Axis axis) const;
+  void drawPolar(KDContext *ctx, KDRect rect, Shared::ContinuousFunction *f,
                  float tMin, float tMax, float tStep,
                  DiscontinuityTest discontinuity) const;
-  void drawFunction(KDContext* ctx, KDRect rect, Shared::ContinuousFunction* f,
+  void drawFunction(KDContext *ctx, KDRect rect, Shared::ContinuousFunction *f,
                     float tMin, float tMax, float tStep,
                     DiscontinuityTest discontinuity) const;
-  void drawScatterPlot(KDContext* ctx, KDRect rect,
-                       Shared::ContinuousFunction* f) const;
-  void drawPointsOfInterest(KDContext* ctx, KDRect rect);
-  void drawTangent(KDContext* ctx, KDRect rect,
+  void drawScatterPlot(KDContext *ctx, KDRect rect,
+                       Shared::ContinuousFunction *f) const;
+  void drawPointsOfInterest(KDContext *ctx, KDRect rect);
+  void drawTangent(KDContext *ctx, KDRect rect,
                    Ion::Storage::Record record) const;
 
   KDRect boundsWithoutBanner() const;
 
-  void drawAxesAndGrid(KDContext* ctx, KDRect rect) const override;
+  void drawAxesAndGrid(KDContext *ctx, KDRect rect) const override;
 
   template <typename T>
-  Curve2DEvaluation<T> subCurveEvaluation(Shared::ContinuousFunction* f,
+  Curve2DEvaluation<T> subCurveEvaluation(Shared::ContinuousFunction *f,
                                           int subCurveIndex) const;
 
   InterestView m_interestView;

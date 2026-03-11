@@ -13,14 +13,14 @@ namespace Calculation {
 class ScrollableThreeLayoutsView
     : public Escher::AbstractScrollableMultipleLayoutsView {
  public:
-  ScrollableThreeLayoutsView(Responder* parentResponder = nullptr)
+  ScrollableThreeLayoutsView(Responder *parentResponder = nullptr)
       : Escher::AbstractScrollableMultipleLayoutsView(parentResponder,
                                                       &m_contentCell) {
     resetMargins();  // margins are already added by MenuCell
-    setBackgroundColor(KDColorWhite);
+    setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
   }
-  void subviewFrames(KDRect* leftFrame, KDRect* centerFrame,
-                     KDRect* approximateSignFrame, KDRect* rightFrame) {
+  void subviewFrames(KDRect *leftFrame, KDRect *centerFrame,
+                     KDRect *approximateSignFrame, KDRect *rightFrame) {
     return m_contentCell.subviewFrames(leftFrame, centerFrame,
                                        approximateSignFrame, rightFrame);
   }
@@ -31,20 +31,12 @@ class ScrollableThreeLayoutsView
   void setHighlightWholeCell(bool highlightWholeCell) {
     m_contentCell.setHighlightWholeCell(highlightWholeCell);
   }
+  void didBecomeFirstResponder() override {
+    setSelectedSubviewPosition(leftMostPosition());
+    reloadScroll();
+  }
   void setLayouts(Poincare::Layout formulaLayout, Poincare::Layout exactLayout,
                   Poincare::Layout approximateLayout) override;
-
- protected:
-  void handleResponderChainEvent(
-      Responder::ResponderChainEvent event) override {
-    if (event.type == ResponderChainEventType::HasBecomeFirst) {
-      setSelectedSubviewPosition(leftMostPosition());
-      reloadScroll();
-    } else {
-      Escher::AbstractScrollableMultipleLayoutsView::handleResponderChainEvent(
-          event);
-    }
-  }
 
  private:
   class ContentCell
@@ -55,11 +47,11 @@ class ScrollableThreeLayoutsView
     using Escher::AbstractScrollableMultipleLayoutsView::ContentCell::
         ContentCell;
     KDColor backgroundColor() const override {
-      return m_highlightWholeCell ? defaultBackgroundColor() : KDColorWhite;
+      return m_highlightWholeCell ? defaultBackgroundColor() : Theme::ThemeGestion::getColor("KDColorWhite");
     }
     void setEven(bool even) override { return; }
-    Escher::LayoutView* leftLayoutView() const override {
-      return const_cast<LayoutWithEqualSignView*>(&m_leftLayoutView);
+    Escher::LayoutView *leftLayoutView() const override {
+      return const_cast<LayoutWithEqualSignView *>(&m_leftLayoutView);
     }
     void setShowEqualSignAfterFormula(bool showEqual) {
       m_leftLayoutView.setShowEqual(showEqual);
@@ -74,8 +66,8 @@ class ScrollableThreeLayoutsView
     bool m_highlightWholeCell;
   };
 
-  ContentCell* contentCell() override { return &m_contentCell; };
-  const ContentCell* contentCell() const override { return &m_contentCell; };
+  ContentCell *contentCell() override { return &m_contentCell; };
+  const ContentCell *contentCell() const override { return &m_contentCell; };
   ContentCell m_contentCell;
 };
 

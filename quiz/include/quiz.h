@@ -20,7 +20,6 @@ extern "C" {
 void quiz_assert(bool condition);
 void quiz_print(const char* message);
 extern bool sSkipAssertions;
-extern bool sPrintToleratedTests;
 
 #ifdef __cplusplus
 }

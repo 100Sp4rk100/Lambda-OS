@@ -1,10 +1,8 @@
 #include <SDL.h>
 #include <assert.h>
 #include <ion/events.h>
-#include <omg/utf8_helper.h>
+#include <ion/unicode/utf8_helper.h>
 #include <string.h>
-
-#include <array>
 
 #include "../../shared/events_modifier.h"
 #include "actions.h"
@@ -78,14 +76,12 @@ static inline Event eventFromSDLKeyboardEvent(SDL_KeyboardEvent event) {
       }
     }
     switch (sym) {
-#if ION_KEYBOARD_RICH
       case SDLK_x:
         return Cut;
       case SDLK_c:
         return Copy;
       case SDLK_v:
         return Paste;
-#endif
 #if ION_SIMULATOR_FILES
       case SDLK_s:
         Simulator::Actions::saveState();
@@ -94,8 +90,6 @@ static inline Event eventFromSDLKeyboardEvent(SDL_KeyboardEvent event) {
         Simulator::Actions::saveScreenshot();
         return None;
 #endif
-      default:
-        return None;
     }
   }
   if (mod & KMOD_ALT) {
@@ -124,16 +118,6 @@ static inline Event eventFromSDLKeyboardEvent(SDL_KeyboardEvent event) {
         return Square;
       case SDLK_e:
         return EE;
-      case SDLK_c:
-        return Cosine;
-      case SDLK_s:
-        return Sine;
-      case SDLK_t:
-        return Tangent;
-      case SDLK_o:
-        return Log;
-      case SDLK_l:
-        return Ln;
     }
   }
   switch (sym) {
@@ -145,145 +129,107 @@ static inline Event eventFromSDLKeyboardEvent(SDL_KeyboardEvent event) {
   return None;
 }
 
-#if ION_KEYBOARD_RICH
-
-constexpr char k_asciiEventsOffset = 32;
-constexpr Event k_eventForASCIIWithOffset[] = {
-    Space,
-    Exclamation,
-    None,
-    None,
-    None,
-    Percent,
-    None,
-    None,
-    LeftParenthesis,
-    RightParenthesis,
-    Multiplication,
-    Plus,
-    Comma,
-    Minus,
-    Dot,
-    Division,
-    Zero,
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
-    Nine,
-    Colon,
-    SemiColon,
-    Lower,
-    Equal,
-    Greater,
-    Question,
-    None,
-    UpperA,
-    UpperB,
-    UpperC,
-    UpperD,
-    UpperE,
-    UpperF,
-    UpperG,
-    UpperH,
-    UpperI,
-    UpperJ,
-    UpperK,
-    UpperL,
-    UpperM,
-    UpperN,
-    UpperO,
-    UpperP,
-    UpperQ,
-    UpperR,
-    UpperS,
-    UpperT,
-    UpperU,
-    UpperV,
-    UpperW,
-    UpperX,
-    UpperY,
-    UpperZ,
-    LeftBracket,
-    None,
-    RightBracket,
-    Power,
-    Underscore,
-    None,
-    LowerA,
-    LowerB,
-    LowerC,
-    LowerD,
-    LowerE,
-    LowerF,
-    LowerG,
-    LowerH,
-    LowerI,
-    LowerJ,
-    LowerK,
-    LowerL,
-    LowerM,
-    LowerN,
-    LowerO,
-    LowerP,
-    LowerQ,
-    LowerR,
-    LowerS,
-    LowerT,
-    LowerU,
-    LowerV,
-    LowerW,
-    LowerX,
-    LowerY,
-    LowerZ,
-    LeftBrace,
-    None,
-    RightBrace,
-    None,
-};
-
-#else
-
-constexpr char k_asciiEventsOffset = 40;
-constexpr Event k_eventForASCIIWithOffset[] = {
-    LeftParenthesis,
-    RightParenthesis,
-    Multiplication,
-    Plus,
-    None,
-    Minus,
-    Dot,
-    Division,
-    Zero,
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
-    Nine,
-    None,
-    None,
-    None,
-    Equal,
-};
-
-#endif
-
-constexpr char k_numberOfAsciiEvents = std::size(k_eventForASCIIWithOffset);
+constexpr static Event sEventForASCIICharAbove32[95] = {Space,
+                                                        Exclamation,
+                                                        None,
+                                                        None,
+                                                        None,
+                                                        Percent,
+                                                        None,
+                                                        None,
+                                                        LeftParenthesis,
+                                                        RightParenthesis,
+                                                        Multiplication,
+                                                        Plus,
+                                                        Comma,
+                                                        Minus,
+                                                        Dot,
+                                                        Division,
+                                                        Zero,
+                                                        One,
+                                                        Two,
+                                                        Three,
+                                                        Four,
+                                                        Five,
+                                                        Six,
+                                                        Seven,
+                                                        Eight,
+                                                        Nine,
+                                                        Colon,
+                                                        SemiColon,
+                                                        Lower,
+                                                        Equal,
+                                                        Greater,
+                                                        Question,
+                                                        None,
+                                                        UpperA,
+                                                        UpperB,
+                                                        UpperC,
+                                                        UpperD,
+                                                        UpperE,
+                                                        UpperF,
+                                                        UpperG,
+                                                        UpperH,
+                                                        UpperI,
+                                                        UpperJ,
+                                                        UpperK,
+                                                        UpperL,
+                                                        UpperM,
+                                                        UpperN,
+                                                        UpperO,
+                                                        UpperP,
+                                                        UpperQ,
+                                                        UpperR,
+                                                        UpperS,
+                                                        UpperT,
+                                                        UpperU,
+                                                        UpperV,
+                                                        UpperW,
+                                                        UpperX,
+                                                        UpperY,
+                                                        UpperZ,
+                                                        LeftBracket,
+                                                        None,
+                                                        RightBracket,
+                                                        Power,
+                                                        Underscore,
+                                                        None,
+                                                        LowerA,
+                                                        LowerB,
+                                                        LowerC,
+                                                        LowerD,
+                                                        LowerE,
+                                                        LowerF,
+                                                        LowerG,
+                                                        LowerH,
+                                                        LowerI,
+                                                        LowerJ,
+                                                        LowerK,
+                                                        LowerL,
+                                                        LowerM,
+                                                        LowerN,
+                                                        LowerO,
+                                                        LowerP,
+                                                        LowerQ,
+                                                        LowerR,
+                                                        LowerS,
+                                                        LowerT,
+                                                        LowerU,
+                                                        LowerV,
+                                                        LowerW,
+                                                        LowerX,
+                                                        LowerY,
+                                                        LowerZ,
+                                                        LeftBrace,
+                                                        None,
+                                                        RightBrace,
+                                                        None};
 
 static Event eventFromSDLTextInputEvent(SDL_TextInputEvent event) {
   if (strlen(event.text) == 1) {
     char character = event.text[0];
-    if (character >= k_asciiEventsOffset &&
-        character < k_asciiEventsOffset + k_numberOfAsciiEvents) {
-      Event res = k_eventForASCIIWithOffset[character - k_asciiEventsOffset];
+    if (character >= 32 && character < 127) {
+      Event res = sEventForASCIICharAbove32[character - 32];
       if (res != None) {
         return res;
       }

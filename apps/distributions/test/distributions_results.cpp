@@ -1,6 +1,6 @@
 #include <assert.h>
 #include <float.h>
-#include <poincare/test/old/helper.h>
+#include <poincare/test/helper.h>
 #include <quiz.h>
 #include <string.h>
 
@@ -408,7 +408,7 @@ QUIZ_CASE(distributions_results_fisher) {
   // Fisher distribution with d1 = 100 and d2 = 87
   distribution.setParameterAtIndex(100.0, 0);
   distribution.setParameterAtIndex(87.0, 1);
-  /* Expected precision needs to be reduced from OMG::Float::Epsilon<T>()
+  /* Expected precision needs to be reduced from Poincare::Float<T>::Epsilon()
    * to 1e-6 for this test to pass on device. */
   assert_roughly_equal<float>(distribution.evaluateAtAbscissa(1.0),
                               1.9189567194868620, 1e-6);

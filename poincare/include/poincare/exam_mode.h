@@ -1,4 +1,5 @@
-/* Caution: Dutch exam mode is subject to a compliance certification by a
+/* SPDX-License-Identifier: CC-BY-NC-ND-4.0
+ * Caution: Dutch exam mode is subject to a compliance certification by a
  * government agency. Distribution of a non-certified Dutch exam mode is
  * illegal. */
 
@@ -34,7 +35,7 @@ class __attribute__((packed)) ExamMode : public Ion::ExamMode::Configuration {
     static_assert(static_cast<size_t>(Flags::NumberOfFlags) <=
                   Ion::ExamMode::Configuration::k_dataSize);
 
-    bool operator==(const PressToTestFlags& other) const {
+    bool operator==(const PressToTestFlags& other) {
       return m_bits == other.m_bits;
     }
 
@@ -59,9 +60,10 @@ class __attribute__((packed)) ExamMode : public Ion::ExamMode::Configuration {
   };
   static_assert(sizeof(PressToTestFlags) == sizeof(Ion::ExamMode::Int));
 
+  ExamMode() : Configuration() {}
   explicit ExamMode(Ruleset rules, PressToTestFlags flags = {})
       : Configuration(rules, PressToTestUnion{.flags = flags}.value) {}
-  explicit ExamMode(Configuration config) : Configuration(config) {}
+  ExamMode(Configuration config) : Configuration(config) {}
 
   PressToTestFlags flags() const {
     return PressToTestUnion{.value = Configuration::flags()}.flags;
@@ -123,7 +125,7 @@ class __attribute__((packed)) ExamMode : public Ion::ExamMode::Configuration {
     return flags().getFlag(Flags::ForbidExactResults) ||
            ruleset() == Ruleset::Dutch || ruleset() == Ruleset::Pennsylvania ||
            ruleset() == Ruleset::SouthCarolina ||
-           ruleset() == Ruleset::NorthCarolina || ruleset() == Ruleset::SAT;
+           ruleset() == Ruleset::NorthCarolina;
   }
   bool forbidSimultaneousEquationSolver() const {
     return ruleset() == Ruleset::STAAR;

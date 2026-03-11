@@ -1,5 +1,7 @@
 #include "complex_graph_cell.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Shared;
 using namespace Poincare;
 using namespace Escher;
@@ -14,7 +16,7 @@ void ComplexGraphPolicy::drawPlot(const AbstractPlotView* plotView,
 
   // - Draw the segment from the origin to the dot (real, imag)
   plotView->drawSegment(ctx, rect, Coordinate2D<float>(0.f, 0.f),
-                        Coordinate2D<float>(real, imag), Palette::GrayDark);
+                        Coordinate2D<float>(real, imag), Theme::ThemeGestion::getColor("GrayDark"));
 
   // - Draw the partial ellipse indicating the angle θ
   constexpr float ellipseScale = 0.2f;
@@ -29,28 +31,30 @@ void ComplexGraphPolicy::drawPlot(const AbstractPlotView* plotView,
     th = imag < 0.f ? -M_PI_2 : M_PI_2;
   }
   drawArcOfEllipse(plotView, ctx, rect, Coordinate2D<float>(0.f, 0.f), a, b,
-                   0.f, th, Palette::GrayDark);
+                   0.f, th, Theme::ThemeGestion::getColor("GrayDark"));
 
   // - Draw dashed segment to indicate real and imaginary
-  plotView->drawDashedStraightSegment(ctx, rect, OMG::Axis::Horizontal, imag,
-                                      0.f, real, Palette::Red);
-  plotView->drawDashedStraightSegment(ctx, rect, OMG::Axis::Vertical, real, 0.f,
-                                      imag, Palette::Red);
+  plotView->drawDashedStraightSegment(ctx, rect,
+                                      AbstractPlotView::Axis::Horizontal, imag,
+                                      0.f, real, Theme::ThemeGestion::getColor("Red"));
+  plotView->drawDashedStraightSegment(ctx, rect,
+                                      AbstractPlotView::Axis::Vertical, real,
+                                      0.f, imag, Theme::ThemeGestion::getColor("Red"));
 
   // - Draw complex position on the plan
   plotView->drawDot(ctx, rect, Dots::Size::Large,
-                    Coordinate2D<float>(real, imag), Palette::Red);
+                    Coordinate2D<float>(real, imag), Theme::ThemeGestion::getColor("Red"));
 
   // - Draw labels: "re(z)", "im(z)", "|z|" and "arg(z)"
   plotView->drawLabel(ctx, rect, "re(z)", Coordinate2D<float>(real, 0.f),
                       AbstractPlotView::RelativePosition::There,
                       imag > 0.f ? AbstractPlotView::RelativePosition::After
                                  : AbstractPlotView::RelativePosition::Before,
-                      Palette::Red);
+                      Theme::ThemeGestion::getColor("Red"));
   plotView->drawLabel(ctx, rect, "im(z)", Coordinate2D<float>(0.f, imag),
                       real > 0.f ? AbstractPlotView::RelativePosition::Before
                                  : AbstractPlotView::RelativePosition::After,
-                      AbstractPlotView::RelativePosition::There, Palette::Red);
+                      AbstractPlotView::RelativePosition::There, Theme::ThemeGestion::getColor("Red"));
 
   AbstractPlotView::RelativePosition verticalPosition;
   if (real == 0.f) {
@@ -63,7 +67,7 @@ void ComplexGraphPolicy::drawPlot(const AbstractPlotView* plotView,
   plotView->drawLabel(ctx, rect, "|z|",
                       Coordinate2D<float>(0.5f * real, 0.5f * imag),
                       AbstractPlotView::RelativePosition::There,
-                      verticalPosition, Palette::Red);
+                      verticalPosition, Theme::ThemeGestion::getColor("Red"));
 
   AbstractPlotView::RelativePosition horizontalPosition =
       real >= 0.f ? AbstractPlotView::RelativePosition::After
@@ -79,7 +83,7 @@ void ComplexGraphPolicy::drawPlot(const AbstractPlotView* plotView,
       ctx, rect, "arg(z)",
       Coordinate2D<float>(a * std::cos(anglePositionRatio * th),
                           b * std::sin(anglePositionRatio * th)),
-      horizontalPosition, verticalPosition, Palette::Red);
+      horizontalPosition, verticalPosition, Theme::ThemeGestion::getColor("Red"));
 }
 
 ComplexGraphView::ComplexGraphView(ComplexModel* complexModel)

@@ -1,4 +1,4 @@
-def EPSILON_BUILD_DIR = '../../../../'+project.getProperty("outputDirectory")
+def EPSILON_BUILD_DIR = '../../../../'+System.getenv('BUILD_DIR')
 def BUILD_DIR = EPSILON_BUILD_DIR+'/app'
 
 def projectVariable(name) {
@@ -13,16 +13,18 @@ def fileIfPath(path) {
 
 buildscript {
   repositories {
-    mavenCentral()
+    jcenter()
     google()
   }
   dependencies {
-    classpath 'com.android.tools.build:gradle:8.12.0'
+    classpath 'com.android.tools.build:gradle:4.1.0'
+    classpath 'com.google.gms:google-services:4.3.5'
   }
 }
+
 allprojects {
   repositories {
-    mavenCentral()
+    jcenter()
     google()
   }
   buildDir = BUILD_DIR
@@ -31,16 +33,14 @@ allprojects {
 apply plugin: 'com.android.application'
 
 android {
-  compileSdkVersion = 35
+  compileSdkVersion 33
   defaultConfig {
-    applicationId = "com.numworks.calculator"
-    namespace = "com.numworks.calculator"
-    minSdkVersion = 21
-    targetSdkVersion = 35
-    def appVersion = project.getProperty("appVersion")
-    def (major, minor, patch) = appVersion.toLowerCase().tokenize('.').collect{it.toInteger()}
+    applicationId "com.numworks.calculator"
+    minSdkVersion 16
+    targetSdkVersion 33
+    def (major, minor, patch) = System.getenv('EPSILON_VERSION').toLowerCase().tokenize('.').collect{it.toInteger()}
     versionCode major*1000000 + minor*10000 + patch * 100
-    versionName appVersion
+    versionName System.getenv('EPSILON_VERSION')
   }
   signingConfigs {
     environment {
@@ -67,18 +67,19 @@ android {
       manifest.srcFile 'src/AndroidManifest.xml'
       res.srcDir BUILD_DIR + '/res'
       java.srcDir 'src'
-      jniLibs.srcDir BUILD_DIR + '/libs/epsilon'
+      jniLibs.srcDir BUILD_DIR + '/libs/' + System.getenv('EPSILON_VARIANT')
       assets.srcDirs = ['../assets', EPSILON_BUILD_DIR + '/ion/src/simulator/assets']
     }
   }
   lintOptions {
-    abortOnError = false
-    checkReleaseBuilds = false
+    abortOnError false
+    checkReleaseBuilds false
   }
-  ndkVersion = project.getProperty("ndkBundleVersion")
+  ndkVersion System.getenv('NDK_BUNDLE_VERSION')
 }
 
 dependencies {
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "androidx.appcompat:appcompat:1.0.2"
+  implementation "com.google.android.gms:play-services-analytics:18.0.1"
 }

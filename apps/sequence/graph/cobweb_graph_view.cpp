@@ -1,29 +1,33 @@
 #include "cobweb_graph_view.h"
 
-#include <apps/shared/continuous_function.h>
-#include <apps/shared/continuous_function_cache.h>
-#include <apps/shared/poincare_helpers.h>
-#include <escher/palette.h>
-#include <kandinsky/color.h>
-#include <kandinsky/measuring_context.h>
-#include <omg/code_point.h>
-#include <poincare/coordinate_2D.h>
-#include <poincare/expression.h>
-#include <poincare/k_tree.h>
-#include <poincare/preferences.h>
-#include <poincare/print.h>
-#include <poincare/src/expression/projection.h>
-
 #include <cmath>
 
 #include "../app.h"
+#include "apps/shared/continuous_function.h"
+#include "apps/shared/continuous_function_cache.h"
+#include "apps/shared/poincare_helpers.h"
+#include "escher/palette.h"
+#include "ion/storage/file_system.h"
+#include "ion/storage/record.h"
+#include "ion/unicode/code_point.h"
+#include "kandinsky/color.h"
+#include "kandinsky/measuring_context.h"
+#include "poincare/based_integer.h"
+#include "poincare/coordinate_2D.h"
+#include "poincare/expression.h"
+#include "poincare/function.h"
+#include "poincare/preferences.h"
+#include "poincare/print.h"
+#include "poincare/rational.h"
+#include "poincare/sequence.h"
+#include "poincare/symbol.h"
 
 using namespace Shared;
 
 namespace Sequence {
 
-void CobwebPlotPolicy::drawPlot(const AbstractPlotView* plotView,
-                                KDContext* ctx, KDRect rect) const {
+void CobwebPlotPolicy::drawPlot(const AbstractPlotView *plotView,
+                                KDContext *ctx, KDRect rect) const {
   assert(!m_record.isNull());
   assert(rect.height() < k_maxHeight);
   if (shouldUpdate()) {
@@ -40,47 +44,41 @@ void CobwebPlotPolicy::drawPlot(const AbstractPlotView* plotView,
       }
     }
   }
-  SequenceStore* sequenceStore = App::app()->functionStore();
+  SequenceStore *sequenceStore = App::app()->functionStore();
   ExpiringPointer<Shared::Sequence> sequence =
       sequenceStore->modelForRecord(m_record);
   constexpr size_t bufferSize = k_textMaxLength + 1;
   char name[bufferSize] = {};
   size_t nameLength = sequence->name(name, bufferSize);
   KDColor fadedColor =
-      KDColor::Blend(sequence->color(), KDColorWhite, k_curveFadeRatio);
-  SequenceContext* context =
-      reinterpret_cast<SequenceContext*>(App::app()->localContext());
-  Poincare::UserExpression function = sequence->expressionClone();
+      KDColor::Blend(sequence->color(), Theme::ThemeGestion::getColor("KDColorWhite"), k_curveFadeRatio);
+  SequenceContext *context =
+      reinterpret_cast<SequenceContext *>(App::app()->localContext());
+  Poincare::Expression function = sequence->expressionClone();
 
   /* Replace initial term by its value, to avoid replacing it by a wrong value
    * at next step */
-  Poincare::UserExpression initialSymbol =
-      Poincare::SymbolHelper::BuildSequence(
-          name, Poincare::UserExpression::Builder(sequence->initialRank()));
-  Poincare::SystemExpression initialExpression =
+  Poincare::Sequence initialSymbol = Poincare::Sequence::Builder(
+      name, strlen(name),
+      Poincare::BasedInteger::Builder(sequence->initialRank()));
+  Poincare::Expression initialExpression =
       sequence->firstInitialConditionExpressionReduced(context);
-  function.replaceSymbolWithExpression(initialSymbol, initialExpression);
+  function =
+      function.replaceSymbolWithExpression(initialSymbol, initialExpression);
 
   // Replace u(n) by n: u(n) becomes the variable
-  Poincare::UserExpression sequenceSymbol =
-      Poincare::SymbolHelper::BuildSequence(
-          name, Poincare::SymbolHelper::SystemSymbol());
-  function.replaceSymbolWithUnknown(sequenceSymbol);
-  bool reductionFailure = false;
-  Poincare::Internal::ProjectionContext projCtx = {
-      .m_complexFormat = MathPreferences::SharedPreferences()->complexFormat(),
-      .m_angleUnit = MathPreferences::SharedPreferences()->angleUnit(),
-      .m_symbolic =
-          Poincare::Internal::SymbolicComputation::ReplaceDefinedSymbols,
-      .m_context = App::app()->localContext()};
-  function = function.cloneAndReduce(projCtx, &reductionFailure);
-  assert(!reductionFailure);
-  function = function.getSystemFunction(Shared::Function::k_unknownName);
-  Curve2DEvaluation<float> evaluateFunction = [](float t, void* model,
-                                                 void* context) {
-    Poincare::SystemFunction* e = (Poincare::SystemFunction*)model;
+  Poincare::Sequence sequenceSymbol = Poincare::Sequence::Builder(
+      name, strlen(name), Poincare::Symbol::SystemSymbol());
+  Poincare::Symbol variable = Poincare::Symbol::SystemSymbol();
+  function = function.replaceSymbolWithExpression(sequenceSymbol, variable);
+  Curve2DEvaluation<float> evaluateFunction = [](float t, void *model,
+                                                 void *context) {
+    Poincare::Expression *e = (Poincare::Expression *)model;
+    Poincare::Context *c = (Poincare::Context *)context;
+    constexpr static char k_unknownName[2] = {UCodePointUnknown, 0};
     return Poincare::Coordinate2D<float>(
-        t, e->approximateToRealScalarWithValue(t));
+        t, PoincareHelpers::ApproximateWithValueForSymbol<float>(
+               *e, k_unknownName, t, c));
   };
   if (!shouldUpdate()) {
     float xMin = plotView->range()->xMin();
@@ -108,10 +106,11 @@ void CobwebPlotPolicy::drawPlot(const AbstractPlotView* plotView,
     rank++;
     measuringContext.reset();
     plotView->drawDashedStraightSegment(&measuringContext, rect,
-                                        OMG::Axis::Vertical, x, y, uOfX,
-                                        sequence->color());
+                                        AbstractPlotView::Axis::Vertical, x, y,
+                                        uOfX, sequence->color());
     m_verticalLineCache[i].save(ctx, measuringContext.writtenRect());
-    plotView->drawDashedStraightSegment(ctx, rect, OMG::Axis::Vertical, x, y,
+    plotView->drawDashedStraightSegment(ctx, rect,
+                                        AbstractPlotView::Axis::Vertical, x, y,
                                         uOfX, sequence->color());
     y = uOfX;
     float uOfuOfX =
@@ -119,11 +118,12 @@ void CobwebPlotPolicy::drawPlot(const AbstractPlotView* plotView,
             .y();
     measuringContext.reset();
     plotView->drawDashedStraightSegment(&measuringContext, rect,
-                                        OMG::Axis::Horizontal, y, x, uOfX,
-                                        sequence->color());
+                                        AbstractPlotView::Axis::Horizontal, y,
+                                        x, uOfX, sequence->color());
     m_horizontalLineCache[i].save(ctx, measuringContext.writtenRect());
-    plotView->drawDashedStraightSegment(ctx, rect, OMG::Axis::Horizontal, y, x,
-                                        uOfX, sequence->color());
+    plotView->drawDashedStraightSegment(ctx, rect,
+                                        AbstractPlotView::Axis::Horizontal, y,
+                                        x, uOfX, sequence->color());
     x = uOfX;
     uOfX = uOfuOfX;
   }
@@ -136,13 +136,13 @@ void CobwebPlotPolicy::drawPlot(const AbstractPlotView* plotView,
   measuringContext.reset();
   if (m_step) {
     plotView->drawDashedStraightSegment(&measuringContext, rect,
-                                        OMG::Axis::Vertical, x, y, 0.f,
-                                        Escher::Palette::GrayDark);
+                                        AbstractPlotView::Axis::Vertical, x, y,
+                                        0.f, Theme::ThemeGestion::getColor("GrayDark"));
     m_verticalLineCache[m_step].save(ctx, measuringContext.writtenRect());
   }
   measuringContext.reset();
   plotView->drawDot(&measuringContext, rect, Dots::Size::Medium, {x, y},
-                    Escher::Palette::YellowDark);
+                    Theme::ThemeGestion::getColor("YellowDark"));
   m_dotCache.save(ctx, measuringContext.writtenRect());
   Poincare::Print::CustomPrintf(name + nameLength, bufferSize - nameLength,
                                 "(%i)", rank);
@@ -150,33 +150,35 @@ void CobwebPlotPolicy::drawPlot(const AbstractPlotView* plotView,
   plotView->drawLabel(&measuringContext, rect, name, {x, 0.f},
                       AbstractPlotView::RelativePosition::After,
                       AbstractPlotView::RelativePosition::Before,
-                      Escher::Palette::GrayDark);
+                      Theme::ThemeGestion::getColor("GrayDark"));
   m_textCache.save(ctx, measuringContext.writtenRect());
   // Actual drawings
   if (m_step) {
-    plotView->drawDashedStraightSegment(ctx, rect, OMG::Axis::Vertical, x, y,
-                                        0.f, Escher::Palette::GrayDark);
+    plotView->drawDashedStraightSegment(ctx, rect,
+                                        AbstractPlotView::Axis::Vertical, x, y,
+                                        0.f, Theme::ThemeGestion::getColor("GrayDark"));
   }
   plotView->drawDot(ctx, rect, Dots::Size::Medium, {x, y},
-                    Escher::Palette::YellowDark);
+                    Theme::ThemeGestion::getColor("YellowDark"));
   // Draw label above x-axis
   plotView->drawLabel(
       ctx, rect, name, {x, 0.f}, AbstractPlotView::RelativePosition::After,
-      AbstractPlotView::RelativePosition::Before, Escher::Palette::GrayDark);
+      AbstractPlotView::RelativePosition::Before, Theme::ThemeGestion::getColor("GrayDark"));
 }
 
-void CobwebAxesPolicy::drawAxesAndGrid(const AbstractPlotView* plotView,
-                                       KDContext* ctx, KDRect rect) const {
-  const CobwebGraphView* cobweb = static_cast<const CobwebGraphView*>(plotView);
+void CobwebAxesPolicy::drawAxesAndGrid(const AbstractPlotView *plotView,
+                                       KDContext *ctx, KDRect rect) const {
+  const CobwebGraphView *cobweb =
+      static_cast<const CobwebGraphView *>(plotView);
   if (cobweb->shouldUpdate()) {
     return;
   }
   Shared::PlotPolicy::TwoLabeledAxes::drawAxesAndGrid(cobweb, ctx, rect);
 }
 
-CobwebGraphView::CobwebGraphView(InteractiveCurveViewRange* graphRange,
-                                 CurveViewCursor* cursor,
-                                 BannerView* bannerView, CursorView* cursorView)
+CobwebGraphView::CobwebGraphView(InteractiveCurveViewRange *graphRange,
+                                 CurveViewCursor *cursor,
+                                 BannerView *bannerView, CursorView *cursorView)
     : PlotView(graphRange) {
   setBannerOverlapsGraph(false);
   // WithBanner
@@ -186,7 +188,7 @@ CobwebGraphView::CobwebGraphView(InteractiveCurveViewRange* graphRange,
   m_cursorView = cursorView;
 }
 
-void CobwebGraphView::drawBackground(KDContext* ctx, KDRect rect) const {
+void CobwebGraphView::drawBackground(KDContext *ctx, KDRect rect) const {
   if (shouldUpdate()) {
     return;
   }

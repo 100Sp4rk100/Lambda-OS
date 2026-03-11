@@ -30,13 +30,12 @@ class UnitListController : public ExpressionsListController {
   int numberOfRows() const override;
 
   void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) override;
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) override;
 
  private:
   constexpr static int k_bufferCellType = 1;
-  constexpr static int k_maxNumberOfExpressionCells = 6;
+  constexpr static int k_maxNumberOfExpressionCells = 5;
   static_assert(k_maxNumberOfExpressionCells ==
                 ExpressionsListController::k_maxNumberOfRows);
   constexpr static int k_maxNumberOfBufferCells = 2;
@@ -47,8 +46,8 @@ class UnitListController : public ExpressionsListController {
 
   I18n::Message messageAtIndex(int index) override;
   void fillBufferCellAtIndex(BufferCell* bufferCell, int index);
-  Poincare::Layout layoutAtIndex(Escher::HighlightCell* cell,
-                                 int index) override;
+  size_t textAtIndex(char* buffer, size_t bufferSize,
+                     Escher::HighlightCell* cell, int index) override;
 
   int m_numberOfExpressionCells;
   int m_numberOfBufferCells;

@@ -3,7 +3,9 @@ extern "C" {
 
 #include <py/runtime.h>
 }
-#include <ion/display.h>
+#include <kandinsky/ion_context.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 #include "port.h"
 
@@ -16,11 +18,11 @@ static mp_obj_t TupleForKDColor(KDColor c) {
   return MP_OBJ_FROM_PTR(t);
 }
 
-/* Ion::Display::Context::sharedContext needs to be set to the wanted Rect before
+/* KDIonContext::sharedContext needs to be set to the wanted Rect before
  * calling kandinsky_get_pixel, kandinsky_set_pixel and kandinsky_draw_string.
  * We do this here with displaySandbox(), which pushes the SandboxController on
  * the stackViewController and forces the window to redraw itself.
- * Ion::Display::Context::sharedContext is set to the frame of the last object drawn. */
+ * KDIonContext::sharedContext is set to the frame of the last object drawn. */
 
 mp_obj_t modkandinsky_color(size_t n_args, const mp_obj_t *args) {
   mp_obj_t color;
@@ -44,7 +46,7 @@ mp_obj_t modkandinsky_color(size_t n_args, const mp_obj_t *args) {
 mp_obj_t modkandinsky_get_pixel(mp_obj_t x, mp_obj_t y) {
   KDPoint point(mp_obj_get_int(x), mp_obj_get_int(y));
   KDColor c;
-  Ion::Display::Context::SharedContext->getPixel(point, &c);
+  KDIonContext::SharedContext->getPixel(point, &c);
   return TupleForKDColor(c);
 }
 
@@ -53,7 +55,7 @@ mp_obj_t modkandinsky_set_pixel(mp_obj_t x, mp_obj_t y, mp_obj_t input) {
   KDColor kdColor = MicroPython::Color::Parse(input);
   MicroPython::ExecutionEnvironment::currentExecutionEnvironment()
       ->displaySandbox();
-  Ion::Display::Context::SharedContext->setPixel(point, kdColor);
+  KDIonContext::SharedContext->setPixel(point, kdColor);
   return mp_const_none;
 }
 
@@ -64,10 +66,10 @@ mp_obj_t modkandinsky_draw_string(size_t n_args, const mp_obj_t *args) {
   KDColor textColor =
       (n_args >= 4) ? MicroPython::Color::Parse(args[3]) : KDColorBlack;
   KDColor backgroundColor =
-      (n_args >= 5) ? MicroPython::Color::Parse(args[4]) : KDColorWhite;
+      (n_args >= 5) ? MicroPython::Color::Parse(args[4]) : Theme::ThemeGestion::getColor("KDColorWhite");
   MicroPython::ExecutionEnvironment::currentExecutionEnvironment()
       ->displaySandbox();
-  Ion::Display::Context::SharedContext->drawString(
+  KDIonContext::SharedContext->drawString(
       text, point,
       KDGlyph::Style{.glyphColor = textColor,
                      .backgroundColor = backgroundColor,
@@ -92,6 +94,6 @@ mp_obj_t modkandinsky_fill_rect(size_t n_args, const mp_obj_t *args) {
   KDColor color = MicroPython::Color::Parse(args[4]);
   MicroPython::ExecutionEnvironment::currentExecutionEnvironment()
       ->displaySandbox();
-  Ion::Display::Context::SharedContext->fillRect(rect, color);
+  KDIonContext::SharedContext->fillRect(rect, color);
   return mp_const_none;
 }

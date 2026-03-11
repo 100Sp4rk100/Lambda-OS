@@ -1,6 +1,6 @@
 #include "range_parameter_controller.h"
 
-#include <omg/utf8_helper.h>
+#include <poincare/serialization_helper.h>
 
 #include "poincare_helpers.h"
 
@@ -12,21 +12,21 @@ namespace Shared {
 // RangeParameterController
 
 RangeParameterController::RangeParameterController(
-    Responder* parentResponder, InteractiveCurveViewRange* interactiveRange)
+    Responder *parentResponder, InteractiveCurveViewRange *interactiveRange)
     : ExplicitSelectableListViewController(parentResponder),
       m_interactiveRange(interactiveRange),
       m_tempInteractiveRange(*interactiveRange),
       m_okButton(
           &m_selectableListView, I18n::Message::Ok,
           Invocation::Builder<RangeParameterController>(
-              [](RangeParameterController* parameterController, void* sender) {
+              [](RangeParameterController *parameterController, void *sender) {
                 parameterController->buttonAction();
                 return true;
               },
               this),
           ButtonCell::Style::EmbossedLight),
       m_confirmPopUpController(Invocation::Builder<RangeParameterController>(
-          [](RangeParameterController* controller, void* sender) {
+          [](RangeParameterController *controller, void *sender) {
             controller->stackController()->pop();
             return true;
           },
@@ -41,16 +41,11 @@ RangeParameterController::RangeParameterController(
   m_gridTypeCell.setVisible(false);
 }
 
-const HighlightCell* RangeParameterController::cell(int row) const {
+HighlightCell *RangeParameterController::cell(int row) {
   assert(row < numberOfRows());
-  const HighlightCell* cells[] = {&m_normalizeCell, &m_xRangeCell,
-                                  &m_yRangeCell, &m_gridTypeCell, &m_okButton};
+  HighlightCell *cells[] = {&m_normalizeCell, &m_xRangeCell, &m_yRangeCell,
+                            &m_gridTypeCell, &m_okButton};
   return cells[row];
-}
-
-HighlightCell* RangeParameterController::cell(int row) {
-  return const_cast<Escher::HighlightCell*>(
-      const_cast<const RangeParameterController*>(this)->cell(row));
 }
 
 void RangeParameterController::fillCells() {
@@ -59,33 +54,32 @@ void RangeParameterController::fillCells() {
       2 * PrintFloat::charSizeForFloatsWithPrecision(precision) + 4;
   char buffer[bufferSize];
   for (int i = 0; i < 2; ++i) {
-    OMG::Axis axis = i == 0 ? OMG::Axis::Horizontal : OMG::Axis::Vertical;
-    bool isAuto = m_tempInteractiveRange.zoomAuto(axis);
+    Axis axis = i == 0 ? Axis::X : Axis::Y;
+    bool isAuto = m_tempInteractiveRange.isAuto(axis);
 
     if (isAuto) {
       strlcpy(buffer, I18n::translate(I18n::Message::DefaultSetting),
               bufferSize);
     } else {
-      float min = axis == OMG::Axis::Horizontal ? m_tempInteractiveRange.xMin()
-                                                : m_tempInteractiveRange.yMin();
-      float max = axis == OMG::Axis::Horizontal ? m_tempInteractiveRange.xMax()
-                                                : m_tempInteractiveRange.yMax();
+      float min = axis == Axis::X ? m_tempInteractiveRange.xMin()
+                                  : m_tempInteractiveRange.yMin();
+      float max = axis == Axis::X ? m_tempInteractiveRange.xMax()
+                                  : m_tempInteractiveRange.yMax();
       int numberOfChars = PoincareHelpers::ConvertFloatToTextWithDisplayMode(
           min, buffer, bufferSize, precision,
           Preferences::PrintFloatMode::Decimal);
-      numberOfChars += UTF8Helper::WriteCodePoint(
+      numberOfChars += SerializationHelper::CodePoint(
           buffer + numberOfChars, bufferSize - numberOfChars, ' ');
-      numberOfChars += UTF8Helper::WriteCodePoint(
+      numberOfChars += SerializationHelper::CodePoint(
           buffer + numberOfChars, bufferSize - numberOfChars, ';');
-      numberOfChars += UTF8Helper::WriteCodePoint(
+      numberOfChars += SerializationHelper::CodePoint(
           buffer + numberOfChars, bufferSize - numberOfChars, ' ');
       numberOfChars += PoincareHelpers::ConvertFloatToTextWithDisplayMode(
           max, buffer + numberOfChars, bufferSize - numberOfChars, precision,
           Preferences::PrintFloatMode::Decimal);
       buffer[numberOfChars++] = 0;
     }
-    MenuCell* cell =
-        axis == OMG::Axis::Horizontal ? &m_xRangeCell : &m_yRangeCell;
+    MenuCell *cell = axis == Axis::X ? &m_xRangeCell : &m_yRangeCell;
     cell->subLabel()->setText(buffer);
   }
 
@@ -98,8 +92,8 @@ void RangeParameterController::fillCells() {
   m_gridTypeCell.subLabel()->setText(I18n::translate(gridTypeCellSubMessage));
 }
 
-KDCoordinate RangeParameterController::separatorBeforeRow(int row) const {
-  const HighlightCell* cell = this->cell(row);
+KDCoordinate RangeParameterController::separatorBeforeRow(int row) {
+  HighlightCell *cell = this->cell(row);
   return cell == &m_xRangeCell || cell == &m_okButton ? k_defaultRowSeparator
                                                       : 0;
 }
@@ -122,12 +116,18 @@ void RangeParameterController::viewDidDisappear() {
 
 bool RangeParameterController::handleEvent(Ion::Events::Event event) {
   if (event == Ion::Events::Back &&
-      (*m_interactiveRange != m_tempInteractiveRange)) {
+      (m_interactiveRange->rangeChecksum() !=
+           m_tempInteractiveRange.rangeChecksum() ||
+       m_interactiveRange->isAuto(Axis::X) !=
+           m_tempInteractiveRange.isAuto(Axis::X) ||
+       m_interactiveRange->isAuto(Axis::Y) !=
+           m_tempInteractiveRange.isAuto(Axis::Y) ||
+       m_interactiveRange->gridType() != m_tempInteractiveRange.gridType())) {
     // Open pop-up to confirm discarding values
     m_confirmPopUpController.presentModally();
     return true;
   }
-  HighlightCell* cell = this->cell(selectedRow());
+  HighlightCell *cell = this->cell(selectedRow());
   if (cell == &m_normalizeCell &&
       m_normalizeCell.canBeActivatedByEvent(event)) {
     m_normalizeCell.setHighlighted(false);
@@ -136,21 +136,21 @@ bool RangeParameterController::handleEvent(Ion::Events::Event event) {
     return true;
   }
   if ((cell == &m_xRangeCell || cell == &m_yRangeCell) &&
-      static_cast<MenuCell*>(cell)->canBeActivatedByEvent(event)) {
+      static_cast<MenuCell *>(cell)->canBeActivatedByEvent(event)) {
     m_singleInteractiveCurveViewRangeController.setAxis(
-        cell == &m_xRangeCell ? OMG::Axis::Horizontal : OMG::Axis::Vertical);
+        cell == &m_xRangeCell ? Axis::X : Axis::Y);
     stackController()->push(&m_singleInteractiveCurveViewRangeController);
     return true;
   }
   if (cell == &m_gridTypeCell &&
-      static_cast<MenuCell*>(cell)->canBeActivatedByEvent(event)) {
+      static_cast<MenuCell *>(cell)->canBeActivatedByEvent(event)) {
     stackController()->push(&m_gridTypeController);
     return true;
   }
   return false;
 }
 
-void RangeParameterController::setRange(InteractiveCurveViewRange* range) {
+void RangeParameterController::setRange(InteractiveCurveViewRange *range) {
   m_interactiveRange = range;
   m_tempInteractiveRange = *range;
 }
@@ -162,7 +162,6 @@ void RangeParameterController::buttonAction() {
 
   /* Use setZoomAuto to refresh the Auto button on the graph. */
   m_interactiveRange->setZoomAuto(m_tempInteractiveRange.zoomAuto());
-  m_interactiveRange->setUserStep(m_tempInteractiveRange.userStep());
   m_interactiveRange->setZoomNormalize(m_tempInteractiveRange.zoomNormalize());
   *m_interactiveRange = m_tempInteractiveRange;
 

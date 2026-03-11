@@ -11,8 +11,7 @@ class MenuController;
 class ScriptParameterController;
 class App;
 
-class EditorController : public Escher::ViewController,
-                         public StorageEditorDelegate {
+class EditorController : public Escher::ViewController {
  public:
   EditorController(MenuController* menuController, App* pythonDelegate);
   void setScript(Script script, int scriptIndex);
@@ -22,15 +21,13 @@ class EditorController : public Escher::ViewController,
   /* ViewController */
   Escher::View* view() override { return &m_editorView; }
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
   void viewWillAppear() override;
   void viewDidDisappear() override;
-  Escher::ViewController::TitlesDisplay titlesDisplay() const override {
+  Escher::ViewController::TitlesDisplay titlesDisplay() override {
     return Escher::ViewController::TitlesDisplay::DisplayNoTitle;
   }
-  bool freeSpaceFor(int size) override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  TELEMETRY_ID("Editor");
 
  private:
   void cleanStorageEmptySpace();

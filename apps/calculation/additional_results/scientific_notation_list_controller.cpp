@@ -1,22 +1,20 @@
 #include "scientific_notation_list_controller.h"
 
-#include <poincare/additional_results_helper.h>
-
 #include "../app.h"
+#include "scientific_notation_helper.h"
 
 using namespace Poincare;
 
 namespace Calculation {
 
 void ScientificNotationListController::computeAdditionalResults(
-    const UserExpression input, const UserExpression exactOutput,
-    const UserExpression approximateOutput) {
-  Context* context = App::app()->localContext();
+    const Expression input, const Expression exactOutput,
+    const Expression approximateOutput) {
   assert(AdditionalResultsType::HasScientificNotation(
-      approximateOutput, m_calculationPreferences, context));
-  m_layouts[0] = AdditionalResultsHelper::ScientificLayout(
-                     approximateOutput, context, m_calculationPreferences)
-                     .cloneAndTurnEToTenPowerLayout(false);
+      approximateOutput, m_calculationPreferences));
+  Context* context = App::app()->localContext();
+  m_layouts[0] = ScientificNotationHelper::ScientificLayout(
+      approximateOutput, context, m_calculationPreferences);
 }
 
 I18n::Message ScientificNotationListController::messageAtIndex(int index) {

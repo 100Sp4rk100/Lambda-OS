@@ -60,28 +60,15 @@ class AppIterator {
   uint8_t* m_currentAddress;
 };
 
-/* isExamModeActive is given as a parameter in following methods because
- * retrieving the exam mode from Ion is very costly and would slow down
- * everything. */
-
 class Apps {
  public:
-  Apps(bool isExamModeActive) : m_isExamModeActive(isExamModeActive) {}
   AppIterator begin() const;
   AppIterator end() const { return AppIterator(nullptr); };
-
- private:
-  [[maybe_unused]] bool m_isExamModeActive;
 };
 
-// Apps are hidden during an active exam mode.
-int numberOfApps(bool isExamModeActive);
-// During exam mode, apps are hidden and will not be deleted.
-void deleteApps(bool isExamModeActive);
+int numberOfApps();
+void deleteApps();
 bool allowThirdParty();
-
-// Update clearance level if there are external apps
-void updateClearanceLevel(bool isExamModeActive);
 
 }  // namespace ExternalApps
 }  // namespace Ion

@@ -6,6 +6,8 @@
 #include <escher/view_controller.h>
 #include <stdint.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 /* Use StackViewController::Default when possible. If the app needs more
@@ -30,18 +32,18 @@ class StackViewController : public ViewController {
 
   int depth() const { return m_size; }
   StackView* view() override { return &m_view; }
-  const ViewController* topViewController() const;
   ViewController* topViewController();
-  const ViewController* secondTopViewController() const;
-  const char* title() const override;
+  const char* title() override;
   bool handleEvent(Ion::Events::Event event) override;
+  void didEnterResponderChain(Responder* previousFirstResponder) override;
+  void didBecomeFirstResponder() override;
   void initView() override;
   void viewWillAppear() override;
   void viewDidDisappear() override;
   void setupActiveView();
   void setupHeadersBorderOverlaping(
       bool headersOverlapHeaders = true, bool headersOverlapContent = false,
-      KDColor headersContentBorderColor = Palette::GrayBright) {
+      KDColor headersContentBorderColor = Theme::ThemeGestion::getColor("GrayBright")) {
     m_view.setupHeadersBorderOverlaping(headersOverlapHeaders,
                                         headersOverlapContent,
                                         headersContentBorderColor);
@@ -51,38 +53,26 @@ class StackViewController : public ViewController {
   StackViewController(Responder* parentResponder, StackView::Style style,
                       bool extendVertically,
                       OMG::AbstractStack<StackHeaderView>* headerViewStack);
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   StackView m_view;
-
-  /* The StackView::Mask represents the stacks to display, _starting from the
-   * end_. titlesMask = 0b11111011   ->  shouldn't display
-   * m_stackViews[numberOfStacks - 1 - 2]. */
-  constexpr static bool ShouldStoreHeaderOnStack(
-      const ViewController* controller, uint8_t pageIndex,
-      StackView::Mask titlesMask, uint8_t numberOfDifferentPages);
-
   void pushModel(ViewController* vc);
   void setupActiveViewController();
-
-  StackView::Mask previousPageHeaderMask() const;
-  /* Compute the number of different pages up to indexOfTopPage, ignoring the
-   * pages which should copy the title of their previous page */
-  uint8_t numberOfDifferentPages(uint8_t indexOfTopPage) const;
-  void updateStack(ViewController::TitlesDisplay titleDisplay,
-                   uint8_t indexOfTopPage);
+  bool shouldStoreHeaderOnStack(ViewController* vc, int index);
+  void updateStack(ViewController::TitlesDisplay titleDisplay);
   void dismissPotentialModal();
   virtual void didExitPage(ViewController* controller) const;
   virtual void willOpenPage(ViewController* controller) const;
   uint8_t m_size;
   bool m_isVisible;
   bool m_displayedAsModal;
+  /* Represents the stacks to display, _starting from the end_.
+   * m_headersDisplayMask = 0b11111011   ->  shouldn't display
+   * m_stackViews[numberOfStacks - 1 - 2]. */
+  StackView::Mask m_headersDisplayMask;
 
-  virtual ViewController* stackSlot(uint8_t index) = 0;
-  virtual const ViewController* stackSlot(uint8_t index) const = 0;
-
-  virtual void setStackSlot(uint8_t index, ViewController* controller) = 0;
+ private:
+  virtual ViewController** stackSlot(int index) = 0;
 };
 
 template <unsigned Capacity>
@@ -105,19 +95,9 @@ class CustomSizeStackViewController : public StackViewController {
   }
 
  private:
-  ViewController* stackSlot(uint8_t index) override {
-    assert(index >= 0 && index < Capacity);
-    return m_stack[index];
-  }
-
-  const ViewController* stackSlot(uint8_t index) const override {
-    assert(index >= 0 && index < Capacity);
-    return m_stack[index];
-  }
-
-  void setStackSlot(uint8_t index, ViewController* controller) override {
-    assert(index >= 0 && index < Capacity);
-    m_stack[index] = controller;
+  ViewController** stackSlot(int index) override {
+    assert(index >= 0 && index < static_cast<int>(Capacity));
+    return &m_stack[index];
   }
 
   ViewController* m_stack[Capacity];

@@ -7,6 +7,9 @@
 #include <escher/selectable_table_view_delegate.h>
 #include <escher/view_controller.h>
 
+#include "apps/theme_gestion/backgroundGestion.h"
+#include "apps/theme_gestion/themeGestion.h"
+
 #include "app_cell.h"
 
 namespace Home {
@@ -21,6 +24,8 @@ class Controller : public Escher::ViewController,
   Escher::View* view() override { return &m_view; }
 
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
+  TELEMETRY_ID("");
 
   int numberOfRows() const override {
     return ((numberOfIcons() - 1) / k_numberOfColumns) + 1;
@@ -39,9 +44,6 @@ class Controller : public Escher::ViewController,
       Escher::SelectableTableView* t, int previousSelectedCol,
       int previousSelectedRow, KDPoint previousOffset,
       bool withinTemporarySelection) override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   // SimpleTableViewDataSource
@@ -75,7 +77,14 @@ class Controller : public Escher::ViewController,
                 Escher::SelectableTableViewDataSource* selectionDataSource);
     Escher::SelectableTableView* selectableTableView();
     void drawRect(KDContext* ctx, KDRect rect) const override {
-      ctx->fillRect(bounds(), KDColorWhite);
+      if (Theme::ThemeGestion::isThereBackground()){
+        Ion::Display::pushRect(
+          KDRect(0, 18, background_width, background_height-18),
+          reinterpret_cast<const KDColor *>(Theme::ThemeGestion::getBackground())
+      );
+      }else{
+        ctx->fillRect(bounds(), Theme::ThemeGestion::getBackgroundColor());
+      }
     }
     void reload() { markWholeFrameAsDirty(); }
     void reloadBottomRow(SimpleTableViewDataSource* dataSource,

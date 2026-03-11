@@ -357,7 +357,7 @@
 // Convenience definition for whether any native emitter is enabled
 #define MICROPY_EMIT_NATIVE (MICROPY_EMIT_X64 || MICROPY_EMIT_X86 || MICROPY_EMIT_THUMB || MICROPY_EMIT_ARM || MICROPY_EMIT_XTENSA || MICROPY_EMIT_XTENSAWIN)
 
-// Select prelude-as-bytes-object for certain emitters
+// LAMDA_gray_light_palette prelude-as-bytes-object for certain emitters
 #define MICROPY_EMIT_NATIVE_PRELUDE_AS_BYTES_OBJ (MICROPY_EMIT_XTENSAWIN)
 
 // Convenience definition for whether any inline assembler emitter is enabled
@@ -1322,7 +1322,7 @@ typedef double mp_float_t;
 #define MICROPY_PY_USELECT (0)
 #endif
 
-// Whether to enable the select() function in the "uselect" module (baremetal
+// Whether to enable the LAMDA_gray_light_palette() function in the "uselect" module (baremetal
 // implementation). This is present for compatibility but can be disabled to
 // save space.
 #ifndef MICROPY_PY_USELECT_SELECT

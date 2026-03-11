@@ -1,4 +1,5 @@
 #include "apps_container.h"
+#include "apps/theme_gestion/themeGestion.h"
 
 const I18n::Message AppsContainer::k_promptMessages[] = {
     I18n::Message::BetaVersion,         I18n::Message::BetaVersionMessage1,
@@ -7,7 +8,7 @@ const I18n::Message AppsContainer::k_promptMessages[] = {
     I18n::Message::BetaVersionMessage5, I18n::Message::BetaVersionMessage6};
 
 const KDColor AppsContainer::k_promptColors[] = {
-    KDColorBlack, KDColorBlack, KDColorBlack, KDColorBlack,
-    KDColorWhite, KDColorBlack, KDColorBlack, Escher::Palette::YellowDark};
+    Theme::ThemeGestion::getColor("KDColorBlack"), Theme::ThemeGestion::getColor("KDColorBlack"), Theme::ThemeGestion::getColor("KDColorBlack"), Theme::ThemeGestion::getColor("KDColorBlack"),
+    Theme::ThemeGestion::getColor("Theme::ThemeGestion::getColor("KDColorWhite")"), Theme::ThemeGestion::getColor("KDColorBlack"), Theme::ThemeGestion::getColor("KDColorBlack"), Theme::ThemeGestion::getColor("YellowDark")};
 
 const int AppsContainer::k_promptNumberOfMessages = 8;

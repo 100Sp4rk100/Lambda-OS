@@ -1,20 +1,33 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/solver/,$(addsuffix :-test, \
+apps += Solver::App
+app_headers += apps/solver/app.h
+
+app_solver_test_src = $(addprefix apps/solver/,\
+  equation.cpp \
+  equation_store.cpp \
+  system_of_equations.cpp \
+)
+
+app_solver_src = $(addprefix apps/solver/,\
   app.cpp \
   equation_list_view.cpp \
   equation_models_parameter_controller.cpp \
   interval_controller.cpp \
   list_controller.cpp \
   solutions_controller.cpp \
-  solver_icon.png \
-) \
-  equation.cpp \
-  equation_store.cpp \
-  system_of_equations.cpp \
-  test/equation_store.cpp:+test \
-  test/helpers.cpp:+test \
-  test/solving_range.cpp:+test \
 )
 
-$(call depends_on_image,$(PATH_apps)/solver/app.cpp,$(PATH_apps)/solver/solver_icon.png)
+app_solver_src += $(app_solver_test_src)
+apps_src += $(app_solver_src)
 
-$(call i18n_without_universal,solver/i18n/base)
+i18n_files += $(call i18n_without_universal_for,solver/i18n/base)
+
+tests_src += $(addprefix apps/solver/test/,\
+  equation_store.cpp \
+  helpers.cpp \
+  solving_range.cpp \
+)
+
+# Image dependencies
+
+$(eval $(call depends_on_image,apps/solver/app.cpp,apps/solver/solver_icon.png))
+$(eval $(call depends_on_image,apps/solver/app.cpp,apps/solver/solver_icon_epsilon.png))

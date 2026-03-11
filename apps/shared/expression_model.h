@@ -1,7 +1,6 @@
 #ifndef SHARED_EXPRESSION_MODEL_H
 #define SHARED_EXPRESSION_MODEL_H
 
-#include <ion/storage/record.h>
 #include <poincare/context.h>
 #include <poincare/expression.h>
 #include <poincare/layout.h>
@@ -15,50 +14,43 @@ class ExpressionModel {
   // Getters
   void text(const Ion::Storage::Record* record, char* buffer, size_t bufferSize,
             CodePoint symbol = 0) const;
-  virtual Poincare::SystemExpression expressionReduced(
+  virtual Poincare::Expression expressionReduced(
       const Ion::Storage::Record* record, Poincare::Context* context) const;
-  virtual Poincare::UserExpression expressionClone(
+  virtual Poincare::Expression expressionClone(
       const Ion::Storage::Record* record) const;
-
-  virtual const Poincare::Internal::Tree* expressionTree(
-      const Ion::Storage::Record* record) const;
-
   Poincare::Layout layout(const Ion::Storage::Record* record,
                           CodePoint symbol = 0) const;
 
   // Setters
   Ion::Storage::Record::ErrorStatus setContent(Ion::Storage::Record* record,
-                                               const Poincare::Layout& l,
+                                               const char* c,
                                                Poincare::Context* context,
                                                CodePoint symbol = 0);
   Ion::Storage::Record::ErrorStatus setExpressionContent(
-      Ion::Storage::Record* record,
-      const Poincare::UserExpression& newExpression);
+      Ion::Storage::Record* record, const Poincare::Expression& newExpression);
 
   virtual void tidyDownstreamPoolFrom(
-      const Poincare::PoolObject* treePoolCursor = nullptr) const;
+      Poincare::TreeNode* treePoolCursor = nullptr) const;
 
   Poincare::Preferences::ComplexFormat complexFormat(
       const Ion::Storage::Record* record, Poincare::Context* context) const;
 
  protected:
   // Setters helper
-  virtual Poincare::UserExpression buildExpressionFromLayout(
-      Poincare::Layout l, CodePoint symbol = 0,
+  virtual Poincare::Expression buildExpressionFromText(
+      const char* c, CodePoint symbol = 0,
       Poincare::Context* context = nullptr) const;
-  static Poincare::UserExpression ReplaceSymbolWithUnknown(
-      Poincare::UserExpression e, CodePoint symbol,
-      bool onlySecondTerm = false);
+  static Poincare::Expression ReplaceSymbolWithUnknown(Poincare::Expression e,
+                                                       CodePoint symbol);
 
   bool isCircularlyDefined(const Ion::Storage::Record* record,
                            Poincare::Context* context) const;
   virtual void updateNewDataWithExpression(
       Ion::Storage::Record* record,
-      const Poincare::UserExpression& expressionToStore,
-      void* expressionAddress, size_t expressionToStoreSize,
-      size_t previousExpressionSize);
+      const Poincare::Expression& expressionToStore, void* expressionAddress,
+      size_t expressionToStoreSize, size_t previousExpressionSize);
 
-  mutable Poincare::SystemExpression m_expression;
+  mutable Poincare::Expression m_expression;
   mutable Poincare::Layout m_layout;
 
  private:

@@ -3,10 +3,7 @@
 #include <apps/shared/sequence_context.h>
 #include <apps/shared/sequence_store.h>
 #include <assert.h>
-#include <omg/float.h>
-#include <poincare/print.h>
 #include <poincare/test/helper.h>
-#include <poincare/test/old/helper.h>
 #include <quiz.h>
 #include <string.h>
 
@@ -26,16 +23,14 @@ Sequence* addSequence(SequenceStore* store, Sequence::Type type,
       store->recordAtIndex(store->numberOfModels() - 1);
   Sequence* u = store->modelForRecord(record);
   u->setType(type);
-  err = u->setContent(Layout::Parse(definition), context);
+  err = u->setContent(definition, context);
   assert(err == Ion::Storage::Record::ErrorStatus::None);
   if (condition1) {
-    err =
-        u->setFirstInitialConditionContent(Layout::Parse(condition1), context);
+    err = u->setFirstInitialConditionContent(condition1, context);
     assert(err == Ion::Storage::Record::ErrorStatus::None);
   }
   if (condition2) {
-    err =
-        u->setSecondInitialConditionContent(Layout::Parse(condition2), context);
+    err = u->setSecondInitialConditionContent(condition2, context);
     assert(err == Ion::Storage::Record::ErrorStatus::None);
   }
   (void)err;  // Silence compilation warning.
@@ -49,7 +44,7 @@ void check_sequences_defined_by(
     const char* conditions1[SequenceStore::k_maxNumberOfSequences],
     const char* conditions2[SequenceStore::k_maxNumberOfSequences]) {
   Shared::GlobalContext globalContext;
-  SequenceStore* store = globalContext.s_sequenceStore;
+  SequenceStore* store = globalContext.sequenceStore;
   SequenceContext* sequenceContext = globalContext.sequenceContext();
 
   Sequence* seqs[SequenceStore::k_maxNumberOfSequences];
@@ -63,15 +58,8 @@ void check_sequences_defined_by(
       if (seqs[i]->isDefined()) {
         double un =
             seqs[i]->evaluateXYAtParameter((double)j, sequenceContext).y();
-        bool isEqual = OMG::Float::RoughlyEqual<double>(
-            un, result[i][j], OMG::Float::EpsilonLax<double>(), true);
-        constexpr size_t bufferSize = 100;
-        char buffer[bufferSize];
-        Poincare::Print::CustomPrintf(
-            buffer, bufferSize, "%*.*ed instead of %*.*ed.", un,
-            Preferences::PrintFloatMode::Decimal, 7, result[i][j],
-            Preferences::PrintFloatMode::Decimal, 7);
-        quiz_assert_print_if_failure(isEqual, buffer);
+        quiz_assert((std::isnan(un) && std::isnan(result[i][j])) ||
+                    (un == result[i][j]));
       }
     }
   }
@@ -80,7 +68,6 @@ void check_sequences_defined_by(
    * GlobalContext::sequenceStore singleton. It won't be destructed. However,
    * we need to make sure that the pool is empty between quiz_cases. */
   store->tidyDownstreamPoolFrom();
-  GlobalContext::s_sequenceCache->resetCache();
 }
 
 void check_sum_of_sequence_between_bounds(double result, double start,
@@ -89,21 +76,20 @@ void check_sum_of_sequence_between_bounds(double result, double start,
                                           const char* condition1,
                                           const char* condition2) {
   Shared::GlobalContext globalContext;
-  SequenceStore* store = globalContext.s_sequenceStore;
+  SequenceStore* store = globalContext.sequenceStore;
   SequenceContext* sequenceContext = globalContext.sequenceContext();
 
   Sequence* seq = addSequence(store, type, definition, condition1, condition2,
                               sequenceContext);
 
+  ApproximationContext approximationContext(
+      sequenceContext, seq->complexFormat(sequenceContext));
   double sum = seq->sumBetweenBounds(start, end, sequenceContext)
-                   .approximateToRealScalar<double>(
-                       MathPreferences::SharedPreferences()->angleUnit(),
-                       seq->complexFormat(sequenceContext));
+                   .approximateToScalar<double>(approximationContext);
   assert_roughly_equal(sum, result);
 
   store->removeAll();
   store->tidyDownstreamPoolFrom();  // Cf comment above
-  GlobalContext::s_sequenceCache->resetCache();
 }
 
 QUIZ_CASE(sequence_evaluation) {
@@ -118,52 +104,17 @@ QUIZ_CASE(sequence_evaluation) {
       nullptr, nullptr, nullptr};
 
   // u(n) = n
-  double results0[SequenceStore::k_maxNumberOfSequences][10] = {
+  double results1[SequenceStore::k_maxNumberOfSequences][10] = {
       {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0}, {}, {}};
   definitions[0] = "n";
-  check_sequences_defined_by(results0, types, definitions, conditions1,
-                             conditions2);
-
-  // u(n) = floor(1200*1.0125^(n-1+160))
-  double results1[SequenceStore::k_maxNumberOfSequences][10] = {
-      {8649.0, 8757.0, 8867.0, 8977.0, 9090.0, 9203.0, 9318.0, 9435.0, 9553.0,
-       9672.0},
-      {},
-      {}};
-  definitions[0] = "floor(1200*1.0125^(n-1+160))";
   check_sequences_defined_by(results1, types, definitions, conditions1,
                              conditions2);
-
-  MathPreferences::SharedPreferences()->setComplexFormat(
-      Preferences::ComplexFormat::Cartesian);
-  // u(n) = (-1/2)^n
-  double results1bis[SequenceStore::k_maxNumberOfSequences][10] = {
-      {1, -0.5, 0.25, -0.125, 0.0625, -0.03125, 0.015625, -0.0078125,
-       0.00390625, -0.001953125},
-      {},
-      {}};
-  definitions[0] = "(-1/2)^n";
-  check_sequences_defined_by(results1bis, types, definitions, conditions1,
-                             conditions2);
-
-  // u(n) = 250+n v(n) = (-1)^u(n)
-  double results1ter[SequenceStore::k_maxNumberOfSequences][10] = {
-      {250.0, 251.0, 252.0, 253.0, 254.0, 255.0, 256.0, 257.0, 258.0, 259.0},
-      {1, -1, 1, -1, 1, -1, 1, -1, 1, -1},
-      {}};
-  definitions[0] = "250+n";
-  definitions[1] = "(-1)^u(n)";
-  check_sequences_defined_by(results1ter, types, definitions, conditions1,
-                             conditions2);
-  MathPreferences::SharedPreferences()->setComplexFormat(
-      Preferences::ComplexFormat::Real);
 
   // u(n+1) = u(n)+n, u(0) = 0
   double results2[SequenceStore::k_maxNumberOfSequences][10] = {
       {0.0, 0.0, 1.0, 3.0, 6.0, 10.0, 15.0, 21.0, 28.0, 36.0}, {}, {}};
   types[0] = Sequence::Type::SingleRecurrence;
   definitions[0] = "u(n)+n";
-  definitions[1] = nullptr;
   conditions1[0] = "0";
   check_sequences_defined_by(results2, types, definitions, conditions1,
                              conditions2);
@@ -186,19 +137,6 @@ QUIZ_CASE(sequence_evaluation) {
   check_sequences_defined_by(results2ter, types, definitions, conditions1,
                              conditions2);
 
-  // u(n+1) = 8/(1+ln(u(n))), u(0) = 3.55
-  double results2qua[SequenceStore::k_maxNumberOfSequences][10] = {
-      {3.55, 3.528974374040812, 3.538246010831602, 3.53414472168467,
-       3.535956418133212, 3.535155634355861, 3.535509491610179,
-       3.535353107491111, 3.535422216448733, 3.535391675246047},
-      {},
-      {}};
-  types[0] = Sequence::Type::SingleRecurrence;
-  definitions[0] = "8/(1+ln(u(n)))";
-  conditions1[0] = "3.55";
-  check_sequences_defined_by(results2qua, types, definitions, conditions1,
-                             conditions2);
-
   // u(n+2) = u(n+1)+u(n)+n, u(0) = 0, u(1) = 0
   double results3[SequenceStore::k_maxNumberOfSequences][10] = {
       {0.0, 0.0, 0.0, 1.0, 3.0, 7.0, 14.0, 26.0, 46.0, 79.0}, {}, {}};
@@ -209,20 +147,6 @@ QUIZ_CASE(sequence_evaluation) {
   check_sequences_defined_by(results3, types, definitions, conditions1,
                              conditions2);
 
-  /* u is independent, v recursive and v(0) depends on u
-   * u(n) = n; v(n+1) = v(n)+1; v(0) = u(5) */
-  double results4bis[SequenceStore::k_maxNumberOfSequences][10] = {
-      {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0},
-      {5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0},
-      {}};
-  types[0] = Sequence::Type::Explicit;
-  types[1] = Sequence::Type::SingleRecurrence;
-  definitions[0] = "n";
-  definitions[1] = "v(n)+1";
-  conditions1[1] = "u(5)";
-  check_sequences_defined_by(results4bis, types, definitions, conditions1,
-                             conditions2);
-
   /* u independent, v defined with u
    * u(n) = n; v(n) = u(n)+n */
   double results4[SequenceStore::k_maxNumberOfSequences][10] = {
@@ -230,7 +154,6 @@ QUIZ_CASE(sequence_evaluation) {
       {0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0},
       {}};
   types[0] = Sequence::Type::Explicit;
-  types[1] = Sequence::Type::Explicit;
   definitions[0] = "n";
   definitions[1] = "u(n)+n";
   conditions1[0] = nullptr;
@@ -753,57 +676,33 @@ QUIZ_CASE(sequence_evaluation) {
   conditions2[0] = nullptr;
   check_sequences_defined_by(result38, types, definitions, conditions1,
                              conditions2);
-
-  // u(n+1) = u(n)+n-1, v(n) = u(10^n)
-  double results39[SequenceStore::k_maxNumberOfSequences][10] = {
-      {2.0, 1.0, 1.0, 2.0, 4.0, 7.0, 11.0, 16.0, 22.0, 29.0},
-      {1.0, 37.0, 4852.0, 498502.0, 49985002.0, NAN, NAN, NAN, NAN, NAN}};
-  types[0] = Sequence::Type::SingleRecurrence;
-  types[1] = Sequence::Type::Explicit;
-  definitions[0] = "u(n)+n-1";
-  definitions[1] = "u(10^n)";
-  definitions[2] = nullptr;
-  conditions1[0] = "2";
-  conditions1[1] = nullptr;
-  conditions1[2] = nullptr;
-  conditions2[0] = nullptr;
-  conditions2[1] = nullptr;
-  conditions2[2] = nullptr;
-  check_sequences_defined_by(results39, types, definitions, conditions1,
-                             conditions2);
 }
 
 QUIZ_CASE(sequence_context) {
-  Shared::GlobalContext globalContext;
-  SequenceStore* store = globalContext.s_sequenceStore;
-  SequenceContext* sequenceContext = globalContext.sequenceContext();
-
   assert_reduce_and_store("3→f(x)");
-  assert_expression_simplifies_approximates_to<double>("f(u(0))", "undef",
-                                                       &globalContext);
+  assert_expression_simplifies_approximates_to<double>("f(u(0))", "undef");
 
+  Shared::GlobalContext globalContext;
+  SequenceStore* store = globalContext.sequenceStore;
+  SequenceContext* sequenceContext = globalContext.sequenceContext();
   addSequence(store, Sequence::Type::Explicit, "1", nullptr, nullptr,
               sequenceContext);
-  assert_expression_simplifies_approximates_to<double>("f(u(2))", "3",
-                                                       &globalContext);
+  assert_expression_simplifies_approximates_to<double>("f(u(2))", "3");
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("f.func").destroy();
 
   store->removeAll();
   addSequence(store, Sequence::Type::Explicit, "1/0", nullptr, nullptr,
               sequenceContext);
-  assert_expression_simplifies_approximates_to<double>("f(u(2))", "undef",
-                                                       &globalContext);
+  assert_expression_simplifies_approximates_to<double>("f(u(2))", "undef");
 
   store->removeAll();
   assert_reduce_and_store("3→a");
   addSequence(store, Sequence::Type::Explicit, "a+1", nullptr, nullptr,
               sequenceContext);
-  assert_expression_simplifies_approximates_to<double>("u(34)", "4",
-                                                       &globalContext);
+  assert_expression_simplifies_approximates_to<double>("u(34)", "4");
   assert_reduce_and_store("-3→a");
   globalContext.storageDidChangeForRecord(Ion::Storage::Record("a.exp"));
-  assert_expression_simplifies_approximates_to<double>("u(34)", "-2",
-                                                       &globalContext);
+  assert_expression_simplifies_approximates_to<double>("u(34)", "-2");
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
 
   store->removeAll();
@@ -812,7 +711,7 @@ QUIZ_CASE(sequence_context) {
 
 QUIZ_CASE(sequence_order) {
   Shared::GlobalContext globalContext;
-  SequenceStore* store = globalContext.s_sequenceStore;
+  SequenceStore* store = globalContext.sequenceStore;
   SequenceContext* sequenceContext = globalContext.sequenceContext();
 
   Sequence* u = addSequence(store, Sequence::Type::Explicit, "", nullptr,
@@ -861,7 +760,7 @@ QUIZ_CASE(sequence_sum_evaluation) {
 
 QUIZ_CASE(sequence_suitable_for_cobweb) {
   Shared::GlobalContext globalContext;
-  SequenceStore* store = globalContext.s_sequenceStore;
+  SequenceStore* store = globalContext.sequenceStore;
   SequenceContext* sequenceContext = globalContext.sequenceContext();
   quiz_assert(addSequence(store, Sequence::Type::SingleRecurrence,
                           "3(u(n)+2)+u(n)", "0", nullptr, sequenceContext)

@@ -636,7 +636,7 @@ local skip1
     push        {r4-r12, lr}        /* save all registers */
 
 /*
- * Select prefetch type for this function. If prefetch distance is
+ * LAMDA_gray_light_palette prefetch type for this function. If prefetch distance is
  * set to 0 or one of the color formats is 24bpp, SIMPLE prefetch
  * has to be used instead of ADVANCED.
  */

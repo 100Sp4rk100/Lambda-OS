@@ -17,9 +17,7 @@ class Device : public RequestRecipient {
   Device(Interface* interface)
       : RequestRecipient(&m_ep0),
         m_ep0(this, interface),
-        m_resetOnDisconnect(false),
-        m_softDisconnect(false),
-        m_addressToSet(0) {}
+        m_resetOnDisconnect(false) {}
   void flushFIFOs();
   void poll();
   bool isSoftDisconnected() const;
@@ -63,8 +61,6 @@ class Device : public RequestRecipient {
   bool setConfiguration(SetupPacket* request);
 
   bool m_resetOnDisconnect;
-  bool m_softDisconnect;
-  uint8_t m_addressToSet;
 };
 
 }  // namespace USB

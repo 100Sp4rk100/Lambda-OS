@@ -1,5 +1,7 @@
 #include "sequence_cell.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Escher;
 
 namespace Sequence {
@@ -7,48 +9,41 @@ namespace Sequence {
 View* AbstractSequenceCell::subviewAtIndex(int index) {
   switch (index) {
     case 0:
-      return mainCell();
+      return &m_sequenceTitleCell;
     default:
       assert(index == 1);
-      return &m_ellipsisView;
+      return mainCell();
   }
 }
 
 void AbstractSequenceCell::drawRect(KDContext* ctx, KDRect rect) const {
   // Color the main background
   ctx->fillRect(bounds(), m_expressionBackground);
-  // Draw the color indicator
-  ctx->fillRect(
-      KDRect(0, 0, k_verticalColorIndicatorThickness, bounds().height()),
-      m_functionColor);
-  // Color the ellipsis view
-  KDCoordinate ellipsisWidth = displayEllipsis() ? k_ellipsisWidth : 0;
-  ctx->fillRect(KDRect(bounds().width() - ellipsisWidth, 0, ellipsisWidth,
-                       bounds().height()),
-                m_ellipsisBackground);
 }
 
 void AbstractSequenceCell::layoutSubviews(bool force) {
-  KDCoordinate ellipsisWidth = displayEllipsis() ? k_ellipsisWidth : 0;
-  setChildFrame(mainCell(),
-                KDRect(k_verticalColorIndicatorThickness + k_margin, 0,
-                       bounds().width() - k_verticalColorIndicatorThickness -
-                           k_margin - ellipsisWidth,
-                       bounds().height()),
-                force);
-  setChildFrame(&m_ellipsisView,
-                KDRect(bounds().width() - ellipsisWidth, 0, ellipsisWidth,
-                       bounds().height()),
-                force);
+  setChildFrame(&m_sequenceTitleCell,
+                KDRect(0, 0, k_titlesColmunWidth, bounds().height()), force);
+  setChildFrame(
+      mainCell(),
+      KDRect(k_titlesColmunWidth, 0, bounds().width() - k_titlesColmunWidth,
+             bounds().height()),
+      force);
+}
+
+void AbstractSequenceCell::setEven(bool even) {
+  m_sequenceTitleCell.setEven(even);
+  EvenOddCell::setEven(even);
 }
 
 void SequenceCell::updateSubviewsBackgroundAfterChangingState() {
-  KDColor defaultColor = m_even ? KDColorWhite : Palette::WallScreen;
+  KDColor defaultColor = m_even ? Theme::ThemeGestion::getColor("KDColorWhite") : Theme::ThemeGestion::getColor("WallScreen");
   // If not highlighted, selectedColor is defaultColor
   KDColor selectedColor = backgroundColor();
+  m_sequenceTitleCell.setHighlighted(isHighlighted() && m_parameterSelected);
   m_expressionBackground = m_parameterSelected ? defaultColor : selectedColor;
-  m_ellipsisBackground = m_parameterSelected ? selectedColor : defaultColor;
   expressionCell()->setHighlighted(isHighlighted() && !m_parameterSelected);
+  expressionCell()->setBackgroundColor(m_expressionBackground);
 }
 
 void AbstractSequenceCell::setParameterSelected(bool selected) {

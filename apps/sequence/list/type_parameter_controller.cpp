@@ -3,8 +3,10 @@
 #include <apps/global_preferences.h>
 #include <apps/i18n.h>
 #include <assert.h>
-#include <poincare/k_tree.h>
+#include <poincare/code_point_layout.h>
 #include <poincare/layout.h>
+#include <poincare/layout_helper.h>
+#include <poincare/vertical_offset_layout.h>
 
 #include "../app.h"
 #include "list_controller.h"
@@ -15,8 +17,8 @@ using namespace Escher;
 
 namespace Sequence {
 
-TypeParameterController::TypeParameterController(Responder* parentResponder,
-                                                 ListController* list,
+TypeParameterController::TypeParameterController(Responder *parentResponder,
+                                                 ListController *list,
                                                  KDMargins margins)
     : UniformSelectableListController<MenuCell<LayoutView, MessageTextView>,
                                       k_numberOfCells>(parentResponder),
@@ -32,18 +34,22 @@ TypeParameterController::TypeParameterController(Responder* parentResponder,
   m_selectableListView.hideScrollBars();
 }
 
-const char* TypeParameterController::title() const {
-  return I18n::translate(I18n::Message::ChooseSequenceType);
+const char *TypeParameterController::title() {
+  return I18n::translate(isNewModel() ? I18n::Message::ChooseSequenceType
+                                      : I18n::Message::SequenceType);
 }
 
 void TypeParameterController::viewWillAppear() {
-  const char* nextName = SequenceStore::FirstAvailableName();
+  const char *nextName = isNewModel() ? SequenceStore::FirstAvailableName()
+                                      : sequence()->fullName();
   assert(nextName != nullptr);
-  const char* subscripts[k_numberOfCells] = {"n", "n+1", "n+2"};
+  const char *subscripts[k_numberOfCells] = {"n", "n+1", "n+2"};
   for (size_t j = 0; j < k_numberOfCells; j++) {
-    cell(j)->label()->setLayout(Layout::Create(
-        KA ^ KSubscriptL(KB), {.KA = Layout::CodePoint(nextName[0]),
-                               .KB = Layout::String(subscripts[j])}));
+    cell(j)->label()->setLayout(HorizontalLayout::Builder(
+        CodePointLayout::Builder(nextName[0]),
+        VerticalOffsetLayout::Builder(
+            LayoutHelper::String(subscripts[j], strlen(subscripts[j])),
+            VerticalOffsetLayoutNode::VerticalPosition::Subscript)));
   }
   ViewController::viewWillAppear();
   m_selectableListView.reloadData();
@@ -58,18 +64,36 @@ void TypeParameterController::viewDidDisappear() {
   ViewController::viewDidDisappear();
 }
 
-void TypeParameterController::handleResponderChainEvent(
-    ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    selectRow(k_indexOfExplicit);
-    UniformSelectableListController::handleResponderChainEvent(event);
-  } else {
-    UniformSelectableListController::handleResponderChainEvent(event);
-  }
+void TypeParameterController::didBecomeFirstResponder() {
+  selectRow(isNewModel() ? k_indexOfExplicit
+                         : static_cast<uint8_t>(sequence()->type()));
+  SelectableListViewController::didBecomeFirstResponder();
 }
 
 bool TypeParameterController::handleEvent(Ion::Events::Event event) {
   if (event == Ion::Events::OK || event == Ion::Events::EXE) {
+    if (!isNewModel()) {
+      Shared::Sequence::Type sequenceType =
+          static_cast<Shared::Sequence::Type>(selectedRow());
+      if (sequence()->type() != sequenceType) {
+        m_listController->selectPreviousNewSequenceCell();
+        sequence()->setType(sequenceType);
+        // Invalidate sequence context cache when changing sequence type
+        App::app()->localContext()->resetCache();
+        // Reset the first index if the new type is "Explicit"
+        if (sequenceType == Shared::Sequence::Type::Explicit) {
+          sequence()->setInitialRank(
+              GlobalPreferences::SharedGlobalPreferences()
+                  ->sequencesInitialRank());
+        }
+      }
+      StackViewController *stack = stackController();
+      assert(stack->depth() > 2);
+      stack->pop();
+      stack->pop();
+      return true;
+    }
+
     Ion::Storage::Record::ErrorStatus error = sequenceStore()->addEmptyModel();
     if (error == Ion::Storage::Record::ErrorStatus::NotEnoughSpaceAvailable) {
       return true;
@@ -77,7 +101,7 @@ bool TypeParameterController::handleEvent(Ion::Events::Event event) {
     assert(error == Ion::Storage::Record::ErrorStatus::None);
     Ion::Storage::Record record =
         sequenceStore()->recordAtIndex(sequenceStore()->numberOfModels() - 1);
-    Shared::Sequence* newSequence = sequenceStore()->modelForRecord(record);
+    Shared::Sequence *newSequence = sequenceStore()->modelForRecord(record);
     newSequence->setType(static_cast<Shared::Sequence::Type>(selectedRow()));
     // Make all the lines of the added sequence visible
     m_listController->showLastSequence();
@@ -85,13 +109,18 @@ bool TypeParameterController::handleEvent(Ion::Events::Event event) {
     m_listController->editExpression(Ion::Events::OK);
     return true;
   }
-  if (m_listController->handleEventOnExpressionInTemplateMenu(event)) {
+  if (event == Ion::Events::Left && !isNewModel()) {
+    stackController()->pop();
+    return true;
+  }
+  if (isNewModel() &&
+      m_listController->handleEventOnExpressionInTemplateMenu(event)) {
     return true;
   }
   return false;
 }
 
-SequenceStore* TypeParameterController::sequenceStore() {
+SequenceStore *TypeParameterController::sequenceStore() {
   return App::app()->functionStore();
 }
 

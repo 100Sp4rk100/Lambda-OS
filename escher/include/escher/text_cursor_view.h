@@ -45,10 +45,14 @@ class TextCursorView : public View {
 #endif
    public:
     using ResponderType::ResponderType;
-
-   protected:
-    void handleResponderChainEvent(
-        Responder::ResponderChainEvent event) override;
+    void didBecomeFirstResponder() override {
+      TextCursorView::sharedTextCursor->setInField(cursorCursorFieldView());
+      ResponderType::didBecomeFirstResponder();
+    }
+    void willResignFirstResponder() override {
+      TextCursorView::sharedTextCursor->setInField(nullptr);
+      ResponderType::willResignFirstResponder();
+    }
 
    private:
     virtual CursorFieldView* cursorCursorFieldView() = 0;

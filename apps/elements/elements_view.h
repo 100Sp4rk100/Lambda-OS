@@ -7,6 +7,8 @@
 #include "elements_view_data_source.h"
 #include "single_element_view.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Elements {
 
 class ElementsView : public Escher::View {
@@ -27,8 +29,6 @@ class ElementsView : public Escher::View {
   constexpr static KDCoordinate k_cellMargin = 1;
   constexpr static KDCoordinate k_zoomedViewMargin = 11;
   constexpr static KDCoordinate k_lanthanideTopMargin = 5;
-  constexpr static KDColor k_backgroundColor = KDColorWhite;
-  constexpr static KDColor k_ligatureColor = Escher::Palette::GrayMiddle;
 
   /* rectForCell returns the rect for the colored part of the cell, without
    * its border. This avoid redrawing cells just because their border overlaps

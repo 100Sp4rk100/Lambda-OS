@@ -15,11 +15,6 @@ bool Timer::tick() {
   return false;
 }
 
-void Timer::setNewTimeout(uint32_t timeout) {
-  m_period = timeout / Timer::TickDuration;
-  reset();
-}
-
 void Timer::reset() { m_numberOfTicksBeforeFire = m_period; }
 
 }  // namespace Escher

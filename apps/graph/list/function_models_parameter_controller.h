@@ -8,7 +8,6 @@
 #include <escher/scrollable_layout_view.h>
 #include <escher/selectable_list_view_controller.h>
 #include <escher/stack_view_controller.h>
-#include <omg/string.h>
 
 #include <array>
 
@@ -21,14 +20,13 @@ class FunctionModelsParameterController
  public:
   FunctionModelsParameterController(Escher::Responder* parentResponder,
                                     ListController* listController);
-  const char* title() const override;
+  const char* title() override;
   void viewWillAppear() override;
   bool handleEvent(Ion::Events::Event event) override;
   int numberOfRows() const override;
   Escher::HighlightCell* cell(int row) override;
-
   /* Tell if the country prefers y=x or f(x)=x */
-  static bool EquationsPrefered();
+  static bool EquationsPrefered() { return Models()[0] == Model::Equation; }
 
  private:
   enum class Model : uint8_t {
@@ -69,20 +67,12 @@ class FunctionModelsParameterController
       Model::ListOfPoints,
   };
 
-  constexpr static Model layoutVariant3[] = {
-      // NL
-      Model::Function,   Model::Equation, Model::Inequality,   Model::Inverse,
-      Model::Piecewise,  Model::Point,    Model::ListOfPoints, Model::Conic,
-      Model::Parametric, Model::Polar,
-  };
-
   constexpr static int k_numberOfExpressionModels =
       static_cast<int>(Model::NumberOfModels) - 1;
 
   static_assert(
       sizeof(layoutDefault) == sizeof(layoutVariant1) &&
-          sizeof(layoutDefault) == sizeof(layoutVariant2) &&
-          sizeof(layoutDefault) == sizeof(layoutVariant3),
+          sizeof(layoutDefault) == sizeof(layoutVariant2),
       "Template layouts are assumed to be the same length in all countries");
   constexpr static int k_numberOfExpressionCells = std::size(layoutDefault);
 
@@ -106,8 +96,9 @@ class FunctionModelsParameterController
   constexpr static const char* k_inequationModelWhenForbidden = "y≤x";
   // Piecewise is the longest named model
   constexpr static size_t k_maxSizeOfNamedModel =
-      OMG::StringLength(k_models[static_cast<int>(Model::Piecewise)]) - 1 +
-      Shared::ContinuousFunction::k_maxDefaultNameSize;
+      Poincare::Helpers::StringLength(
+          k_models[static_cast<int>(Model::Piecewise)]) -
+      1 + Shared::ContinuousFunction::k_maxDefaultNameSize;
   // Expression cells
   constexpr static I18n::Message
       k_modelDescriptions[k_numberOfExpressionModels] = {

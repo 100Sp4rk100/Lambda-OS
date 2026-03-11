@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include <apps/i18n.h>
+#include <ion/circuit_breaker.h>
 
 extern "C" {
 #include <assert.h>
@@ -26,6 +27,9 @@ const App::Descriptor* App::Snapshot::descriptor() const {
 
 App::App(Snapshot* snapshot)
     : Escher::App(snapshot, &m_controller),
-      m_controller(&m_modalViewController, snapshot) {}
+      m_controller(&m_modalViewController, snapshot) {
 
+  Ion::CircuitBreaker::unsetCheckpoint(Ion::CircuitBreaker::CheckpointType::Home);
 }  // namespace Home
+
+}

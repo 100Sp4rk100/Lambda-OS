@@ -1,7 +1,7 @@
 #include "extremum_graph_controller.h"
 
 #include <apps/shared/poincare_helpers.h>
-#include <omg/utf8_helper.h>
+#include <poincare/serialization_helper.h>
 
 using namespace Escher;
 using namespace Poincare;
@@ -17,7 +17,7 @@ MinimumGraphController::MinimumGraphController(
                                  curveViewRange, cursor,
                                  I18n::Message::NoMinimumFound) {}
 
-const char* MinimumGraphController::title() const {
+const char* MinimumGraphController::title() {
   return I18n::translate(I18n::Message::Minimum);
 }
 
@@ -29,7 +29,7 @@ MaximumGraphController::MaximumGraphController(
                                  curveViewRange, cursor,
                                  I18n::Message::NoMaximumFound) {}
 
-const char* MaximumGraphController::title() const {
+const char* MaximumGraphController::title() {
   return I18n::translate(I18n::Message::Maximum);
 }
 

@@ -1,6 +1,5 @@
+#include <drivers/svcall.h>
 #include <ion/backlight.h>
-
-#include "svcall.h"
 
 namespace Ion {
 namespace Backlight {

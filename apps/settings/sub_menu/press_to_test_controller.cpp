@@ -2,13 +2,14 @@
 
 #include <apps/apps_container.h>
 #include <apps/i18n.h>
-#include <apps/math_preferences.h>
 #include <assert.h>
 #include <escher/stack_view_controller.h>
 
 #include <cmath>
 
-#include "press_to_test_success.h"
+#include "apps/theme_gestion/themeGestion.h"
+
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Poincare;
 using namespace Shared;
@@ -16,17 +17,17 @@ using namespace Escher;
 
 namespace Settings {
 
-PressToTestController::PressToTestController(Responder* parentResponder)
+PressToTestController::PressToTestController(Responder *parentResponder)
     : ListWithTopAndBottomController(parentResponder, &m_topMessageView,
                                      &m_bottomMessageView),
-      m_topMessageView(I18n::Message::Default, k_messageFormat),
+      m_topMessageView(I18n::Message::Default, k_messageFormat()),
       m_bottomMessageView(I18n::Message::ToDeactivatePressToTest,
-                          k_messageFormat),
+                          k_messageFormat()),
       m_tempPressToTestParams{},
       m_activateButton(
           &m_selectableListView, I18n::Message::ActivateTestMode,
           Invocation::Builder<PressToTestController>(
-              [](PressToTestController* controller, void* sender) {
+              [](PressToTestController *controller, void *sender) {
                 AppsContainer::sharedAppsContainer()->displayExamModePopUp(
                     ExamMode(ExamMode::Ruleset::PressToTest,
                              controller->getPressToTestParams()));
@@ -35,9 +36,9 @@ PressToTestController::PressToTestController(Responder* parentResponder)
               this),
           ButtonCell::Style::EmbossedLight),
       m_confirmPopUpController(Invocation::Builder<PressToTestController>(
-          [](PressToTestController* controller, void* sender) {
+          [](PressToTestController *controller, void *sender) {
             controller->resetController();
-            static_cast<StackViewController*>(controller->parentResponder())
+            static_cast<StackViewController *>(controller->parentResponder())
                 ->pop();
             return true;
           },
@@ -45,18 +46,18 @@ PressToTestController::PressToTestController(Responder* parentResponder)
   for (int i = 0; i < k_numberOfReusableSwitchCells; i++) {
     m_switchCells[i].accessory()->setDisplayImage(false);
     m_switchCells[i].accessory()->imageView()->setImage(
-        ImageStore::PressToTestSuccess);
-    m_switchCells[i].accessory()->imageView()->setBackgroundColor(KDColorWhite);
+        Theme::ThemeGestion::getIconImage("PressToTestSuccess"));
+    m_switchCells[i].accessory()->imageView()->setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
   }
   resetController();
 }
 
 void PressToTestController::resetController() {
   selectFirstCell();
-  if (MathPreferences::SharedPreferences()->examMode().isActive()) {
+  if (Preferences::SharedPreferences()->examMode().isActive()) {
     // Reset switches states to press-to-test current parameter.
     m_tempPressToTestParams =
-        MathPreferences::SharedPreferences()->examMode().flags();
+        Preferences::SharedPreferences()->examMode().flags();
   } else {
     // Reset switches so that all features are enabled.
     m_tempPressToTestParams = {};
@@ -88,8 +89,8 @@ bool PressToTestController::getParamAtIndex(int index) {
 }
 
 void PressToTestController::setMessages() {
-  if (MathPreferences::SharedPreferences()->examMode().isActive()) {
-    assert(MathPreferences::SharedPreferences()->examMode().ruleset() ==
+  if (Preferences::SharedPreferences()->examMode().isActive()) {
+    assert(Preferences::SharedPreferences()->examMode().ruleset() ==
            ExamMode::Ruleset::PressToTest);
     m_topMessageView.setMessage(I18n::Message::PressToTestActiveIntro);
     setBottomView(&m_bottomMessageView);
@@ -102,9 +103,9 @@ void PressToTestController::setMessages() {
 bool PressToTestController::handleEvent(Ion::Events::Event event) {
   int row = innerSelectedRow();
   if (typeAtRow(row) == k_switchCellType &&
-      static_cast<PressToTestSwitch*>(m_selectableListView.cell(selectedRow()))
+      static_cast<PressToTestSwitch *>(m_selectableListView.cell(selectedRow()))
           ->canBeActivatedByEvent(event) &&
-      !MathPreferences::SharedPreferences()->examMode().isActive()) {
+      !Preferences::SharedPreferences()->examMode().isActive()) {
     assert(row >= 0 && row < k_numberOfSwitchCells);
     setParamAtIndex(row, !getParamAtIndex(row));
     /* Memoization isn't resetted here because changing a switch state does not
@@ -113,9 +114,9 @@ bool PressToTestController::handleEvent(Ion::Events::Event event) {
     return true;
   }
   if (event == Ion::Events::Left || event == Ion::Events::Back) {
-    // Deselect table because select cell will change anyway
+    // Deselect table because LAMDA_gray_light_palette cell will change anyway
     m_selectableListView.deselectTable();
-    if (!MathPreferences::SharedPreferences()->examMode().isActive() &&
+    if (!Preferences::SharedPreferences()->examMode().isActive() &&
         !(m_tempPressToTestParams == ExamMode::PressToTestFlags{})) {
       // Scroll to validation cell if m_confirmPopUpController is discarded.
       selectLastCell();
@@ -123,7 +124,7 @@ bool PressToTestController::handleEvent(Ion::Events::Event event) {
       m_confirmPopUpController.presentModally();
     } else {
       resetController();
-      static_cast<StackViewController*>(parentResponder())->pop();
+      static_cast<StackViewController *>(parentResponder())->pop();
     }
     return true;
   }
@@ -132,7 +133,7 @@ bool PressToTestController::handleEvent(Ion::Events::Event event) {
 
 void PressToTestController::viewWillAppear() {
   // Reset selection and params only if exam mode has been activated.
-  if (MathPreferences::SharedPreferences()->examMode().isActive()) {
+  if (Preferences::SharedPreferences()->examMode().isActive()) {
     resetController();
   }
   setMessages();
@@ -141,7 +142,7 @@ void PressToTestController::viewWillAppear() {
 
 int PressToTestController::numberOfRows() const {
   return k_numberOfSwitchCells +
-         (MathPreferences::SharedPreferences()->examMode().isActive() ? 0 : 1);
+         (Preferences::SharedPreferences()->examMode().isActive() ? 0 : 1);
 }
 
 int PressToTestController::typeAtRow(int row) const {
@@ -149,7 +150,7 @@ int PressToTestController::typeAtRow(int row) const {
   return row < k_numberOfSwitchCells ? k_switchCellType : k_buttonCellType;
 }
 
-HighlightCell* PressToTestController::reusableCell(int index, int type) {
+HighlightCell *PressToTestController::reusableCell(int index, int type) {
   if (type == k_buttonCellType) {
     assert(index == 0);
     return &m_activateButton;
@@ -163,26 +164,26 @@ int PressToTestController::reusableCellCount(int type) const {
   return type == k_buttonCellType ? 1 : k_numberOfReusableSwitchCells;
 }
 
-void PressToTestController::fillCellForRow(HighlightCell* cell, int row) {
+void PressToTestController::fillCellForRow(HighlightCell *cell, int row) {
   if (typeAtRow(row) == k_buttonCellType) {
-    assert(!MathPreferences::SharedPreferences()->examMode().isActive());
+    assert(!Preferences::SharedPreferences()->examMode().isActive());
     return;
   }
   assert(typeAtRow(row) == k_switchCellType);
-  PressToTestSwitch* myCell = static_cast<PressToTestSwitch*>(cell);
+  PressToTestSwitch *myCell = static_cast<PressToTestSwitch *>(cell);
   // A true params means the feature is disabled,
   bool featureIsDisabled = getParamAtIndex(row);
   myCell->label()->setMessage(LabelAtIndex(row));
   myCell->label()->setTextColor(
-      MathPreferences::SharedPreferences()->examMode().isActive() &&
+      Preferences::SharedPreferences()->examMode().isActive() &&
               featureIsDisabled
-          ? Palette::GrayDark
-          : KDColorBlack);
+          ? Theme::ThemeGestion::getColor("GrayDark")
+          : Theme::ThemeGestion::getColor("KDColorBlack"));
   myCell->subLabel()->setMessage(SubLabelAtIndex(row));
   // Switch is toggled if the feature must stay activated.
   myCell->accessory()->switchView()->setState(!featureIsDisabled);
   myCell->accessory()->setDisplayImage(
-      MathPreferences::SharedPreferences()->examMode().isActive());
+      Preferences::SharedPreferences()->examMode().isActive());
 }
 
 I18n::Message PressToTestController::LabelAtIndex(int i) {

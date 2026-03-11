@@ -3,7 +3,6 @@
 #include <ion.h>
 #include <ion/usb.h>
 #include <shared/drivers/serial_number.h>
-#include <shared/drivers/usb.h>
 
 namespace Ion {
 namespace Device {
@@ -14,7 +13,7 @@ void Calculator::PollAndReset(Ion::USB::DFUParameters parameters) {
    * dfu. */
   char serialNumber[Ion::k_serialNumberLength + 1];
   SerialNumber::copy(serialNumber);
-  Calculator c(serialNumber);
+  Calculator c(serialNumber, USB::stringDescriptor());
   // Ensure FIFOs are clean before starting polling.
   c.flushFIFOs();
   while (Ion::USB::isPlugged() && !c.isSoftDisconnected() &&
@@ -38,13 +37,10 @@ Descriptor* Calculator::descriptor(uint8_t type, uint8_t index) {
   if (type == m_microsoftOSStringDescriptor.type() && index == 0xEE) {
     return &m_microsoftOSStringDescriptor;
   }
-  if (type == StringDescriptor("").type() &&
-      index >= k_interfaceStringDescriptorsOffset) {
-    return const_cast<StringDescriptor*>(
-        stringDescriptor(index - k_interfaceStringDescriptorsOffset));
-  }
   int typeCount = 0;
-  for (Descriptor* descriptor : m_descriptors) {
+  for (size_t i = 0; i < sizeof(m_descriptors) / sizeof(m_descriptors[0]);
+       i++) {
+    Descriptor* descriptor = m_descriptors[i];
     if (descriptor->type() != type) {
       continue;
     }

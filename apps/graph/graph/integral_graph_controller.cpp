@@ -1,9 +1,7 @@
 #include "integral_graph_controller.h"
 
-#include <apps/shared/poincare_helpers.h>
 #include <assert.h>
-#include <poincare/helpers/symbol.h>
-#include <poincare/layout.h>
+#include <poincare/layout_helper.h>
 #include <stdlib.h>
 
 #include <cmath>
@@ -21,7 +19,7 @@ IntegralGraphController::IntegralGraphController(
     InteractiveCurveViewRange* graphRange, CurveViewCursor* cursor)
     : SumGraphController(parentResponder, graphView, graphRange, cursor) {}
 
-const char* IntegralGraphController::title() const {
+const char* IntegralGraphController::title() {
   return I18n::translate(I18n::Message::Integral);
 }
 
@@ -39,7 +37,7 @@ I18n::Message IntegralGraphController::legendMessageAtStep(Step step) {
 double IntegralGraphController::cursorNextStep(
     double x, OMG::HorizontalDirection direction) {
   return x + (direction.isRight() ? 1.0 : -1.0) *
-                 PoincareHelpers::ToFloat<double>(m_graphRange->xGridUnit()) /
+                 static_cast<double>(m_graphRange->xGridUnit()) /
                  static_cast<double>(k_numberOfCursorStepsInGradUnit);
 }
 
@@ -47,14 +45,14 @@ Layout IntegralGraphController::createFunctionLayout() {
   ExpiringPointer<ContinuousFunction> function =
       App::app()->functionStore()->modelForRecord(selectedRecord());
   constexpr size_t bufferSize =
-      Poincare::SymbolHelper::k_maxNameSize + 5;  // f(x)dx
+      Poincare::SymbolAbstractNode::k_maxNameSize + 5;  // f(x)dx
   char buffer[bufferSize];
   const char* dx = "dx";
   size_t numberOfChars =
       function->nameWithArgument(buffer, bufferSize - strlen(dx));
   assert(numberOfChars <= bufferSize);
   strlcpy(buffer + numberOfChars, dx, bufferSize - numberOfChars);
-  return Layout::String(buffer, strlen(buffer));
+  return LayoutHelper::String(buffer, strlen(buffer));
 }
 
 }  // namespace Graph

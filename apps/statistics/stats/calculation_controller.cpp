@@ -6,15 +6,17 @@
 #include <poincare/preferences.h>
 #include <poincare/print.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Shared;
 using namespace Poincare;
 using namespace Escher;
 
 namespace Statistics {
 
-CalculationController::CalculationController(Responder* parentResponder,
-                                             ButtonRowController* header,
-                                             Store* store)
+CalculationController::CalculationController(Responder *parentResponder,
+                                             ButtonRowController *header,
+                                             Store *store)
     : DoublePairTableController(parentResponder, header), m_store(store) {
   for (int i = 0; i < k_numberOfSeriesTitleCells; i++) {
     m_seriesTitleCells[i].setFont(KDFont::Size::Small);
@@ -32,12 +34,12 @@ CalculationController::CalculationController(Responder* parentResponder,
 
 // TableViewDataSource
 
-void CalculationController::fillCellForLocation(HighlightCell* cell, int column,
+void CalculationController::fillCellForLocation(HighlightCell *cell, int column,
                                                 int row) {
   if (column <= 1 && row == 0) {
     return;
   }
-  EvenOddCell* evenOddCell = static_cast<EvenOddCell*>(cell);
+  EvenOddCell *evenOddCell = static_cast<EvenOddCell *>(cell);
   evenOddCell->setEven(row % 2 == 0);
   int type = typeAtLocation(column, row);
   int numberOfFixedRows = fixedNumberOfRows();
@@ -47,8 +49,8 @@ void CalculationController::fillCellForLocation(HighlightCell* cell, int column,
       int seriesNumber = m_store->seriesIndexFromActiveSeriesIndex(column - 2);
       char titleBuffer[] = {'V', static_cast<char>('1' + seriesNumber), '/',
                             'N', static_cast<char>('1' + seriesNumber), 0};
-      BufferFunctionTitleCell* seriesTitleCell =
-          static_cast<BufferFunctionTitleCell*>(cell);
+      BufferFunctionTitleCell *seriesTitleCell =
+          static_cast<BufferFunctionTitleCell *>(cell);
       seriesTitleCell->setText(titleBuffer);
       seriesTitleCell->setColor(
           DoublePairStore::colorOfSeriesAtIndex(seriesNumber));
@@ -59,7 +61,7 @@ void CalculationController::fillCellForLocation(HighlightCell* cell, int column,
       assert((column == 0 && type == k_calculationModeTitleCellType) ||
              (column == 1 && type == k_calculationModeSymbolCellType));
       // Mode title and symbol cells have an index value
-      const char* pattern = (m_store->totalNumberOfModes() == 1
+      const char *pattern = (m_store->totalNumberOfModes() == 1
                                  ? "%s"
                                  : (column == 0 ? "%s %i" : "%s%i"));
       I18n::Message message =
@@ -71,9 +73,9 @@ void CalculationController::fillCellForLocation(HighlightCell* cell, int column,
       char buffer[bufferSize];
       Print::CustomPrintf(buffer, bufferSize, pattern, I18n::translate(message),
                           index);
-      AbstractEvenOddBufferTextCell* bufferCell =
-          static_cast<AbstractEvenOddBufferTextCell*>(cell);
-      bufferCell->setTextColor(column == 1 ? Palette::GrayDark : KDColorBlack);
+      AbstractEvenOddBufferTextCell *bufferCell =
+          static_cast<AbstractEvenOddBufferTextCell *>(cell);
+      bufferCell->setTextColor(column == 1 ? Theme::ThemeGestion::getColor("GrayDark") : Theme::ThemeGestion::getColor("KDColorBlack"));
       bufferCell->setText(buffer);
       return;
     }
@@ -95,10 +97,10 @@ void CalculationController::fillCellForLocation(HighlightCell* cell, int column,
             I18n::Message::ModeFrequency, I18n::Message::ModeFrequencySymbol};
         message = modeFrequencyTitles[column];
       }
-      EvenOddMessageTextCell* calcTitleCell =
-          static_cast<EvenOddMessageTextCell*>(cell);
-      calcTitleCell->setTextColor(column == 1 ? Palette::GrayDark
-                                              : KDColorBlack);
+      EvenOddMessageTextCell *calcTitleCell =
+          static_cast<EvenOddMessageTextCell *>(cell);
+      calcTitleCell->setTextColor(column == 1 ? Theme::ThemeGestion::getColor("GrayDark")
+                                              : Theme::ThemeGestion::getColor("KDColorBlack"));
       calcTitleCell->setMessage(message);
       return;
     }
@@ -106,8 +108,8 @@ void CalculationController::fillCellForLocation(HighlightCell* cell, int column,
       // Display a calculation cell
       int seriesIndex = m_store->seriesIndexFromActiveSeriesIndex(column - 2);
       double calculation;
-      AbstractEvenOddBufferTextCell* calculationCell =
-          static_cast<AbstractEvenOddBufferTextCell*>(cell);
+      AbstractEvenOddBufferTextCell *calculationCell =
+          static_cast<AbstractEvenOddBufferTextCell *>(cell);
       if (row - 1 < (numberOfFixedRows - 1)) {
         int calculationIndex = findCellIndex(row - 1);
         if (std::isnan(m_memoizedCellContent[seriesIndex][calculationIndex])) {
@@ -162,7 +164,7 @@ KDCoordinate CalculationController::nonMemoizedColumnWidth(int column) {
   return k_calculationCellWidth;
 }
 
-HighlightCell* CalculationController::reusableCell(int index, int type) {
+HighlightCell *CalculationController::reusableCell(int index, int type) {
   assert(0 <= index && index < reusableCellCount(type));
   switch (type) {
     case k_seriesTitleCellType:

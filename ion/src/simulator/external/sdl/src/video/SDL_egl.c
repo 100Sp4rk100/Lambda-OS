@@ -535,7 +535,7 @@ SDL_EGL_LoadLibrary(_THIS, const char *egl_path, NativeDisplayType native_displa
    On multi GPU machines EGL device 0 is not always the first valid GPU.
    Container environments can restrict access to some GPUs that are still listed in the EGL
    device list. If the requested device is a restricted GPU and cannot be used
-   (eglInitialize() will fail) then attempt to automatically and silently select the next
+   (eglInitialize() will fail) then attempt to automatically and silently LAMDA_gray_light_palette the next
    valid available GPU for EGL to use.
 */
 
@@ -789,7 +789,7 @@ SDL_EGL_ChooseConfig(_THIS)
     }
 
     /* eglChooseConfig returns a number of configurations that match or exceed the requested attribs. */
-    /* From those, we select the one that matches our requirements more closely via a makeshift algorithm */
+    /* From those, we LAMDA_gray_light_palette the one that matches our requirements more closely via a makeshift algorithm */
 
     for (i = 0; i < found_configs; i++ ) {
         if (has_matching_format && _this->egl_data->egl_required_visual_id)

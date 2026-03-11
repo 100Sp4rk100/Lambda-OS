@@ -107,7 +107,7 @@ bool MainController::textFieldDidReceiveEvent(
   // Sto event needs to be handled here before AbstractTextField handles it.
   if (event == Ion::Events::Sto || event == Ion::Events::Var) {
     /* ElementsView only redraws its background when appearing to avoid
-     * blinking. It needs to be redrawn after the store menu */
+     * blinking It needs to be redrawn after the store menu */
     m_view.elementsView()->dirtyBackground();
   }
   if (textField->isEditing()) {
@@ -141,18 +141,19 @@ bool MainController::textFieldDidReceiveEvent(
 
   if (event == Ion::Events::Copy || event == Ion::Events::Cut ||
       event == Ion::Events::Var || event == Ion::Events::Sto) {
-    assert(App::app()->canStoreLayout());
-    Poincare::Layout toStore;
+    constexpr int bufferSize = Escher::TextField::MaxBufferSize();
+    char buffer[bufferSize];
+    buffer[0] = 0;
 
     if (dataSource->field()->canBeStored(z)) {
-      toStore = dataSource->field()->getLayout(z);
+      dataSource->field()->getLayout(z).serializeForParsing(buffer, bufferSize);
     }
 
     if (event == Ion::Events::Var || event == Ion::Events::Sto) {
-      App::app()->storeLayout(toStore);
-    } else if (!toStore.isUninitialized()) {
+      App::app()->storeValue(buffer);
+    } else if (strlen(buffer) > 0) {
       assert(event == Ion::Events::Copy || event == Ion::Events::Cut);
-      Escher::Clipboard::SharedClipboard()->storeLayout(toStore);
+      Escher::Clipboard::SharedClipboard()->store(buffer, bufferSize);
     }
 
     return true;
@@ -201,22 +202,6 @@ void MainController::endElementSearch(AtomicNumber z) {
   dataSource->setSelectedElement(z);
   dataSource->setTextFilter(nullptr);
   m_view.bannerView()->textField()->setSuggestion(nullptr);
-}
-
-void MainController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    Escher::App::app()->setFirstResponder(m_view.bannerView()->textField());
-  } else {
-    Escher::ViewController::handleResponderChainEvent(event);
-  }
-}
-
-void MainController::privateModalViewAltersFirstResponder(
-    FirstResponderAlteration alteration) {
-  if (alteration == FirstResponderAlteration::WillSpoil) {
-    m_view.elementsView()->dirtyBackground();
-  }
 }
 
 }  // namespace Elements

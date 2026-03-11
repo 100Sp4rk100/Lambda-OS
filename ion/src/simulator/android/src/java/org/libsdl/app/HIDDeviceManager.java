@@ -193,11 +193,7 @@ public class HIDDeviceManager {
         filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
         filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
         filter.addAction(HIDDeviceManager.ACTION_USB_PERMISSION);
-        if (Build.VERSION.SDK_INT >= 33) { /* Android 13.0 (TIRAMISU) */
-            mContext.registerReceiver(mUsbBroadcast, filter, Context.RECEIVER_EXPORTED);
-        } else {
-            mContext.registerReceiver(mUsbBroadcast, filter);
-        }
+        mContext.registerReceiver(mUsbBroadcast, filter);
 
         for (UsbDevice usbDevice : mUsbManager.getDeviceList().values()) {
             handleUsbDeviceAttached(usbDevice);
@@ -384,11 +380,7 @@ public class HIDDeviceManager {
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
         filter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
-        if (Build.VERSION.SDK_INT >= 33) { /* Android 13.0 (TIRAMISU) */
-            mContext.registerReceiver(mBluetoothBroadcast, filter, Context.RECEIVER_EXPORTED);
-        } else {
-            mContext.registerReceiver(mBluetoothBroadcast, filter);
-        }
+        mContext.registerReceiver(mBluetoothBroadcast, filter);
 
         if (mIsChromebook) {
             mHandler = new Handler(Looper.getMainLooper());

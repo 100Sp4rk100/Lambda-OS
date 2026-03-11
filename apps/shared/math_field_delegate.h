@@ -6,7 +6,6 @@
 #include <escher/layout_field.h>
 #include <escher/layout_field_delegate.h>
 #include <escher/text_field_delegate.h>
-#include <poincare/expression.h>
 
 namespace Shared {
 
@@ -15,7 +14,7 @@ class AbstractMathFieldDelegate {
   AbstractMathFieldDelegate() : m_currentXNTIndex(-1) {}
 
  protected:
-  virtual bool isAcceptableExpression(const Poincare::UserExpression expression,
+  virtual bool isAcceptableExpression(const Poincare::Expression expression,
                                       Poincare::Context* context);
   bool isAcceptableText(const char* text, Poincare::Context* context);
   virtual CodePoint defaultXNT();

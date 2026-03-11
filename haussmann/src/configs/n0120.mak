@@ -1,4 +1,0 @@
-PCB_LATEST := 430
-SIGNATURE_INDEX ?= 1
-
-TOOLCHAIN ?= arm-gcc-m7h

@@ -10,10 +10,8 @@ void Init() {
   Ion::Storage::FileSystem::sharedFileSystem
       ->initSystemRecord<GlobalPreferences>();
 
-  ::Shared::GlobalContext::s_sequenceStore.init();
-  ::Shared::GlobalContext::s_sequenceCache.init(
-      Shared::GlobalContext::s_sequenceStore.get());
-  ::Shared::GlobalContext::s_continuousFunctionStore.init();
+  ::Shared::GlobalContext::sequenceStore.init();
+  ::Shared::GlobalContext::continuousFunctionStore.init();
   ::AppsContainerStorage::sharedAppsContainerStorage.init();
 }
 

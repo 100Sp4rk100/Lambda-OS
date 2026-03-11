@@ -2,8 +2,9 @@
 #define SEQUENCE_SEQUENCE_CELL_H
 
 #include <apps/shared/with_expression_cell.h>
-#include <escher/ellipsis_view.h>
 #include <escher/even_odd_cell.h>
+
+#include "vertical_sequence_title_cell.h"
 
 namespace Sequence {
 
@@ -11,9 +12,7 @@ class AbstractSequenceCell : public Escher::EvenOddCell {
  public:
   AbstractSequenceCell()
       : EvenOddCell(),
-        m_functionColor(KDColorBlack),
-        m_expressionBackground(KDColorWhite),
-        m_ellipsisBackground(KDColorWhite),
+        m_expressionBackground(Theme::ThemeGestion::getColor("KDColorWhite")),
         m_parameterSelected(false) {}
   void setParameterSelected(bool selected);
   virtual Escher::HighlightCell* mainCell() = 0;
@@ -21,27 +20,19 @@ class AbstractSequenceCell : public Escher::EvenOddCell {
     return const_cast<Escher::HighlightCell*>(
         const_cast<AbstractSequenceCell*>(this)->mainCell());
   }
-
-  void setColor(KDColor color) { m_functionColor = color; }
+  VerticalSequenceTitleCell* titleCell() { return &m_sequenceTitleCell; }
 
  private:
-  int numberOfSubviews() const override { return 1 + displayEllipsis(); }
+  int numberOfSubviews() const override { return 2; }
   Escher::View* subviewAtIndex(int index) override;
   void drawRect(KDContext* ctx, KDRect rect) const override;
   void layoutSubviews(bool force = false) override;
 
  protected:
-  constexpr static KDCoordinate k_verticalColorIndicatorThickness =
-      Escher::Metric::VerticalColorIndicatorThickness;
-  constexpr static KDCoordinate k_margin =
-      Escher::Metric::CellHorizontalElementMargin;
-  constexpr static KDCoordinate k_ellipsisWidth =
-      Escher::Metric::EllipsisCellWidth;
-  virtual bool displayEllipsis() const { return true; }
-  Escher::EllipsisView m_ellipsisView;
-  KDColor m_functionColor;
+  static constexpr KDCoordinate k_titlesColmunWidth = 65;
+  void setEven(bool even) override;
+  VerticalSequenceTitleCell m_sequenceTitleCell;
   KDColor m_expressionBackground;
-  KDColor m_ellipsisBackground;
   bool m_parameterSelected;
 };
 

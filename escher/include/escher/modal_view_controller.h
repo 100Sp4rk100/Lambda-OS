@@ -12,6 +12,7 @@ class ModalViewController : public ViewController {
   View* view() override;
 
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
   void displayModalViewController(ViewController* vc, float verticalAlignment,
                                   float horizontalAlignment,
                                   KDMargins margins = {},
@@ -36,7 +37,6 @@ class ModalViewController : public ViewController {
 
  protected:
   void reloadView();
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   class ContentView : public View {

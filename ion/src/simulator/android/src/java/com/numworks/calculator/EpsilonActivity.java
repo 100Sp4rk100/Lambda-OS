@@ -11,10 +11,16 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 
+import com.google.android.gms.analytics.GoogleAnalytics;
+import com.google.android.gms.analytics.Tracker;
+import com.google.android.gms.analytics.HitBuilders;
+
 import org.libsdl.app.SDLActivity;
 import org.libsdl.app.SDL;
 
 public class EpsilonActivity extends SDLActivity {
+  private static GoogleAnalytics sAnalytics;
+  private static Tracker sTracker;
 
   protected String[] getLibraries() {
     return new String[] {
@@ -36,6 +42,25 @@ public class EpsilonActivity extends SDLActivity {
 
   public String retrieveLanguage() {
     return getResources().getConfiguration().locale.getLanguage();
+  }
+
+  public void telemetryInit() {
+    sAnalytics = GoogleAnalytics.getInstance(this);
+    sTracker = sAnalytics.newTracker("UA-93775823-3");
+  }
+
+  public void telemetryScreen(String screenName) {
+    sTracker.setScreenName(screenName);
+    sTracker.send(new HitBuilders.ScreenViewBuilder().build());
+  }
+
+  public void telemetryEvent(String category, String action, String label) {
+    sTracker.send(new HitBuilders.EventBuilder()
+      .setCategory(category)
+      .setAction(action)
+      .setLabel(label)
+      .build()
+    );
   }
 
   public boolean hapticFeedbackIsEnabled() {

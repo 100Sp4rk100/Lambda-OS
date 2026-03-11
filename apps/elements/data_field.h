@@ -2,7 +2,8 @@
 #define ELEMENTS_DATA_FIELD
 
 #include <apps/i18n.h>
-#include <poincare/layout.h>
+#include <poincare/integer.h>
+#include <poincare/layout_helper.h>
 #include <stddef.h>
 
 #include "palette.h"
@@ -18,12 +19,12 @@ typedef uint8_t AtomicNumber;
 class DataField {
  public:
   static Poincare::Layout UnknownValueLayout() {
-    return Poincare::Layout::String(
+    return Poincare::LayoutHelper::String(
         I18n::translate(I18n::Message::UnknownValue));
   }
   class ColorPair {
    public:
-    constexpr ColorPair(KDColor fg = KDColorBlack, KDColor bg = KDColorWhite)
+    constexpr ColorPair(KDColor fg = Theme::ThemeGestion::getColor("KDColorBlack"), KDColor bg = Theme::ThemeGestion::getColor("KDColorWhite"))
         : m_fg(fg), m_bg(bg) {}
     ColorPair(uint8_t alpha, KDColor fgMin, KDColor fgMax, KDColor bgMin,
               KDColor bgMax)
@@ -40,7 +41,7 @@ class DataField {
   virtual I18n::Message fieldLegend() const { return I18n::Message::Default; }
   virtual I18n::Message fieldSymbol() const { return I18n::Message::Default; }
   virtual Poincare::Layout fieldSymbolLayout() const {
-    return Poincare::Layout::String(I18n::translate(fieldSymbol()));
+    return Poincare::LayoutHelper::String(I18n::translate(fieldSymbol()));
   }
 
   virtual bool hasDouble(AtomicNumber z) const { return false; }
@@ -65,7 +66,7 @@ class EnumDataField : public DataField {
   Poincare::Layout getLayout(
       AtomicNumber z,
       int significantDigits = k_defaultSignificantDigits) const override {
-    return Poincare::Layout::String(I18n::translate(getMessage(z)));
+    return Poincare::LayoutHelper::String(I18n::translate(getMessage(z)));
   }
 };
 
@@ -79,7 +80,7 @@ class DoubleDataField : public DataField {
   bool canBeStored(AtomicNumber z) const override;
 
  private:
-  virtual const Poincare::Internal::Tree* rawUnit() const = 0;
+  virtual const char* rawUnit() const = 0;
   virtual ColorPair minColors() const { return ColorPair(); }
   virtual ColorPair maxColors() const { return ColorPair(); }
   uint8_t blendAlphaForContinuousParameter(AtomicNumber z) const;
@@ -104,7 +105,9 @@ class ZDataField : public DataField {
     return I18n::Message::ElementsZSymbol;
   }
   Poincare::Layout getLayout(AtomicNumber z,
-                             int significantDigits) const override;
+                             int significantDigits) const override {
+    return Poincare::Integer(z).createLayout();
+  }
   bool canBeStored(AtomicNumber z) const override { return true; }
 };
 
@@ -183,7 +186,7 @@ class MassDataField : public DoubleDataField {
     return I18n::Message::ElementsMassSymbol;
   }
   double getDouble(AtomicNumber z) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return "_g×_mol^\x12-1\x13"; }
   ColorPair minColors() const override {
     return ColorPair(Palette::ScaleTextBlueLight, Palette::ScaleBackBlueLight);
   }
@@ -201,7 +204,7 @@ class ElectronegativityDataField : public DoubleDataField {
     return I18n::Message::ElementsElectronegativitySymbol;
   }
   double getDouble(AtomicNumber z) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return ""; }
   ColorPair minColors() const override {
     return ColorPair(Palette::ScaleTextYellowLight,
                      Palette::ScaleBackYellowLight);
@@ -219,7 +222,7 @@ class RadiusDataField : public DoubleDataField {
   }
   I18n::Message fieldSymbol() const override { return I18n::Message::R; }
   double getDouble(AtomicNumber z) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return "_pm"; }
   ColorPair minColors() const override {
     return ColorPair(Palette::ScaleTextGreenLight,
                      Palette::ScaleBackGreenLight);
@@ -238,7 +241,7 @@ class MeltingPointDataField : public DoubleDataFieldWithSubscriptSymbol {
     return I18n::Message::ElementsBoilingMeltingPointSymbol;
   }
   double getDouble(AtomicNumber z) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return "_°C"; }
   I18n::Message fieldSubscript() const override {
     return I18n::Message::ElementsMeltingPointSubscript;
   }
@@ -261,7 +264,7 @@ class BoilingPointDataField : public DoubleDataFieldWithSubscriptSymbol {
     return I18n::Message::ElementsBoilingMeltingPointSymbol;
   }
   double getDouble(AtomicNumber z) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return "_°C"; }
   I18n::Message fieldSubscript() const override {
     return I18n::Message::ElementsBoilingPointSubscript;
   }
@@ -282,7 +285,7 @@ class DensityDataField : public DoubleDataField {
     return I18n::Message::ElementsDensitySymbol;
   }
   double getDouble(AtomicNumber z) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return "_g×_cm^\x12-3\x13"; }
 };
 
 class AffinityDataField : public DoubleDataFieldWithSubscriptSymbol {
@@ -297,7 +300,7 @@ class AffinityDataField : public DoubleDataFieldWithSubscriptSymbol {
   Poincare::Layout getLayout(
       AtomicNumber z,
       int significantDigits = k_defaultSignificantDigits) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return "_kJ×_mol^\x12-1\x13"; }
   I18n::Message fieldSubscript() const override {
     return I18n::Message::ElementsAffinitySubscript;
   }
@@ -312,7 +315,7 @@ class IonizationDataField : public DoubleDataFieldWithSubscriptSymbol {
     return I18n::Message::ElementsIonizationSymbol;
   }
   double getDouble(AtomicNumber z) const override;
-  const Poincare::Internal::Tree* rawUnit() const override;
+  const char* rawUnit() const override { return "_kJ×_mol^\x12-1\x13"; }
   I18n::Message fieldSubscript() const override {
     return I18n::Message::ElementsIonizationSubscript;
   }

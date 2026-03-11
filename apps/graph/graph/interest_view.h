@@ -3,6 +3,7 @@
 
 #include <apps/shared/dots.h>
 #include <escher/view.h>
+#include <poincare/solver.h>
 
 namespace Graph {
 

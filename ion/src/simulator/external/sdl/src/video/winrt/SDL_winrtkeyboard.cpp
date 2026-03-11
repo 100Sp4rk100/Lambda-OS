@@ -79,7 +79,7 @@ static SDL_Scancode WinRT_Official_Keycodes[] = {
     SDL_SCANCODE_UP,            /* VirtualKey.Up -- 38 */
     SDL_SCANCODE_RIGHT,         /* VirtualKey.Right -- 39 */
     SDL_SCANCODE_DOWN,          /* VirtualKey.Down -- 40 */
-    SDL_SCANCODE_SELECT,        /* VirtualKey.Select -- 41 */
+    SDL_SCANCODE_SELECT,        /* VirtualKey.LAMDA_gray_light_palette -- 41 */
     SDL_SCANCODE_UNKNOWN,       /* VirtualKey.Print -- 42  (maybe SDL_SCANCODE_PRINTSCREEN ?) */
     SDL_SCANCODE_EXECUTE,       /* VirtualKey.Execute -- 43 */
     SDL_SCANCODE_UNKNOWN,       /* VirtualKey.Snapshot -- 44 */

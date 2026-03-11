@@ -1,8 +1,8 @@
 #include "history_controller.h"
 
+#include <apps/shared/expression_display_permissions.h>
 #include <assert.h>
 #include <poincare/circuit_breaker_checkpoint.h>
-#include <poincare/context.h>
 #include <poincare/exception_checkpoint.h>
 
 #include "app.h"
@@ -14,8 +14,8 @@ using namespace Escher;
 namespace Calculation {
 
 HistoryController::HistoryController(
-    EditExpressionController* editExpressionController,
-    CalculationStore* calculationStore)
+    EditExpressionController *editExpressionController,
+    CalculationStore *calculationStore)
     : ViewController(editExpressionController),
       m_selectableListView(this, this, this, this),
       m_calculationStore(calculationStore),
@@ -26,20 +26,18 @@ HistoryController::HistoryController(
   }
 }
 
-void HistoryController::reload(bool resetMemoization) {
+void HistoryController::reload() {
   // Ensure that the total height never overflows KDCoordinate
   while (m_selectableListView.minimalSizeForOptimalDisplay().height() >=
          KDCOORDINATE_MAX - 2 * HistoryViewCell::k_maxCellHeight) {
     m_calculationStore->deleteCalculationAtIndex(
         m_calculationStore->numberOfCalculations() - 1);
   }
-  /* When reloading, we might not use anymore some cells that hold previous
-   * layouts. We clean them all before reloading their content to avoid taking
+  /* When reloading, we might not used anymore cell that hold previous layouts.
+   * We clean them all before reloading their content to avoid taking extra
    * useless space in the Poincare pool. */
-  if (resetMemoization) {
-    for (int i = 0; i < k_maxNumberOfDisplayedRows; i++) {
-      m_calculationHistory[i].resetMemoization();
-    }
+  for (int i = 0; i < k_maxNumberOfDisplayedRows; i++) {
+    m_calculationHistory[i].resetMemoization();
   }
 
   m_selectableListView.reloadData();
@@ -58,23 +56,20 @@ void HistoryController::reload(bool resetMemoization) {
 
 void HistoryController::viewWillAppear() {
   ViewController::viewWillAppear();
-  reload(false);
+  reload();
 }
 
-void HistoryController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::WillExit) {
-    if (event.nextFirstResponder == nullptr) {
-      return;
-    }
-    if (event.nextFirstResponder == parentResponder()) {
-      m_selectableListView.deselectTable();
-    }
-  } else if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    selectRow(numberOfRows() - 1);
-    App::app()->setFirstResponder(&m_selectableListView);
-  } else {
-    ViewController::handleResponderChainEvent(event);
+void HistoryController::didBecomeFirstResponder() {
+  selectRow(numberOfRows() - 1);
+  App::app()->setFirstResponder(&m_selectableListView);
+}
+
+void HistoryController::willExitResponderChain(Responder *nextFirstResponder) {
+  if (nextFirstResponder == nullptr) {
+    return;
+  }
+  if (nextFirstResponder == parentResponder()) {
+    m_selectableListView.deselectTable();
   }
 }
 
@@ -97,10 +92,7 @@ bool HistoryController::handleEvent(Ion::Events::Event event) {
     SubviewType subviewType = m_selectedSubviewType;
     m_selectableListView.deselectTable();
     m_calculationStore->deleteCalculationAtIndex(storeIndex(focusRow));
-    /* No memoization reset here, as it doesn't seems worth: it would only
-     * removes 1 unused layout from the Pool at the cost of recomputing all
-     * other visible layouts */
-    reload(false);
+    reload();
     if (numberOfRows() == 0) {
       App::app()->setFirstResponder(parentResponder());
       return true;
@@ -122,7 +114,7 @@ Shared::ExpiringPointer<Calculation> HistoryController::calculationAtIndex(
 }
 
 void HistoryController::listViewDidChangeSelectionAndDidScroll(
-    SelectableListView* list, int previousSelectedRow, KDPoint previousOffset,
+    SelectableListView *list, int previousSelectedRow, KDPoint previousOffset,
     bool withinTemporarySelection) {
   assert(list == &m_selectableListView);
   m_selectableListView.didChangeSelectionAndDidScroll();
@@ -134,8 +126,8 @@ void HistoryController::listViewDidChangeSelectionAndDidScroll(
   } else if (selectedRow() == -1) {
     setSelectedSubviewType(SubviewType::None, false, previousSelectedRow);
   } else {
-    HistoryViewCell* selectedCell =
-        static_cast<HistoryViewCell*>(m_selectableListView.selectedCell());
+    HistoryViewCell *selectedCell =
+        static_cast<HistoryViewCell *>(m_selectableListView.selectedCell());
     SubviewType nextSelectedSubviewType = m_selectedSubviewType;
     if (selectedCell && !selectedCell->displaysSingleLine()) {
       nextSelectedSubviewType = previousSelectedRow < selectedRow()
@@ -147,7 +139,7 @@ void HistoryController::listViewDidChangeSelectionAndDidScroll(
 }
 
 KDPoint HistoryController::offsetToRestoreAfterReload(
-    const SelectableTableView* t) const {
+    const SelectableTableView *t) const {
   assert(t == &m_selectableListView);
   KDCoordinate delta = 0;
   int selectedRow = m_selectableListView.selectedRow();
@@ -176,7 +168,7 @@ int HistoryController::numberOfRows() const {
   return m_calculationStore->numberOfCalculations();
 };
 
-HighlightCell* HistoryController::reusableCell(int index, int type) {
+HighlightCell *HistoryController::reusableCell(int index, int type) {
   assert(type == 0);
   assert(index >= 0);
   assert(index < k_maxNumberOfDisplayedRows);
@@ -188,9 +180,9 @@ int HistoryController::reusableCellCount(int type) const {
   return k_maxNumberOfDisplayedRows;
 }
 
-void HistoryController::fillCellForRow(HighlightCell* cell, int row) {
-  HistoryViewCell* myCell = static_cast<HistoryViewCell*>(cell);
-  Poincare::Context* context = App::app()->localContext();
+void HistoryController::fillCellForRow(HighlightCell *cell, int row) {
+  HistoryViewCell *myCell = static_cast<HistoryViewCell *>(cell);
+  Poincare::Context *context = App::app()->localContext();
   myCell->setCalculation(
       calculationAtIndex(row).pointer(),
       row == selectedRow() && m_selectedSubviewType == SubviewType::Output,
@@ -210,8 +202,9 @@ KDCoordinate HistoryController::nonMemoizedRowHeight(int row) {
 }
 
 bool HistoryController::calculationAtIndexToggles(int index) const {
+  Context *context = App::app()->localContext();
   return index >= 0 && index < m_calculationStore->numberOfCalculations() &&
-         calculationAtIndex(index)->displayOutput() ==
+         calculationAtIndex(index)->displayOutput(context) ==
              Calculation::DisplayOutput::ExactAndApproximateToggle;
 }
 
@@ -219,8 +212,8 @@ void HistoryController::setSelectedSubviewType(SubviewType subviewType,
                                                bool sameCell,
                                                int previousSelectedRow) {
   // Avoid selecting non-displayed ellipsis
-  HistoryViewCell* selectedCell =
-      static_cast<HistoryViewCell*>(m_selectableListView.selectedCell());
+  HistoryViewCell *selectedCell =
+      static_cast<HistoryViewCell *>(m_selectableListView.selectedCell());
   if (subviewType == SubviewType::Ellipsis && selectedCell &&
       !selectedCell->hasEllipsis()) {
     subviewType = SubviewType::Output;
@@ -250,8 +243,8 @@ void HistoryController::setSelectedSubviewType(SubviewType subviewType,
   /* Refill the selected cell and the previous selected cell because cells
    * repartition might have changed */
   selectedCell =
-      static_cast<HistoryViewCell*>(m_selectableListView.selectedCell());
-  HistoryViewCell* previousSelectedCell = static_cast<HistoryViewCell*>(
+      static_cast<HistoryViewCell *>(m_selectableListView.selectedCell());
+  HistoryViewCell *previousSelectedCell = static_cast<HistoryViewCell *>(
       m_selectableListView.cell(previousSelectedRow));
   /* 'reloadData' calls 'fillCellForRow' for each cell while the table
    * has been deselected. To reload the expanded cell, we call one more time
@@ -272,19 +265,18 @@ void HistoryController::setSelectedSubviewType(SubviewType subviewType,
 }
 
 void HistoryController::handleOK() {
-  Context* context = App::app()->localContext();
+  Context *context = App::app()->localContext();
   int focusRow = selectedRow();
   Calculation::DisplayOutput displayOutput =
-      calculationAtIndex(focusRow)->displayOutput();
-  HistoryViewCell* selectedCell =
-      static_cast<HistoryViewCell*>(m_selectableListView.selectedCell());
-  EditExpressionController* editController =
-      static_cast<EditExpressionController*>(parentResponder());
+      calculationAtIndex(focusRow)->displayOutput(context);
+  HistoryViewCell *selectedCell =
+      static_cast<HistoryViewCell *>(m_selectableListView.selectedCell());
+  EditExpressionController *editController =
+      static_cast<EditExpressionController *>(parentResponder());
 
   if (m_selectedSubviewType == SubviewType::Input) {
     m_selectableListView.deselectTable();
-    editController->insertLayout(
-        calculationAtIndex(focusRow)->createInputLayout(context));
+    editController->insertTextBody(calculationAtIndex(focusRow)->inputText());
     return;
   }
 
@@ -294,16 +286,14 @@ void HistoryController::handleOK() {
         calculationAtIndex(focusRow);
     ScrollableTwoLayoutsView::SubviewPosition outputSubviewPosition =
         selectedCell->outputView()->selectedSubviewPosition();
-    bool dummy;
     if (outputSubviewPosition ==
             ScrollableTwoLayoutsView::SubviewPosition::Right &&
-        Calculation::CanDisplayApproximate(displayOutput)) {
-      editController->insertLayout(
-          calculation->createApproximateOutputLayout(context, &dummy, true));
+        displayOutput != Calculation::DisplayOutput::ExactOnly) {
+      editController->insertTextBody(calculation->approximateOutputText(
+          Calculation::NumberOfSignificantDigits::Maximal));
     } else {
-      assert(Calculation::CanDisplayExact(displayOutput));
-      editController->insertLayout(
-          calculation->createExactOutputLayout(context, &dummy));
+      assert(displayOutput != Calculation::DisplayOutput::ApproximateOnly);
+      editController->insertTextBody(calculation->exactOutputText());
     }
     return;
   }
@@ -312,17 +302,13 @@ void HistoryController::handleOK() {
   assert(displayOutput != Calculation::DisplayOutput::ExactOnly);
   ExpiringPointer<Calculation> selectedCalculation =
       calculationAtIndex(focusRow);
-  UserExpression i, a, e;
-  selectedCalculation->fillExpressionsForAdditionalResults(&i, &e, &a, context);
-  assert(Poincare::Preferences::UpdatedComplexFormatWithExpressionInput(
-             selectedCalculation->calculationPreferences().complexFormat, i,
-             context) ==
-         selectedCalculation->calculationPreferences().complexFormat);
+  Expression i, a, e;
+  selectedCalculation->fillExpressionsForAdditionalResults(&i, &e, &a);
 
-  /* Reuse the same angle unit and updated complexFormat as when the calculation
-   * was computed. */
+  /* Reuse the same complex format and angle unit as when the calculation was
+   * computed. */
   m_additionalResultsController.openAdditionalResults(
-      selectedCalculation->additionalResultsType(context), i, e, a,
+      selectedCalculation->additionalResultsType(), i, e, a,
       selectedCalculation->calculationPreferences());
 }
 

@@ -24,11 +24,9 @@ class EditableExpressionCell : public Bordered,
   int numberOfSubviews() const override { return 1; }
   View* subviewAtIndex(int index) override { return &m_layoutField; }
   void layoutSubviews(bool force = false) override;
+  void didBecomeFirstResponder() override;
   KDSize minimalSizeForOptimalDisplay() const override;
   void drawRect(KDContext* ctx, KDRect rect) const override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   constexpr static KDCoordinate k_minimalHeight =

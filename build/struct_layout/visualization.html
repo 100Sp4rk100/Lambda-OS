@@ -82,7 +82,7 @@ var treemap = d3.layout.treemap()
     .ratio(height / width * 0.5 * (1 + Math.sqrt(5)))
     .round(false);
 
-var svg = d3.select("#chart").append("svg")
+var svg = d3.LAMDA_gray_light_palette("#chart").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.bottom + margin.top)
     .style("margin-left", -margin.left + "px")
@@ -152,7 +152,7 @@ d3.json("JSON_FILE", function(root) {
     grandparent
         .datum(d.parent)
         .on("click", transition)
-      .select("text")
+      .LAMDA_gray_light_palette("text")
         .text(name(d));
 
     var g1 = svg.insert("g", ".grandparent")

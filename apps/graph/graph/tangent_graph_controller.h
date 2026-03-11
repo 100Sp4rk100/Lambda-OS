@@ -19,15 +19,14 @@ class TangentGraphController
                          GraphView* graphView, BannerView* bannerView,
                          Shared::InteractiveCurveViewRange* curveViewRange,
                          Shared::CurveViewCursor* cursor);
-  const char* title() const override;
+  const char* title() override;
   void viewWillAppear() override;
+  void didBecomeFirstResponder() override;
+  TELEMETRY_ID("Tangent");
   bool textFieldDidFinishEditing(Escher::AbstractTextField* textField,
                                  Ion::Events::Event event) override;
   void setRecord(Ion::Storage::Record record);
   void setDrawTangent(bool drawTangent) { m_drawTangent = drawTangent; }
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   float cursorBottomMarginRatio() const override {

@@ -20,8 +20,7 @@ class TextArea : public TextInput {
   bool handleEvent(Ion::Events::Event event) override;
   bool handleEventWithText(const char* text, bool indentation = false,
                            bool forceCursorRightOfText = false) override;
-  void setText(char* textBuffer, size_t textBufferSize,
-               bool resetCursor = true);
+  void setText(char* textBuffer, size_t textBufferSize);
 
  protected:
   int indentationBeforeCursor() const;
@@ -125,7 +124,6 @@ class TextArea : public TextInput {
                           const char* selectionStart,
                           const char* selectionEnd) const = 0;
     virtual void clearRect(KDContext* ctx, KDRect rect) const = 0;
-    virtual bool freeSpaceForTextLen(int textLen);
     KDSize minimalSizeForOptimalDisplay() const override;
     void setText(char* textBuffer, size_t textBufferSize);
     const char* text() const override { return m_text.text(); }

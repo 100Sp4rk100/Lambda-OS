@@ -42,10 +42,12 @@ class ConsoleController : public Escher::ViewController,
   // ViewController
   Escher::View* view() override { return &m_selectableListView; }
   void viewWillAppear() override;
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
-  Escher::ViewController::TitlesDisplay titlesDisplay() const override {
+  Escher::ViewController::TitlesDisplay titlesDisplay() override {
     return Escher::ViewController::TitlesDisplay::DisplayNoTitle;
   }
+  TELEMETRY_ID("Console");
 
   // ListViewDataSource
   int numberOfRows() const override;
@@ -84,10 +86,6 @@ class ConsoleController : public Escher::ViewController,
 #if EPSILON_GETOPT
   bool locked() const { return m_locked; }
 #endif
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
-
  private:
   constexpr static const char* k_importCommand1 = "from ";
   constexpr static const char* k_importCommand2 = " import *";

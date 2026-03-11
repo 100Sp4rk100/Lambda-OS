@@ -4,7 +4,7 @@
 #include <escher/alternate_empty_view_delegate.h>
 #include <escher/i18n.h>
 #include <escher/view_controller.h>
-#include <omg/troolean.h>
+#include <poincare/trinary_boolean.h>
 
 namespace Escher {
 
@@ -14,14 +14,12 @@ class AlternateEmptyViewController : public ViewController {
                                ViewController* mainViewController,
                                AlternateEmptyViewDelegate* delegate);
   View* view() override { return &m_contentView; }
-  const char* title() const override;
-  ViewController::TitlesDisplay titlesDisplay() const override;
+  const char* title() override;
+  ViewController::TitlesDisplay titlesDisplay() override;
+  void didBecomeFirstResponder() override;
   void initView() override;
   void viewWillAppear() override;
   void viewDidDisappear() override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   class ContentView : public View {
@@ -34,7 +32,7 @@ class AlternateEmptyViewController : public ViewController {
     }
     void layoutSubviews(bool force = false) override;
     bool isEmpty();
-    void resetIsEmpty() { m_isEmpty = OMG::Troolean::Unknown; }
+    void resetIsEmpty() { m_isEmpty = Poincare::TrinaryBoolean::Unknown; }
     View* currentView();
 
    private:
@@ -42,7 +40,7 @@ class AlternateEmptyViewController : public ViewController {
     View* subviewAtIndex(int index) override;
     ViewController* m_mainViewController;
     AlternateEmptyViewDelegate* m_delegate;
-    OMG::Troolean m_isEmpty;
+    Poincare::TrinaryBoolean m_isEmpty;
   };
   ContentView m_contentView;
 };

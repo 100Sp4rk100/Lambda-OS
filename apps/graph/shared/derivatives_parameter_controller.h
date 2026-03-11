@@ -18,10 +18,10 @@ class DerivativesParameterController
  public:
   DerivativesParameterController(Escher::Responder* parentResponder);
 
-  const char* title() const override {
+  const char* title() override {
     return I18n::translate(I18n::Message::GraphDerivatives);
   }
-  TitlesDisplay titlesDisplay() const override {
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayLastThreeTitles;
   }
   bool handleEvent(Ion::Events::Event event) override;

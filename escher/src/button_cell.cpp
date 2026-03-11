@@ -1,5 +1,7 @@
 #include <escher/button_cell.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 ButtonCell::ButtonCell(Responder* parentResponder, I18n::Message textBody,
@@ -31,7 +33,7 @@ bool ButtonCell::handleEvent(Ion::Events::Event event) {
 void ButtonCell::setHighlighted(bool highlight) {
   HighlightCell::setHighlighted(highlight);
   KDColor backgroundColor =
-      highlight ? highlightedBackgroundColor() : KDColorWhite;
+      highlight ? highlightedBackgroundColor() : Theme::ThemeGestion::getColor("KDColorWhite");
   m_messageTextView.setBackgroundColor(backgroundColor);
   markWholeFrameAsDirty();
 }
@@ -56,19 +58,19 @@ void ButtonCell::drawBorder(KDContext* ctx, OMG::Direction direction, int index,
 void ButtonCell::drawRect(KDContext* ctx, KDRect rect) const {
   // Draw rectangle around cell
   if (m_style == Style::EmbossedLight) {
-    drawBorder(ctx, OMG::Direction::Right(), 0, Palette::GrayBright);
-    drawBorder(ctx, OMG::Direction::Up(), 0, Palette::GrayBright);
-    drawBorder(ctx, OMG::Direction::Left(), 0, Palette::GrayBright);
-    drawBorder(ctx, OMG::Direction::Down(), 0, Palette::GrayMiddle);
-    drawBorder(ctx, OMG::Direction::Down(), 1, Palette::GrayBright);
-    drawBorder(ctx, OMG::Direction::Down(), 2, Palette::GrayWhite);
+    drawBorder(ctx, OMG::Direction::Right(), 0, Theme::ThemeGestion::getColor("GrayBright"));
+    drawBorder(ctx, OMG::Direction::Up(), 0, Theme::ThemeGestion::getColor("GrayBright"));
+    drawBorder(ctx, OMG::Direction::Left(), 0, Theme::ThemeGestion::getColor("GrayBright"));
+    drawBorder(ctx, OMG::Direction::Down(), 0, Theme::ThemeGestion::getColor("GrayMiddle"));
+    drawBorder(ctx, OMG::Direction::Down(), 1, Theme::ThemeGestion::getColor("GrayBright"));
+    drawBorder(ctx, OMG::Direction::Down(), 2, Theme::ThemeGestion::getColor("GrayWhite"));
   } else if (m_style == Style::EmbossedGray) {
-    drawBorder(ctx, OMG::Direction::Right(), 0, Palette::GrayMiddle);
-    drawBorder(ctx, OMG::Direction::Up(), 0, Palette::GrayMiddle);
-    drawBorder(ctx, OMG::Direction::Left(), 1, Palette::GrayMiddle);
-    drawBorder(ctx, OMG::Direction::Down(), 1, Palette::GrayMiddle);
-    drawBorder(ctx, OMG::Direction::Left(), 0, Palette::GrayDark);
-    drawBorder(ctx, OMG::Direction::Down(), 0, Palette::GrayDark);
+    drawBorder(ctx, OMG::Direction::Right(), 0, Theme::ThemeGestion::getColor("GrayMiddle"));
+    drawBorder(ctx, OMG::Direction::Up(), 0, Theme::ThemeGestion::getColor("GrayMiddle"));
+    drawBorder(ctx, OMG::Direction::Left(), 1, Theme::ThemeGestion::getColor("GrayMiddle"));
+    drawBorder(ctx, OMG::Direction::Down(), 1, Theme::ThemeGestion::getColor("GrayMiddle"));
+    drawBorder(ctx, OMG::Direction::Left(), 0, Theme::ThemeGestion::getColor("GrayDark"));
+    drawBorder(ctx, OMG::Direction::Down(), 0, Theme::ThemeGestion::getColor("GrayDark"));
   }
 }
 

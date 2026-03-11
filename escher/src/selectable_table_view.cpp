@@ -65,7 +65,7 @@ int SelectableTableView::lastSelectableIndexInDirection(
 bool SelectableTableView::canSelectCellAtLocation(int column, int row) {
   assert(0 <= column && column < totalNumberOfColumns());
   assert(0 <= row && row < totalNumberOfRows());
-  const HighlightCell* cell = cellAtLocation(column, row);
+  HighlightCell* cell = cellAtLocation(column, row);
   return (!cell || cell->isVisible()) &&
          dataSource()->canSelectCellAtLocation(column, row);
 }
@@ -180,7 +180,7 @@ bool SelectableTableView::handleEvent(Ion::Events::Event event) {
   int col = selectedColumn();
   int row = selectedRow();
   if (event.isMoveEvent()) {
-    OMG::Direction direction = event.direction();
+    OMG::Direction direction = OMG::Direction(event);
     nextSelectableCellInDirection(&col, &row, direction, delta);
     if (col == selectedColumn() && row == selectedRow()) {
       // Cell was already selected.
@@ -195,39 +195,38 @@ bool SelectableTableView::handleEvent(Ion::Events::Event event) {
     if (!cell) {
       return false;
     }
+    constexpr size_t bufferSize = TextField::MaxBufferSize();
+    char buffer[bufferSize] = "";
+    // Step 1: Determine text to store
     const char* text = cell->text();
     Poincare::Layout layout = cell->layout();
     if (!text && layout.isUninitialized()) {
       return false;
     }
-    if (!App::app()->canStoreLayout()) {
-      /* Apps without a store menu cannot handle layouts, but they can copy or
-       * cut text */
-      assert(text);
-      if (event == Ion::Events::Copy || event == Ion::Events::Cut) {
-        Escher::Clipboard::SharedClipboard()->storeText(text);
-      }
-      return true;
-    }
-    Poincare::Layout toStore;
-    // Step 1: Determine text to store
     if (dataSource()->canStoreCellAtLocation(selectedColumn(), selectedRow())) {
       if (text) {
-        toStore = Poincare::Layout::String(text);
+        strlcpy(buffer, text, bufferSize);
       } else {
         assert(!layout.isUninitialized());
-        toStore = layout;
-      };
+        if (layout.serializeParsedExpression(
+                buffer, bufferSize,
+                m_delegate ? m_delegate->context() : nullptr) ==
+            bufferSize - 1) {
+          /* The layout is too large to be serialized in the buffer. Returning
+           * false will open an empty store which is better than a broken
+           * text. */
+          return false;
+        };
+      }
     }
     // Step 2: Determine where to store it
     if (event == Ion::Events::Copy || event == Ion::Events::Cut) {
-      if (!toStore.isUninitialized()) {
+      if (buffer[0] != 0) {
         // We don't want to store an empty text in clipboard
-        Escher::Clipboard::SharedClipboard()->storeLayout(toStore);
+        Escher::Clipboard::SharedClipboard()->store(buffer);
       }
     } else {
-      assert(event == Ion::Events::Sto || event == Ion::Events::Var);
-      App::app()->storeLayout(toStore);
+      App::app()->storeValue(buffer);
     }
     return true;
   }
@@ -268,33 +267,26 @@ void SelectableTableView::reloadData(bool setFirstResponder,
   selectCellAtLocation(col, row, setFirstResponder, true);
 }
 
-void SelectableTableView::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  switch (event.type) {
-    case ResponderChainEventType::HasBecomeFirst: {
-      HighlightCell* cell = selectedCell();
-      if (cell && cell->responder()) {
-        // Update first responder
-        App::app()->setFirstResponder(cell->responder());
-      }
-      break;
-    }
-    case ResponderChainEventType::HasEntered: {
-      int col = selectedColumn();
-      int row = selectedRow();
-      selectRow(-1);
-      selectCellAtLocation(col, row, false);
-      break;
-    }
-    case ResponderChainEventType::WillExit: {
-      if (event.nextFirstResponder != nullptr) {
-        unhighlightSelectedCell();
-      }
-    }
-    default: {
-      Responder::handleResponderChainEvent(event);
-      break;
-    }
+void SelectableTableView::didBecomeFirstResponder() {
+  HighlightCell* cell = selectedCell();
+  if (cell && cell->responder()) {
+    // Update first responder
+    App::app()->setFirstResponder(cell->responder());
+  }
+}
+
+void SelectableTableView::didEnterResponderChain(
+    Responder* previousFirstResponder) {
+  int col = selectedColumn();
+  int row = selectedRow();
+  selectRow(-1);
+  selectCellAtLocation(col, row, false);
+}
+
+void SelectableTableView::willExitResponderChain(
+    Responder* nextFirstResponder) {
+  if (nextFirstResponder != nullptr) {
+    unhighlightSelectedCell();
   }
 }
 

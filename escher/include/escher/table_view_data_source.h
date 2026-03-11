@@ -2,7 +2,6 @@
 #define ESCHER_TABLE_VIEW_DATA_SOURCE_H
 
 #include <escher/highlight_cell.h>
-#include <escher/metric.h>
 #include <escher/table_size_1D_manager.h>
 #include <escher/view.h>
 
@@ -38,8 +37,8 @@ class TableViewDataSource {
   int columnAfterCumulatedWidth(KDCoordinate offsetX);
   int rowAfterCumulatedHeight(KDCoordinate offsetY);
 
-  virtual KDCoordinate separatorBeforeColumn(int column) const { return 0; }
-  virtual KDCoordinate separatorBeforeRow(int row) const { return 0; }
+  virtual KDCoordinate separatorBeforeColumn(int column) { return 0; }
+  virtual KDCoordinate separatorBeforeRow(int row) { return 0; }
 
   virtual HighlightCell* reusableCell(int index, int type) = 0;
   virtual int reusableCellCount(int type) const = 0;
@@ -52,7 +51,6 @@ class TableViewDataSource {
    * only defaultColumnWidth and defaultRowHeight need to be overriden.
    *
    * These two methods return width and height without separator. */
-  // TODO: should be const
   virtual KDCoordinate nonMemoizedColumnWidth(int column) {
     return defaultColumnWidth();
   }
@@ -60,12 +58,10 @@ class TableViewDataSource {
     return defaultRowHeight();
   }
 
-  // TODO: should be const
   KDCoordinate nonMemoizedColumnWidth(int column, bool withSeparator);
   KDCoordinate nonMemoizedRowHeight(int row, bool withSeparator);
 
   // These should be overriden if a RegularTableSize1DManager is used.
-  // TODO: should be const
   virtual KDCoordinate defaultColumnWidth() {
     return TableSize1DManager::k_undefinedSize;
   }

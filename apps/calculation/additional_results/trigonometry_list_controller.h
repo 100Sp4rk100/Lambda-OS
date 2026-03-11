@@ -13,9 +13,9 @@ class TrigonometryListController : public IllustratedExpressionsListController {
       : IllustratedExpressionsListController(editExpressionController),
         m_graphCell(&m_model) {}
   void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) override;
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) override;
+  void fillCellForRow(Escher::HighlightCell* cell, int row) override;
 
   void setTrigonometryType(bool directTrigonometry) {
     m_directTrigonometry = directTrigonometry;
@@ -26,12 +26,16 @@ class TrigonometryListController : public IllustratedExpressionsListController {
   constexpr static KDCoordinate k_illustrationHeight = 105;
 
  private:
+  constexpr static CodePoint k_symbol = UCodePointGreekSmallLetterTheta;
+  constexpr static int k_numberOfExpressionRows = 4;
   I18n::Message messageAtIndex(int index) override;
   IllustrationCell* illustrationCell() override { return &m_graphCell; }
+  void updateIsStrictlyEqualAtIndex(int index, Poincare::Context* context);
   KDCoordinate illustrationHeight() override { return k_illustrationHeight; }
 
   TrigonometryGraphCell m_graphCell;
   TrigonometryModel m_model;
+  bool m_isStrictlyEqual[k_numberOfExpressionRows];
   bool m_directTrigonometry;
 };
 

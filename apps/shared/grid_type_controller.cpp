@@ -2,17 +2,17 @@
 
 #include <apps/i18n.h>
 
-#include "cartesian_grid_icon.h"
+#include "images/cartesian_grid_icon.h"
+#include "images/polar_grid_icon.h"
 #include "interactive_curve_view_range.h"
-#include "polar_grid_icon.h"
 
 using namespace Escher;
 
 namespace Shared {
 
 GridTypeController::GridTypeController(
-    Escher::Responder* parentResponder,
-    InteractiveCurveViewRange* interactiveCurveViewRange)
+    Escher::Responder *parentResponder,
+    InteractiveCurveViewRange *interactiveCurveViewRange)
     : UniformSelectableListController<
           MenuCell<MessageTextView, EmptyCellWidget, TransparentImageView>, 2>(
           parentResponder, nullptr),
@@ -24,7 +24,7 @@ GridTypeController::GridTypeController(
   cell(1)->accessory()->setImage(ImageStore::PolarGridIcon);
 }
 
-const char* GridTypeController::title() const {
+const char *GridTypeController::title() {
   return I18n::translate(I18n::Message::GridType);
 }
 

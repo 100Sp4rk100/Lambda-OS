@@ -609,7 +609,7 @@
  .set prefetch_distance, prefetch_distance_
 
 /*
- * Select prefetch type for this function.
+ * LAMDA_gray_light_palette prefetch type for this function.
  */
  .if prefetch_distance == 0
   .set PREFETCH_TYPE_CURRENT, PREFETCH_TYPE_NONE

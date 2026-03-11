@@ -37,16 +37,12 @@ class SelectableListViewController : public SelectableViewController,
   View* view() override { return &m_selectableListView; }
   SelectableListView* selectableListView() { return &m_selectableListView; }
 
+  void didBecomeFirstResponder() override {
+    App::app()->setFirstResponder(&m_selectableListView);
+  }
+
  protected:
   SelectableListView m_selectableListView;
-  void handleResponderChainEvent(
-      Responder::ResponderChainEvent event) override {
-    if (event.type == ResponderChainEventType::HasBecomeFirst) {
-      App::app()->setFirstResponder(&m_selectableListView);
-    } else {
-      SelectableViewController::handleResponderChainEvent(event);
-    }
-  }
 };
 
 class ExplicitSelectableListViewController

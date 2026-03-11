@@ -13,12 +13,14 @@ class VectorListController : public IllustratedExpressionsListController {
       : IllustratedExpressionsListController(editExpressionController),
         m_graphCell(&m_model) {}
   void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) override;
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) override;
 
+  constexpr static Poincare::ReductionTarget k_target =
+      Poincare::ReductionTarget::SystemForApproximation;
   constexpr static Poincare::SymbolicComputation k_symbolicComputation =
-      Poincare::SymbolicComputation::ReplaceAllSymbols;
+      Poincare::SymbolicComputation::
+          ReplaceAllSymbolsWithDefinitionsOrUndefined;
 
  private:
   constexpr static int k_maxNumberOfOutputRows = 3;

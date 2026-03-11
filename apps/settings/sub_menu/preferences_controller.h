@@ -17,6 +17,7 @@ class PreferencesController : public GenericSubController {
   int reusableCellCount(int type) const override;
   void fillCellForRow(Escher::HighlightCell* cell, int row) override;
   KDCoordinate nonMemoizedRowHeight(int row) override;
+  TELEMETRY_ID("Other");
 
  protected:
   constexpr static int k_totalNumberOfCell = 3;

@@ -11,14 +11,14 @@ class MatrixListController : public ExpressionsListController {
       : ExpressionsListController(editExpressionController, true) {}
 
   void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) override;
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) override;
 
  private:
-  I18n::Message messageAtIndex(int index) override { return m_message[index]; }
+  I18n::Message messageAtIndex(int index) override;
+  // Map from cell index to message index
   constexpr static int k_maxNumberOfOutputRows = 5;
-  I18n::Message m_message[k_maxNumberOfOutputRows];
+  int m_indexMessageMap[k_maxNumberOfOutputRows];
 };
 
 }  // namespace Calculation

@@ -1,7 +1,6 @@
 #ifndef OMG_GLOBAL_BOX_H
 #define OMG_GLOBAL_BOX_H
 
-#include <assert.h>
 #include <stdint.h>
 
 #include <new>
@@ -16,6 +15,9 @@ namespace OMG {
 template <typename T>
 class alignas(T) GlobalBox {
  public:
+#if ASSERTIONS
+  GlobalBox() : m_isInitialized(false) {}
+#endif
   template <typename... Args>
   void init(Args... args) {
 #if ASSERTIONS
@@ -50,7 +52,6 @@ class alignas(T) GlobalBox {
  private:
   uint8_t m_buffer[sizeof(T)];
 #if ASSERTIONS
- public:
   bool m_isInitialized;
 #endif
 };

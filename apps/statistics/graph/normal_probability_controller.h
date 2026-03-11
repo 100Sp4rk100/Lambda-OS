@@ -1,10 +1,10 @@
 #ifndef STATISTICS_NORMAL_PROBABILITY_CONTROLLER_H
 #define STATISTICS_NORMAL_PROBABILITY_CONTROLLER_H
 
-#include <apps/shared/round_cursor_view.h>
 #include <escher/alternate_empty_view_delegate.h>
 #include <limits.h>
 
+#include "apps/shared/round_cursor_view.h"
 #include "plot_controller.h"
 
 namespace Statistics {
@@ -12,18 +12,18 @@ namespace Statistics {
 class NormalProbabilityController : public PlotController,
                                     public Escher::AlternateEmptyViewDelegate {
  public:
-  NormalProbabilityController(Escher::Responder* parentResponder,
-                              Escher::ButtonRowController* header,
-                              Escher::TabViewController* tabController,
-                              Escher::StackViewController* stackViewController,
-                              Escher::ViewController* typeViewController,
-                              Store* store);
+  NormalProbabilityController(Escher::Responder *parentResponder,
+                              Escher::ButtonRowController *header,
+                              Escher::TabViewController *tabController,
+                              Escher::StackViewController *stackViewController,
+                              Escher::ViewController *typeViewController,
+                              Store *store);
 
   // AlternateEmptyViewDelegate
   bool isEmpty() const override {
     return !m_store->hasActiveSeries(activeSeriesMethod());
   }
-  Escher::Responder* responderWhenEmpty() override { return this; }
+  Escher::Responder *responderWhenEmpty() override { return this; }
   // Only two causes : either too many or non-integer frequencies
   I18n::Message emptyMessage() override {
     return m_store->hasActiveSeries(Store::SumOfOccurrencesUnderMax)
@@ -41,8 +41,10 @@ class NormalProbabilityController : public PlotController,
   double resultAtIndex(int series, int i) const override {
     return m_store->normalProbabilityResultAtIndex(series, i);
   }
-  bool drawSeriesZScoreLine(int series, float* x, float* y, float* u,
-                            float* v) const override;
+  bool drawSeriesZScoreLine(int series, float *x, float *y, float *u,
+                            float *v) const override;
+
+  TELEMETRY_ID("NormalProbability");
 
  private:
   // PlotController
@@ -50,26 +52,26 @@ class NormalProbabilityController : public PlotController,
                            int precision) override;
   /* Hide series having invalid total values. Since this method can be called
    * from the rescue of a checkpoint, it must check for handles without their
-   * objects. */
+   * nodes. */
   Shared::DoublePairStore::ActiveSeriesTest activeSeriesMethod()
       const override {
-    return [](const Shared::DoublePairStore* store, int i) {
+    return [](const Shared::DoublePairStore *store, int i) {
       return !store->listWasErasedByException(i) &&
              Store::ActiveSeriesAndValidTotalNormalProbabilities(store, i);
     };
   };
   bool moveSelectionHorizontally(OMG::HorizontalDirection direction) override;
-  void computeYBounds(float* yMin, float* yMax) const override;
+  void computeYBounds(float *yMin, float *yMax) const override;
   bool handleNullFrequencies() const override { return false; }
   // Horizontal labels will always be in the middle
   KDCoordinate horizontalMargin() const override { return k_mediumMargin; }
   KDCoordinate bottomMargin() const override { return k_smallMargin; }
   KDCoordinate topMargin() const override { return k_smallMargin; }
-  const char* resultMessageTemplate() const override { return "%s%s%*.*ed"; }
+  const char *resultMessageTemplate() const override { return "%s%s%*.*ed"; }
   I18n::Message resultMessage() const override {
     return I18n::Message::StatisticsNormalProbabilityZScore;
   }
-  PlotBannerView* bannerView() override { return &m_simpleBannerView; }
+  PlotBannerView *bannerView() override { return &m_simpleBannerView; }
 
   Shared::RingCursorView m_cursorView;
   SimplePlotBannerView m_simpleBannerView;

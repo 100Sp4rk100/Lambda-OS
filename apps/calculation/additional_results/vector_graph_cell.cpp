@@ -1,11 +1,12 @@
 #include "vector_graph_cell.h"
 
-#include <escher/palette.h>
-#include <kandinsky/color.h>
-
 #include <cmath>
 
+#include "escher/palette.h"
+#include "kandinsky/color.h"
 #include "vector_model.h"
+
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Shared;
 using namespace Poincare;
@@ -35,20 +36,20 @@ void VectorGraphPolicy::drawPlot(const AbstractPlotView* plotView,
       ctx, rect, "θ", labelPosition, AbstractPlotView::RelativePosition::There,
       labelTooCloseFromArrow ? AbstractPlotView::RelativePosition::Before
                              : AbstractPlotView::RelativePosition::There,
-      Palette::GrayDark);
+      Theme::ThemeGestion::getColor("GrayDark"));
 
   // - Draw arc
   drawArcOfEllipse(plotView, ctx, rect, Coordinate2D<float>(0.f, 0.f),
                    k_arcRadiusInPixels * plotView->pixelWidth(),
                    k_arcRadiusInPixels * plotView->pixelHeight(), 0.f, angle,
-                   Palette::GrayDark);
+                   Theme::ThemeGestion::getColor("GrayDark"));
 
   // - Draw arrow
   plotView->drawSegment(ctx, rect, Coordinate2D<float>(0.f, 0.f),
-                        Coordinate2D<float>(x, y), Palette::Red);
+                        Coordinate2D<float>(x, y), Theme::ThemeGestion::getColor("Red"));
   plotView->drawArrowhead(ctx, rect, Coordinate2D<float>(x, y),
                           Coordinate2D<float>(x, y), k_arrowSizeInPixels,
-                          Palette::Red);
+                          Theme::ThemeGestion::getColor("Red"));
 }
 
 VectorGraphView::VectorGraphView(VectorModel* model) : PlotView(model) {

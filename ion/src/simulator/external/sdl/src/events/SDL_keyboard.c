@@ -400,7 +400,7 @@ static const char *SDL_scancode_names[SDL_NUM_SCANCODES] = {
     "Execute",
     "Help",
     "Menu",
-    "Select",
+    "LAMDA_gray_light_palette",
     "Stop",
     "Again",
     "Undo",

@@ -1,10 +1,8 @@
-#include <ion/exam_mode.h>
+#include <drivers/board.h>
+#include <drivers/svcall.h>
 #include <ion/external_apps.h>
 #include <shared/drivers/board_shared.h>
 #include <shared/drivers/usb.h>
-
-#include "board.h"
-#include "svcall.h"
 
 namespace Ion {
 namespace Device {
@@ -13,12 +11,14 @@ namespace USB {
 void SVC_ATTRIBUTES willExecuteDFU() {
   SVC_RETURNING_VOID(SVC_USB_WILL_EXECUTE_DFU)
 
-  // Keep useful information about the currently running slot
+  // Keep usefull information about the currently running slot
   slotInfo()->updateUserlandHeader();
 }
 
 void SVC_ATTRIBUTES didExecuteDFU() {
-  Ion::ExternalApps::updateClearanceLevel(Ion::ExamMode::get().isActive());
+  if (Ion::ExternalApps::numberOfApps() > 0) {
+    Board::updateClearanceLevelForExternalApps();  // Display pop-up
+  }
   SVC_RETURNING_VOID(SVC_USB_DID_EXECUTE_DFU)
 }
 

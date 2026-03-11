@@ -1,8 +1,3 @@
-#include "expressions_list_controller.h"
-
-#include <poincare/helpers/expression_equal_sign.h>
-#include <poincare/src/expression/projection.h>
-
 #include "../app.h"
 #include "../edit_expression_controller.h"
 
@@ -22,13 +17,8 @@ ExpressionsListController::InnerListController::InnerListController(
   m_selectableListView.hideScrollBars();
 }
 
-void ExpressionsListController::InnerListController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    m_selectableListView.reloadData();
-  } else {
-    ViewController::handleResponderChainEvent(event);
-  }
+void ExpressionsListController::InnerListController::didBecomeFirstResponder() {
+  m_selectableListView.reloadData();
 }
 
 /* List Controller */
@@ -50,27 +40,28 @@ ExpressionsListController::ExpressionsListController(
 bool ExpressionsListController::handleEvent(Ion::Events::Event event) {
   if (event == Ion::Events::OK || event == Ion::Events::EXE) {
     assert(selectedRow() >= 0);
+    char buffer[Constant::MaxSerializedExpressionSize];
     HighlightCell* cell =
         m_listController.selectableListView()->cell(selectedRow());
-    Layout layout = layoutAtIndex(cell, selectedRow());
+    textAtIndex(buffer, Constant::MaxSerializedExpressionSize, cell,
+                selectedRow());
+    /* The order is important here: we dismiss the pop-up first because it
+     * clears the Poincare pool from the layouts used to display the pop-up.
+     * Thereby it frees memory to do Poincare computations required by
+     * insertTextBody. */
     App::app()->modalViewController()->dismissModal();
-    m_editExpressionController->insertLayout(layout);
+    m_editExpressionController->insertTextBody(buffer);
     return true;
   }
   return false;
 }
 
-void ExpressionsListController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    selectRow(0);
-    m_listController.selectableListView()->resetSizeAndOffsetMemoization();
-    App::app()->setFirstResponder(&m_listController);
-    // Additional outputs should have at least one row to display
-    assert(numberOfRows() > 0);
-  } else {
-    Escher::StackViewController::Default::handleResponderChainEvent(event);
-  }
+void ExpressionsListController::didBecomeFirstResponder() {
+  selectRow(0);
+  m_listController.selectableListView()->resetSizeAndOffsetMemoization();
+  App::app()->setFirstResponder(&m_listController);
+  // Additional outputs should have at least one row to display
+  assert(numberOfRows() > 0);
 }
 
 void ExpressionsListController::viewDidDisappear() {
@@ -89,7 +80,6 @@ void ExpressionsListController::tidy() {
     m_layouts[i] = Layout();
     m_exactLayouts[i] = Layout();
     m_approximatedLayouts[i] = Layout();
-    m_isStrictlyEqual[i] = false;
   }
 }
 
@@ -114,8 +104,6 @@ void ExpressionsListController::fillCellForRow(HighlightCell* cell, int row) {
   myCell->label()->setLayouts(m_layouts[row], m_exactLayouts[row],
                               m_approximatedLayouts[row]);
   myCell->subLabel()->setMessage(messageAtIndex(row));
-  myCell->label()->setExactAndApproximateAreStriclyEqual(
-      m_isStrictlyEqual[row]);
 }
 
 int ExpressionsListController::numberOfRows() const {
@@ -130,8 +118,8 @@ int ExpressionsListController::numberOfRows() const {
   return nbOfRows;
 }
 
-Poincare::Layout ExpressionsListController::layoutAtIndex(HighlightCell* cell,
-                                                          int index) {
+size_t ExpressionsListController::textAtIndex(char* buffer, size_t bufferSize,
+                                              HighlightCell* cell, int index) {
   assert(index >= 0 && index < k_maxNumberOfRows);
   ScrollableThreeLayoutsView::SubviewPosition position =
       static_cast<AdditionalResultCell*>(cell)
@@ -152,46 +140,35 @@ Poincare::Layout ExpressionsListController::layoutAtIndex(HighlightCell* cell,
     layout = m_approximatedLayouts[index];
   }
   assert(!layout.isUninitialized());
-  return layout;
+  return layout.serializeParsedExpression(buffer, bufferSize,
+                                          App::app()->localContext());
 }
 
-Layout ExpressionsListController::GetExactLayoutFromExpression(
-    const UserExpression e, const Internal::ProjectionContext* ctx,
-    Layout* approximate, bool* isStrictlyEqual) {
+Layout ExpressionsListController::getExactLayoutFromExpression(
+    Expression e, const ComputationContext& computationContext,
+    Layout* approximate) {
   assert(!e.isUninitialized());
-  UserExpression approximateExpression, exactExpression;
-  Internal::ProjectionContext tempCtx = *ctx;
-  tempCtx.m_symbolic = SymbolicComputation::ReplaceAllSymbols;
-  e.cloneAndSimplifyAndApproximate(&exactExpression, &approximateExpression,
-                                   tempCtx);
-  assert(!exactExpression.isUninitialized() &&
-         !approximateExpression.isUninitialized());
-  Layout approximateLayout = Shared::PoincareHelpers::CreateLayout(
-                                 approximateExpression, ctx->m_context)
-                                 .cloneAndTurnEToTenPowerLayout(false);
+  Expression approximateExpression, exactExpression;
+  PoincareHelpers::CloneAndSimplifyAndApproximate(
+      e, &exactExpression, &approximateExpression, computationContext.context(),
+      {.complexFormat = computationContext.complexFormat(),
+       .angleUnit = computationContext.angleUnit(),
+       .updateComplexFormatWithExpression = false,
+       .symbolicComputation =
+           SymbolicComputation::ReplaceAllSymbolsWithDefinitionsOrUndefined});
+  assert(!approximateExpression.isUninitialized());
+  Layout approximateLayout = PoincareHelpers::CreateLayout(
+      approximateExpression, computationContext.context());
   Layout exactLayout = exactExpression.isUninitialized()
                            ? approximateLayout
-                           : Shared::PoincareHelpers::CreateLayout(
-                                 exactExpression, ctx->m_context);
+                           : PoincareHelpers::CreateLayout(
+                                 exactExpression, computationContext.context());
   if (approximate) {
-    // TODO_PCJ: Factorize with CAS::ShouldOnlyDisplayApproximation
-    if (approximateExpression.isUndefined()) {
-      // Hide exact layout if approximation is undef (e.g tan(1.5707963267949))
-      exactLayout = Layout();
-      *approximate = approximateLayout;
-    }
-    /* Make it editable to compare equivalent layouts. */
-    else if (exactLayout.isIdenticalTo(approximateLayout, true) ||
-             exactLayout.isSameScientificNotationAs(approximateLayout, false)) {
-      *approximate = Layout();
-    } else {
-      *approximate = approximateLayout;
-      if (isStrictlyEqual) {
-        *isStrictlyEqual =
-            Poincare::ExactAndApproximateExpressionsAreStrictlyEqual(
-                exactExpression, approximateExpression, *ctx);
-      }
-    }
+    /* Make it editable to have Horiz(CodePoint("-"),CodePoint("1") ==
+     * String("-1") */
+    *approximate = exactLayout.isIdenticalTo(approximateLayout, true)
+                       ? Layout()
+                       : approximateLayout;
   }
   return exactLayout;
 }

@@ -1,10 +1,11 @@
 #include "data_field.h"
 
 #include <apps/apps_container.h>
-#include <apps/math_preferences.h>
-#include <poincare/expression.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/float.h>
+#include <poincare/horizontal_layout.h>
+#include <poincare/multiplication.h>
+#include <poincare/vertical_offset_layout.h>
 
 #include <array>
 
@@ -32,25 +33,31 @@ bool DoubleDataField::hasDouble(AtomicNumber z) const {
 Layout DoubleDataField::getLayout(AtomicNumber z, int significantDigits) const {
   assert(hasDouble(z));
   Preferences::PrintFloatMode floatDisplayMode =
-      MathPreferences::SharedPreferences()->displayMode();
+      Preferences::SharedPreferences()->displayMode();
   double v = getDouble(z);
   if (!std::isfinite(v)) {
     return DataField::UnknownValueLayout();
   }
 
-  UserExpression value = UserExpression::Builder<double>(v);
+  Expression value = Float<double>::Builder(v);
   /* Check the global context to know whether units need an underscore. */
   Context* globalContext =
       AppsContainer::sharedAppsContainer()->globalContext();
-  UserExpression unit = UserExpression::Parse(rawUnit(), globalContext);
+  Expression unit = Expression::Parse(rawUnit(), globalContext);
 
   if (unit.isUninitialized()) {
     return value.createLayout(floatDisplayMode, significantDigits,
                               globalContext);
   }
 
-  UserExpression result =
-      UserExpression::Create(KMult(KA, KB), {.KA = value, .KB = unit});
+  Expression result;
+  if (unit.type() == ExpressionNode::Type::Multiplication) {
+    static_cast<Multiplication&>(unit).addChildAtIndexInPlace(
+        value, 0, unit.numberOfChildren());
+    result = unit;
+  } else {
+    result = Multiplication::Builder(value, unit);
+  }
   return result.createLayout(floatDisplayMode, significantDigits,
                              globalContext);
 }
@@ -88,40 +95,27 @@ bool DoubleDataField::canBeStored(AtomicNumber z) const {
 // DoubleDataFieldWithSubscriptSymbol
 
 Layout DoubleDataFieldWithSubscriptSymbol::fieldSymbolLayout() const {
-  Layout res = DataField::fieldSymbolLayout();
+  HorizontalLayout res =
+      HorizontalLayout::Builder(DataField::fieldSymbolLayout());
   const char* subscript = I18n::translate(fieldSubscript());
   if (subscript[0] != '\0') {
-    res = Layout::Create(KA ^ KSubscriptL(KB),
-                         {.KA = res, .KB = Layout::String(subscript)});
+    res.addOrMergeChildAtIndex(
+        VerticalOffsetLayout::Builder(
+            LayoutHelper::String(subscript),
+            VerticalOffsetLayoutNode::VerticalPosition::Subscript),
+        1);
   }
-  return res;
-}
-
-// ZDataField
-
-Poincare::Layout ZDataField::getLayout(AtomicNumber z,
-                                       int significantDigits) const {
-  Preferences::PrintFloatMode floatDisplayMode =
-      MathPreferences::SharedPreferences()->displayMode();
-  Context* globalContext =
-      AppsContainer::sharedAppsContainer()->globalContext();
-  return Expression::Builder(static_cast<int>(z))
-      .createLayout(floatDisplayMode, significantDigits, globalContext);
+  return std::move(res);
 }
 
 // ADataField
 
-Layout ADataField::getLayout(AtomicNumber z, int significantDigits) const {
+Layout ADataField::getLayout(AtomicNumber z, int) const {
   uint16_t a = ElementsDataBase::NumberOfMass(z);
   if (a == ElementData::k_AUnknown) {
     return DataField::UnknownValueLayout();
   }
-  Preferences::PrintFloatMode floatDisplayMode =
-      MathPreferences::SharedPreferences()->displayMode();
-  Context* globalContext =
-      AppsContainer::sharedAppsContainer()->globalContext();
-  return Expression::Builder(static_cast<int>(a))
-      .createLayout(floatDisplayMode, significantDigits, globalContext);
+  return Integer(a).createLayout();
 }
 
 bool ADataField::canBeStored(AtomicNumber z) const {
@@ -146,8 +140,7 @@ void nextSubshell(int* n, int* l) {
   }
 }
 
-Layout ConfigurationDataField::getLayout(AtomicNumber z,
-                                         int significantDigits) const {
+Layout ConfigurationDataField::getLayout(AtomicNumber z, int) const {
   constexpr int k_nMax = 7;
   constexpr int k_lMax = 4;
   constexpr char k_lSymbols[k_lMax] = {'s', 'p', 'd', 'f'};
@@ -167,16 +160,18 @@ Layout ConfigurationDataField::getLayout(AtomicNumber z,
     }
   }
 
-  Layout res = KRackL();
+  HorizontalLayout res = HorizontalLayout::Builder();
   int electrons = z;
   int n = 1, l = 0;
   if (previousNoble >= 0) {
     electrons -= k_nobles[previousNoble];
     n = previousNoble + 3;
-    res = Layout::Create(KA ^ "["_l ^ KB ^ "]"_l,
-                         {.KA = res,
-                          .KB = Layout::String(ElementsDataBase::Symbol(
-                              k_nobles[previousNoble]))});
+    res.addOrMergeChildAtIndex(
+        HorizontalLayout::Builder(CodePointLayout::Builder('['),
+                                  LayoutHelper::String(ElementsDataBase::Symbol(
+                                      k_nobles[previousNoble])),
+                                  CodePointLayout::Builder(']')),
+        0);
   }
   while (electrons > 0) {
     int index = (n - 1) * k_lMax + l;
@@ -202,11 +197,6 @@ Layout ConfigurationDataField::getLayout(AtomicNumber z,
     conf[toIndex] += numberOfDisplacedElectrons;
   }
 
-  Preferences::PrintFloatMode floatDisplayMode =
-      MathPreferences::SharedPreferences()->displayMode();
-  Context* globalContext =
-      AppsContainer::sharedAppsContainer()->globalContext();
-
   /* Subshells are displayed in order of increasing n, then increasing l. */
   for (n = 1; n <= k_nMax; n++) {
     for (l = 0; l < k_lMax && l < n; l++) {
@@ -214,19 +204,16 @@ Layout ConfigurationDataField::getLayout(AtomicNumber z,
       if (conf[index] == 0) {
         continue;
       }
-      res = Layout::Create(
-          KA ^ KB ^ KC ^ KSuperscriptL(KD),
-          {.KA = res,
-           .KB = Expression::Builder(n).createLayout(
-               floatDisplayMode, significantDigits, globalContext),
-           .KC = Layout::CodePoint(k_lSymbols[l]),
-           .KD = Expression::Builder(conf[index])
-                     .createLayout(floatDisplayMode, significantDigits,
-                                   globalContext)});
+      Layout term = HorizontalLayout::Builder(
+          Integer(n).createLayout(), CodePointLayout::Builder(k_lSymbols[l]),
+          VerticalOffsetLayout::Builder(
+              Integer(conf[index]).createLayout(),
+              VerticalOffsetLayoutNode::VerticalPosition::Superscript));
+      res.addOrMergeChildAtIndex(term, res.numberOfChildren());
     }
   }
 
-  return res;
+  return std::move(res);
 }
 
 int ConfigurationDataField::DisplacedElectrons(AtomicNumber z, int* n, int* l) {
@@ -404,18 +391,10 @@ double MassDataField::getDouble(AtomicNumber z) const {
   return ElementsDataBase::MolarMass(z);
 }
 
-const Poincare::Internal::Tree* MassDataField::rawUnit() const {
-  return "_g×_mol^-1"_l;
-}
-
 // ElectronegativityDataField
 
 double ElectronegativityDataField::getDouble(AtomicNumber z) const {
   return ElementsDataBase::Electronegativity(z);
-}
-
-const Poincare::Internal::Tree* ElectronegativityDataField::rawUnit() const {
-  return ""_l;
 }
 
 // RadiusDataField
@@ -424,18 +403,10 @@ double RadiusDataField::getDouble(AtomicNumber z) const {
   return ElementsDataBase::Radius(z);
 }
 
-const Poincare::Internal::Tree* RadiusDataField::rawUnit() const {
-  return "_pm"_l;
-}
-
 // MeltingPointDataField
 
 double MeltingPointDataField::getDouble(AtomicNumber z) const {
   return ElementsDataBase::MeltingPoint(z);
-}
-
-const Poincare::Internal::Tree* MeltingPointDataField::rawUnit() const {
-  return "_°C"_l;
 }
 
 // BoilingPointDataField
@@ -444,18 +415,10 @@ double BoilingPointDataField::getDouble(AtomicNumber z) const {
   return ElementsDataBase::BoilingPoint(z);
 }
 
-const Poincare::Internal::Tree* BoilingPointDataField::rawUnit() const {
-  return "_°C"_l;
-}
-
 // DensityDataField
 
 double DensityDataField::getDouble(AtomicNumber z) const {
   return ElementsDataBase::Density(z);
-}
-
-const Poincare::Internal::Tree* DensityDataField::rawUnit() const {
-  return "_g×_cm^-3"_l;
 }
 
 // AffinityDataField
@@ -468,23 +431,15 @@ Layout AffinityDataField::getLayout(AtomicNumber z,
                                     int significantDigits) const {
   assert(std::isinf(ElementData::k_affinityUnstable));
   if (std::isinf(getDouble(z))) {
-    return Layout::String("Unstable");
+    return LayoutHelper::String("Unstable");
   }
   return DoubleDataFieldWithSubscriptSymbol::getLayout(z, significantDigits);
-}
-
-const Poincare::Internal::Tree* AffinityDataField::rawUnit() const {
-  return "_kJ×_mol^-1"_l;
 }
 
 // IonizationDataField
 
 double IonizationDataField::getDouble(AtomicNumber z) const {
   return ElementsDataBase::EnergyOfIonization(z);
-}
-
-const Poincare::Internal::Tree* IonizationDataField::rawUnit() const {
-  return "_kJ×_mol^-1"_l;
 }
 
 }  // namespace Elements

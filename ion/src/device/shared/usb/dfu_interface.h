@@ -19,18 +19,18 @@ class DFUInterface : public Interface {
   DFUInterface(Device* device, Endpoint0* ep0,
                uint8_t bInterfaceAlternateSetting)
       : Interface(ep0),
-        m_largeBuffer{0},
-        m_largeBufferLength(0),
+        m_device(device),
         m_status(Status::OK),
         m_state(State::dfuIDLE),
-        m_device(device),
         m_addressPointer(0),
         m_potentialNewAddressPointer(k_nullAddress),
         m_erasePage(-1),
+        m_largeBuffer{0},
+        m_largeBufferLength(0),
         m_writeAddress(0),
         m_bInterfaceAlternateSetting(bInterfaceAlternateSetting),
         m_isErasingAndWriting(false) {}
-  uint32_t leaveAddress() const;
+  uint32_t addressPointer() const { return m_addressPointer; }
   void wholeDataReceivedCallback(SetupPacket* request, uint8_t* transferBuffer,
                                  uint16_t* transferBufferLength) override;
   void wholeDataSentCallback(SetupPacket* request, uint8_t* transferBuffer,
@@ -175,97 +175,17 @@ class DFUInterface : public Interface {
    * pressing back". */
   void willErase() { m_isErasingAndWriting = true; }
 
-  /* Since the m_largeBuffer holds data to be copied in flash and the U0 flash
-   * can be only written by 64bits, it is convenient to align it to 64bits as
-   * well. */
-  alignas(uint64_t) uint8_t m_largeBuffer[Endpoint0::MaxTransferSize];
-  uint16_t m_largeBufferLength;
+  Device* m_device;
   Status m_status;
   State m_state;
-  Device* m_device;
   uint32_t m_addressPointer;
   uint32_t m_potentialNewAddressPointer;
   int32_t m_erasePage;
+  uint8_t m_largeBuffer[Endpoint0::MaxTransferSize];
+  uint16_t m_largeBufferLength;
   uint32_t m_writeAddress;
   uint8_t m_bInterfaceAlternateSetting;
   bool m_isErasingAndWriting;
-};
-
-class DFUInterfaceBackend {
- public:
-  /* Erase is implemented only by the flash backend. Pass TotalNumberOfSectors
-   * to perform a mass erase. */
-  virtual bool erase(uint32_t pageId) const = 0;
-  virtual bool write(uint32_t address, uint32_t length,
-                     const uint8_t* source) const = 0;
-  virtual bool read(uint32_t address, uint32_t length,
-                    uint8_t* destination) const = 0;
-  virtual uint32_t leaveAddress(uint32_t requestedAddress) const = 0;
-};
-
-class DFUMemoryBackend : public DFUInterfaceBackend {
- public:
-  constexpr DFUMemoryBackend(uint32_t base, uint32_t length)
-      : m_base(base), m_length(length) {}
-  constexpr ~DFUMemoryBackend() = default;
-
- protected:
-  bool rangeIsValid(uint32_t address, uint32_t length) const;
-
- private:
-  bool erase(uint32_t pageId) const override;
-  bool write(uint32_t address, uint32_t length,
-             const uint8_t* source) const override;
-  bool read(uint32_t address, uint32_t length,
-            uint8_t* destination) const override;
-  uint32_t leaveAddress(uint32_t requestedAddress) const override {
-    return requestedAddress;
-  }
-
-  const uint32_t m_base;
-  const uint32_t m_length;
-};
-
-class DFUFlashBackend : public DFUMemoryBackend {
- public:
-  using DFUMemoryBackend::DFUMemoryBackend;
-
- private:
-  bool erase(uint32_t pageId) const override;
-  bool write(uint32_t address, uint32_t length,
-             const uint8_t* source) const override;
-};
-
-class DFURAMBackend : public DFUMemoryBackend {
- public:
-  using DFUMemoryBackend::DFUMemoryBackend;
-
- private:
-  bool erase(uint32_t pageId) const override { return false; };
-  bool write(uint32_t address, uint32_t length,
-             const uint8_t* source) const override;
-};
-
-class DFUSecureBackend : public DFUInterfaceBackend {
- public:
-  constexpr DFUSecureBackend(uint32_t virtualBase, uint32_t actualBase)
-      : m_virtualBase(virtualBase), m_actualBase(actualBase) {}
-
- private:
-  bool erase(uint32_t pageId) const override { return false; }
-  bool write(uint32_t address, uint32_t length,
-             const uint8_t* source) const override;
-  bool read(uint32_t address, uint32_t length,
-            uint8_t* destination) const override {
-    return false;
-  }
-  uint32_t leaveAddress(uint32_t requestedAddress) const override {
-    // Secure interfaces can only jump at the base address
-    return m_actualBase;
-  }
-
-  const uint32_t m_virtualBase;
-  const uint32_t m_actualBase;
 };
 
 }  // namespace USB

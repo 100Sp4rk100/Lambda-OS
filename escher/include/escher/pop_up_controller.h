@@ -8,13 +8,15 @@
 #include <escher/message_text_view.h>
 #include <escher/view_controller.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 class HighContrastButton : public SimpleButtonCell {
  public:
   using SimpleButtonCell::SimpleButtonCell;
   KDColor highlightedBackgroundColor() const override {
-    return Palette::YellowDark;
+    return Theme::ThemeGestion::getColor("YellowDark");
   }
 };
 
@@ -24,6 +26,7 @@ class PopUpController : public ViewController {
                   I18n::Message warningMessage, I18n::Message okMessage,
                   I18n::Message cancelMessage, TextView* detailTextView);
   View* view() override;
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
   void presentModally();
 
@@ -35,7 +38,7 @@ class PopUpController : public ViewController {
                 I18n::Message okMessage, I18n::Message cancelMessage,
                 TextView* detailTextView);
     void drawRect(KDContext* ctx, KDRect rect) const override {
-      ctx->fillRect(bounds(), KDColorBlack);
+      ctx->fillRect(bounds(), Theme::ThemeGestion::getColor("KDColorBlack"));
     }
     void setSelectedButton(int selectedButton);
     int selectedButton();
@@ -53,7 +56,6 @@ class PopUpController : public ViewController {
     MessageTextView m_warningTextView;
     TextView* m_detailTextView;
   };
-  void handleResponderChainEvent(ResponderChainEvent event) override;
   ContentView m_contentView;
 };
 

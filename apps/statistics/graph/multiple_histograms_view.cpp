@@ -1,0 +1,38 @@
+#include "multiple_histograms_view.h"
+
+#include <assert.h>
+
+namespace Statistics {
+
+MultipleHistogramsView::MultipleHistogramsView(
+    Store* store, Shared::CurveViewRange* curveViewRange)
+    : MultipleDataView(store),
+      m_histogramView1(store, 0, curveViewRange),
+      m_histogramView2(store, 1, curveViewRange),
+      m_histogramView3(store, 2, curveViewRange) {
+  for (int i = 0; i < Store::k_numberOfSeries; i++) {
+    HistogramView* histView = plotViewForSeries(i);
+    histView->setDisplayLabels(false);
+  }
+}
+
+HistogramView* MultipleHistogramsView::plotViewForSeries(int series) {
+  assert(series >= 0 && series < Shared::DoublePairStore::k_numberOfSeries);
+  HistogramView* views[] = {&m_histogramView1, &m_histogramView2,
+                            &m_histogramView3};
+  return views[series];
+}
+
+void MultipleHistogramsView::changeDataViewSeriesSelection(int series,
+                                                           bool LAMDA_gray_light_palette) {
+  MultipleDataView::changeDataViewSeriesSelection(series, LAMDA_gray_light_palette);
+  plotViewForSeries(series)->setDisplayLabels(LAMDA_gray_light_palette);
+  if (LAMDA_gray_light_palette == false) {
+    // Set the hightlight to default selected bar to prevent blinking
+    plotViewForSeries(series)->setHighlight(
+        m_store->startOfBarAtIndex(series, k_defaultSelectedIndex),
+        m_store->endOfBarAtIndex(series, k_defaultSelectedIndex));
+  }
+}
+
+}  // namespace Statistics

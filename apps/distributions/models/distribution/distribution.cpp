@@ -1,7 +1,7 @@
 #include "distribution.h"
 
-#include <omg/troolean.h>
-#include <poincare/statistics/distribution.h>
+#include <float.h>
+#include <poincare/solver.h>
 
 #include <cmath>
 
@@ -37,7 +37,7 @@ bool Distribution::Initialize(Distribution* distribution,
     case Poincare::Distribution::Type::Normal:
       new (distribution) NormalDistribution();
       break;
-    case Poincare::Distribution::Type::Chi2:
+    case Poincare::Distribution::Type::ChiSquared:
       new (distribution) ChiSquaredDistribution();
       break;
     case Poincare::Distribution::Type::Student:
@@ -61,35 +61,8 @@ bool Distribution::Initialize(Distribution* distribution,
   return true;
 }
 
-bool Distribution::isContinuous() const {
-  return Poincare::Distribution::IsContinuous(m_distribution);
-}
-bool Distribution::isSymmetrical() const {
-  return Poincare::Distribution::IsSymmetrical(m_distribution);
-}
-double Distribution::meanAbscissa() const {
-  return Poincare::Distribution::MeanAbscissa(m_distribution,
-                                              constParametersArray());
-}
-int Distribution::numberOfParameters() const {
-  return Poincare::Distribution::NumberOfParameters(m_distribution);
-}
-const char* Distribution::parameterNameAtIndex(int index) const {
-  return Poincare::Distribution::ParameterNameAtIndex(m_distribution, index);
-}
-double Distribution::defaultParameterAtIndex(int index) const {
-  return Poincare::Distribution::DefaultParameterAtIndex(m_distribution, index);
-}
-
 float Distribution::evaluateAtAbscissa(float x) const {
-  /* We need to call the double method because constParametersArray() is a
-   * double *.
-   * The other solution would be to create a constFloatParametersArray(), but
-   * this would lose precision since the calculation have been done in double
-   * for a long time.
-   * Should this method just return double ? */
-  return static_cast<float>(Poincare::Distribution::EvaluateAtAbscissa(
-      m_distribution, static_cast<double>(x), constParametersArray()));
+  return m_distribution->evaluateAtAbscissa(x, constParametersArray());
 }
 
 bool Distribution::authorizedParameterAtIndex(double x, int index) const {
@@ -100,9 +73,7 @@ bool Distribution::authorizedParameterAtIndex(double x, int index) const {
     // Accept only one uninitialized parameter
     return true;
   }
-  return StatisticalDistribution::authorizedParameterAtIndex(x, index) &&
-         Poincare::Distribution::IsParameterValidBool(m_distribution, x, index,
-                                                      constParametersArray());
+  return Inference::authorizedParameterAtIndex(x, index);
 }
 
 void Distribution::setParameterAtIndex(double f, int index) {
@@ -122,12 +93,12 @@ void Distribution::setParameterAtIndexWithoutComputingCurveViewRange(
   }
   assert(canHaveUninitializedParameter() ||
          m_indexOfUninitializedParameter == k_allParametersAreInitialized);
-  StatisticalDistribution::setParameterAtIndex(x, index);
+  Inference::setParameterAtIndex(x, index);
 }
 
 double Distribution::cumulativeDistributiveFunctionAtAbscissa(double x) const {
-  return Poincare::Distribution::CumulativeDistributiveFunctionAtAbscissa(
-      m_distribution, x, constParametersArray());
+  return m_distribution->cumulativeDistributiveFunctionAtAbscissa(
+      x, constParametersArray());
 }
 
 double Distribution::rightIntegralFromAbscissa(double x) const {
@@ -167,8 +138,8 @@ double Distribution::finiteIntegralBetweenAbscissas(double a, double b) const {
 
 double Distribution::cumulativeDistributiveInverseForProbability(
     double p) const {
-  return Poincare::Distribution::CumulativeDistributiveInverseForProbability(
-      m_distribution, p, constParametersArray());
+  return m_distribution->cumulativeDistributiveInverseForProbability(
+      p, constParametersArray());
 }
 
 double Distribution::rightIntegralInverseForProbability(
@@ -207,20 +178,18 @@ double Distribution::evaluateAtDiscreteAbscissa(int k) const {
   if (isContinuous()) {
     return 0.0;
   }
-  return Poincare::Distribution::EvaluateAtAbscissa(
-      m_distribution, static_cast<double>(k), constParametersArray());
+  return m_distribution->evaluateAtAbscissa(static_cast<double>(k),
+                                            constParametersArray());
 }
 
 void Distribution::computeUnknownParameterForProbabilityAndBound(
     double probability, double bound, bool isUpperBound) {
   assert(m_indexOfUninitializedParameter != k_allParametersAreInitialized &&
          canHaveUninitializedParameter());
-  double paramValue =
-      Poincare::Distribution::EvaluateParameterForProbabilityAndBound(
-          m_distribution, m_indexOfUninitializedParameter,
-          constParametersArray(), probability, bound, isUpperBound);
-  StatisticalDistribution::setParameterAtIndex(paramValue,
-                                               m_indexOfUninitializedParameter);
+  double paramValue = m_distribution->evaluateParameterForProbabilityAndBound(
+      m_indexOfUninitializedParameter, parametersArray(), probability, bound,
+      isUpperBound);
+  Inference::setParameterAtIndex(paramValue, m_indexOfUninitializedParameter);
   if (std::isfinite(paramValue)) {
     computeCurveViewRange();
   }
@@ -250,16 +219,6 @@ float Distribution::computeXExtremum(bool min) const {
   }
 
   return result;
-}
-
-float Distribution::privateComputeXExtremum(bool min) const {
-  float xMax = Poincare::Distribution::ComputeXMax(m_distribution,
-                                                   constParametersArray());
-  float xMin = Poincare::Distribution::ComputeXMin(m_distribution,
-                                                   constParametersArray());
-  float range = xMax - xMin;
-  return min ? xMin - k_displayLeftMarginRatio * range
-             : xMax + k_displayRightMarginRatio * range;
 }
 
 }  // namespace Distributions

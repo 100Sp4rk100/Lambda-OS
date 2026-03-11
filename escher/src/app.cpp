@@ -1,6 +1,6 @@
 #include <escher/app.h>
 #include <escher/window.h>
-#include <poincare/pool.h>
+#include <poincare/tree_pool.h>
 extern "C" {
 #include <assert.h>
 }
@@ -10,7 +10,7 @@ namespace Escher {
 void App::Snapshot::pack(App* app) {
   tidy();
   app->~App();
-  assert(Poincare::Pool::sharedPool->numberOfObjects() == 0);
+  assert(Poincare::TreePool::sharedPool->numberOfNodes() == 0);
 }
 
 bool App::processEvent(Ion::Events::Event event) {
@@ -27,8 +27,8 @@ bool App::processEvent(Ion::Events::Event event) {
 }
 
 void App::setFirstResponder(Responder* responder, bool force) {
-  /* This flag is used only in DEBUG to ensure that
-   * handleResponderChainEvent(didEnter) do not call setFirstResponder.
+  /* This flag is used only in DEBUG to ensure that didEnterResponderChain do
+   * not call setFirstResponder.
    * */
 #if ASSERTIONS
   static bool preventRecursion = false;

@@ -2,7 +2,6 @@
 
 #include <apps/constant.h>
 #include <assert.h>
-#include <poincare/context.h>
 #include <poincare/exception_checkpoint.h>
 #include <string.h>
 
@@ -11,6 +10,8 @@
 #include "app.h"
 #include "calculation_selectable_list_view.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Escher;
 using namespace Poincare;
 
@@ -18,8 +19,8 @@ namespace Calculation {
 
 /* HistoryViewCell */
 
-void HistoryViewCell::ComputeCalculationHeights(Calculation* calculation,
-                                                Context* context) {
+void HistoryViewCell::ComputeCalculationHeights(Calculation *calculation,
+                                                Context *context) {
   HistoryViewCell cell(nullptr);
   cell.setNewCalculation(calculation, false, context, true);
   KDCoordinate unExpandedHeight = cell.minimalHeightForOptimalDisplay();
@@ -29,7 +30,7 @@ void HistoryViewCell::ComputeCalculationHeights(Calculation* calculation,
   calculation->setHeights(unExpandedHeight, expandedHeight);
 }
 
-HistoryViewCell::HistoryViewCell(Responder* parentResponder)
+HistoryViewCell::HistoryViewCell(Responder *parentResponder)
     : Responder(parentResponder),
       m_calculationCRC32(0),
       m_calculationDisplayOutput(Calculation::DisplayOutput::Unknown),
@@ -37,7 +38,7 @@ HistoryViewCell::HistoryViewCell(Responder* parentResponder)
       m_inputView(this, k_inputViewHorizontalMargin,
                   k_inputOutputViewsVerticalMargin),
       m_scrollableOutputView(this),
-      m_calculationExpanded(OMG::Troolean::Unknown),
+      m_calculationExpanded(TrinaryBoolean::Unknown),
       m_calculationSingleLine(false) {}
 
 void HistoryViewCell::setEven(bool even) {
@@ -71,7 +72,7 @@ void HistoryViewCell::reloadSubviewHighlight() {
         m_dataSource->selectedSubviewType();
     switch (type) {
       case HistoryViewCellDataSource::SubviewType::Input:
-        m_inputView.setExpressionBackgroundColor(Palette::Select);
+        m_inputView.setExpressionBackgroundColor(Theme::ThemeGestion::getColor("Select"));
         return;
       case HistoryViewCellDataSource::SubviewType::Output:
         m_scrollableOutputView.evenOddCell()->setHighlighted(true);
@@ -109,7 +110,7 @@ void HistoryViewCell::reloadScroll() {
 void HistoryViewCell::reloadOutputSelection(
     HistoryViewCellDataSource::SubviewType previousType) {
   assert(m_calculationDisplayOutput != Calculation::DisplayOutput::Unknown);
-  /* Select the right output according to the calculation display output. This
+  /* LAMDA_gray_light_palette the right output according to the calculation display output. This
    * will reload the scroll to display the selected output. */
   bool selectExactOutput =
       m_calculationDisplayOutput ==
@@ -139,12 +140,12 @@ void HistoryViewCell::cellDidSelectSubview(
   reloadScroll();
 }
 
-View* HistoryViewCell::subviewAtIndex(int index) {
+View *HistoryViewCell::subviewAtIndex(int index) {
   /* The order of the subviews should not matter here as they don't overlap.
    * However, the order determines the order of redrawing as well. For several
    * reasons listed after, changing subview selection often redraws the entire
    * m_scrollableOutputView even if it seems unecessary:
-   * - Before feeding new Layouts to LayoutViews, we reset the old layouts
+   * - Before feeding new Layouts to LayoutViews, we reset the hold layouts
    *   in order to empty the Poincare pool and have more space to compute new
    *   layouts.
    * - Even if we did not do that, LayoutView::setLayout doesn't avoid
@@ -158,7 +159,7 @@ View* HistoryViewCell::subviewAtIndex(int index) {
    * complex view enables to redraw it before the vblank thereby preventing
    * blinking).
    * TODO: this is a dirty hack which should be fixed! */
-  View* views[3] = {&m_scrollableOutputView, &m_inputView, &m_ellipsis};
+  View *views[3] = {&m_scrollableOutputView, &m_inputView, &m_ellipsis};
   return views[index];
 }
 
@@ -192,9 +193,9 @@ void HistoryViewCell::layoutSubviews(bool force) {
 
 void HistoryViewCell::computeSubviewFrames(KDCoordinate frameWidth,
                                            KDCoordinate frameHeight,
-                                           KDRect* ellipsisFrame,
-                                           KDRect* inputFrame,
-                                           KDRect* outputFrame) {
+                                           KDRect *ellipsisFrame,
+                                           KDRect *inputFrame,
+                                           KDRect *outputFrame) {
   assert(ellipsisFrame && inputFrame && outputFrame);
 
   if (isDisplayingEllipsis()) {
@@ -219,7 +220,7 @@ void HistoryViewCell::computeSubviewFrames(KDCoordinate frameWidth,
   KDCoordinate outputY = k_margin;
   if (m_calculationSingleLine && !m_inputView.layout().isUninitialized()) {
     KDCoordinate inputBaseline =
-        m_inputView.layout()->baseline(m_inputView.font());
+        m_inputView.layout().baseline(m_inputView.font());
     KDCoordinate outputBaseline = m_scrollableOutputView.baseline();
     KDCoordinate baselineDifference = outputBaseline - inputBaseline;
     if (baselineDifference > 0) {
@@ -255,12 +256,12 @@ void HistoryViewCell::resetMemoization() {
   m_calculationCRC32 = 0;
 }
 
-void HistoryViewCell::setCalculation(Calculation* calculation, bool expanded,
-                                     Context* context,
+void HistoryViewCell::setCalculation(Calculation *calculation, bool expanded,
+                                     Context *context,
                                      bool canChangeDisplayOutput) {
   uint32_t newCalculationCRC =
-      Ion::crc32Byte((const uint8_t*)calculation,
-                     ((char*)calculation->next()) - ((char*)calculation));
+      Ion::crc32Byte((const uint8_t *)calculation,
+                     ((char *)calculation->next()) - ((char *)calculation));
   if (newCalculationCRC == m_calculationCRC32) {
     if (updateExpanded(expanded)) {
       reloadScroll();
@@ -282,29 +283,29 @@ void HistoryViewCell::setCalculation(Calculation* calculation, bool expanded,
   reloadScroll();
 }
 
-void HistoryViewCell::setNewCalculation(Calculation* calculation, bool expanded,
-                                        Poincare::Context* context,
+void HistoryViewCell::setNewCalculation(Calculation *calculation, bool expanded,
+                                        Poincare::Context *context,
                                         bool canChangeDisplayOutput) {
   // Memoization
-  m_inputView.setLayout(calculation->createInputLayout(context));
+  m_hasEllipsis = calculation->additionalResultsType().isNotEmpty();
+  m_inputView.setLayout(calculation->createInputLayout());
 
   /* All expressions have to be updated at the same time. Otherwise,
    * when updating one layout, if the second one still points to a deleted
    * layout, calling to layoutSubviews() would fail. */
+  Layout exactOutputLayout, approximateOutputLayout;
   KDFont::Size font = m_scrollableOutputView.font();
   KDCoordinate maxVisibleWidth =
       Ion::Display::Width -
       (m_scrollableOutputView.margins()->width() +
        2 * KDFont::GlyphWidth(font));  // > arrow and = sign
+  calculation->createOutputLayouts(&exactOutputLayout, &approximateOutputLayout,
+                                   context, canChangeDisplayOutput,
+                                   maxVisibleWidth, font);
 
-  Calculation::OutputLayouts outputLayouts = calculation->layoutCalculation(
-      font, maxVisibleWidth, context, canChangeDisplayOutput);
-
-  m_calculationDisplayOutput = calculation->displayOutput();
-  /* m_calculationDisplayOutput must have been updated before computing the
-   * additional results type (a forbidden expression could hide the exact
-   * results). */
-  m_hasEllipsis = calculation->additionalResultsType(context).isNotEmpty();
+  /* Update m_calculationDisplayOutput. Must be done after createOutputLayouts
+   * because calculation->displayOutput can change. */
+  m_calculationDisplayOutput = calculation->displayOutput(context);
 
   /* Update m_scrollableOutputView. Must be done once m_calculationDisplayOutput
    * has been updated. We must set which subviews are displayed before
@@ -314,33 +315,21 @@ void HistoryViewCell::setNewCalculation(Calculation* calculation, bool expanded,
           Calculation::DisplayOutput::ExactAndApproximate ||
       m_calculationDisplayOutput ==
           Calculation::DisplayOutput::ExactAndApproximateToggle);
-
-  if (outputLayouts.approximate.isUninitialized()) {
-    // The scrollable view expects the right layout to be defined, use exact
-    assert(!outputLayouts.exact.isUninitialized());
-    m_scrollableOutputView.setLayouts(Layout(), Layout(), outputLayouts.exact);
-  } else {
-    m_scrollableOutputView.setLayouts(Layout(), outputLayouts.exact,
-                                      outputLayouts.approximate);
-  }
+  m_scrollableOutputView.setLayouts(Layout(), exactOutputLayout,
+                                    approximateOutputLayout);
   m_scrollableOutputView.setExactAndApproximateAreStriclyEqual(
-      calculation->equalSign() == Calculation::EqualSign::Equal);
+      calculation->equalSign(context) == Calculation::EqualSign::Equal);
   updateExpanded(expanded);
 }
 
-void HistoryViewCell::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    assert(m_dataSource);
-    if (m_dataSource->selectedSubviewType() ==
-        HistoryViewCellDataSource::SubviewType::Input) {
-      App::app()->setFirstResponder(&m_inputView);
-    } else if (m_dataSource->selectedSubviewType() ==
-               HistoryViewCellDataSource::SubviewType::Output) {
-      App::app()->setFirstResponder(&m_scrollableOutputView);
-    }
-  } else {
-    Responder::handleResponderChainEvent(event);
+void HistoryViewCell::didBecomeFirstResponder() {
+  assert(m_dataSource);
+  if (m_dataSource->selectedSubviewType() ==
+      HistoryViewCellDataSource::SubviewType::Input) {
+    App::app()->setFirstResponder(&m_inputView);
+  } else if (m_dataSource->selectedSubviewType() ==
+             HistoryViewCellDataSource::SubviewType::Output) {
+    App::app()->setFirstResponder(&m_scrollableOutputView);
   }
 }
 
@@ -411,7 +400,7 @@ bool HistoryViewCell::handleEvent(Ion::Events::Event event) {
 
 bool HistoryViewCell::updateExpanded(bool expanded) {
   assert(m_calculationDisplayOutput != Calculation::DisplayOutput::Unknown);
-  OMG::Troolean calculationExpanded = OMG::BoolToTroolean(
+  TrinaryBoolean calculationExpanded = BinaryToTrinaryBool(
       m_calculationDisplayOutput ==
           Calculation::DisplayOutput::ExactAndApproximate ||
       (expanded && m_calculationDisplayOutput ==
@@ -421,7 +410,7 @@ bool HistoryViewCell::updateExpanded(bool expanded) {
   }
   m_calculationExpanded = calculationExpanded;
   m_scrollableOutputView.setDisplayCenter(
-      TrooleanToBool(m_calculationExpanded));
+      TrinaryToBinaryBool(m_calculationExpanded));
   return true;
 }
 

@@ -31,16 +31,8 @@ MenuController::MenuController(Escher::StackViewController* parentResponder,
   centerTable(Escher::Metric::DisplayHeightWithoutTitleBar);
 }
 
-void MenuController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    m_selectableListView.reloadData();
-  } else {
-    Escher::UniformSelectableListController<
-        Escher::MenuCell<Escher::MessageTextView, Escher::MessageTextView,
-                         Escher::ChevronView>,
-        k_numberOfCells>::handleResponderChainEvent(event);
-  }
+void MenuController::didBecomeFirstResponder() {
+  m_selectableListView.reloadData();
 }
 
 bool MenuController::handleEvent(Ion::Events::Event event) {

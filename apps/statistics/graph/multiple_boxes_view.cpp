@@ -10,46 +10,43 @@ namespace Statistics {
 MultipleBoxesView::MultipleBoxesView(Store* store,
                                      DataViewController* dataViewController)
     : MultipleDataView(store),
-      m_boxViews{BoxView(store, 0, dataViewController),
-                 BoxView(store, 1, dataViewController),
-                 BoxView(store, 2, dataViewController),
-                 BoxView(store, 3, dataViewController),
-                 BoxView(store, 4, dataViewController),
-                 BoxView(store, 5, dataViewController)},
+      m_boxView1(store, 0, dataViewController),
+      m_boxView2(store, 1, dataViewController),
+      m_boxView3(store, 2, dataViewController),
       m_axisView(store) {
-  static_assert(IsBoxMarginValid(),
-                "BoxToBoxMargin() should be bigger than BoxVerticalMargin() "
-                "for all numbers of valid series.");
+  static_assert(MultipleBoxesView::BoxToBoxMargin(2) >=
+                        BoxPlotPolicy::BoxVerticalMargin() &&
+                    MultipleBoxesView::BoxToBoxMargin(3) >=
+                        BoxPlotPolicy::BoxVerticalMargin(),
+                "BoxToBoxMargin() should be bigger than BoxVerticalMargin().");
 }
 
 BoxView* MultipleBoxesView::plotViewForSeries(int series) {
-  assert(series >= 0 && series < static_cast<int>(m_boxViews.size()));
-  return &m_boxViews[static_cast<size_t>(series)];
+  assert(series >= 0 && series < Shared::DoublePairStore::k_numberOfSeries);
+  BoxView* views[] = {&m_boxView1, &m_boxView2, &m_boxView3};
+  return views[series];
 }
 
 void MultipleBoxesView::layoutDataSubviews(bool force) {
-  const int numberOfDataSubviews = m_store->numberOfActiveSeries(
+  int numberOfDataSubviews = m_store->numberOfActiveSeries(
       Shared::DoublePairStore::DefaultActiveSeriesTest);
   assert(numberOfDataSubviews > 0);
   KDCoordinate bannerHeight = bannerFrame().height();
-  KDCoordinate boxYPosition =
-      TopToFirstBoxMargin(static_cast<size_t>(numberOfDataSubviews));
+  KDCoordinate boxYPosition = TopToFirstBoxMargin(numberOfDataSubviews);
   for (int i = 0; i < Store::k_numberOfSeries; i++) {
     if (Shared::DoublePairStore::DefaultActiveSeriesTest(m_store, i)) {
       // Add vertical margins to box layout. Boxes layouts may overlap.
       KDRect frame =
           KDRect(0, boxYPosition - BoxPlotPolicy::BoxVerticalMargin(),
                  bounds().width(),
-                 BoxPlotPolicy::BoxFrameHeight(
-                     static_cast<size_t>(numberOfDataSubviews)));
+                 BoxPlotPolicy::BoxFrameHeight(numberOfDataSubviews));
       setChildFrame(plotViewForSeries(i), frame, force);
-      boxYPosition +=
-          BoxPlotPolicy::BoxHeight(static_cast<size_t>(numberOfDataSubviews)) +
-          BoxToBoxMargin(static_cast<size_t>(numberOfDataSubviews));
+      boxYPosition += BoxPlotPolicy::BoxHeight(numberOfDataSubviews) +
+                      BoxToBoxMargin(numberOfDataSubviews);
     }
   }
   // Remove BoxToBoxMargin on last box
-  boxYPosition -= BoxToBoxMargin(static_cast<size_t>(numberOfDataSubviews));
+  boxYPosition -= BoxToBoxMargin(numberOfDataSubviews);
   assert(bounds().height() >= boxYPosition + k_axisViewHeight + bannerHeight);
   // Layout the axis right above the banner
   setChildFrame(&m_axisView,
@@ -96,12 +93,12 @@ void MultipleBoxesView::drawRect(KDContext* ctx, KDRect rect) const {
    * others, the background is filled here. */
   ctx->fillRect(KDRect(0, 0, bounds().width(),
                        bounds().height() - bannerHeight - k_axisViewHeight),
-                KDColorWhite);
+                Theme::ThemeGestion::getColor("KDColorWhite"));
   MultipleDataView::drawRect(ctx, rect);
 }
 
-void MultipleBoxesView::changeDataViewSeriesSelection(int series, bool select) {
-  MultipleDataView::changeDataViewSeriesSelection(series, select);
+void MultipleBoxesView::changeDataViewSeriesSelection(int series, bool LAMDA_gray_light_palette) {
+  MultipleDataView::changeDataViewSeriesSelection(series, LAMDA_gray_light_palette);
   // Mark rect as dirty in parent's view to also redraw the background
   markRectAsDirty(
       plotViewForSeries(series)->rectToReload().relativeTo(absoluteOrigin()));

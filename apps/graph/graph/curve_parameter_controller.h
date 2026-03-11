@@ -26,11 +26,12 @@ class CurveParameterController
       GraphController* graphController,
       FunctionParameterController* functionParameterController,
       DerivativeColumnParameterController* derivativeColumnParameterController);
-  const char* title() const override;
+  const char* title() override;
   bool handleEvent(Ion::Events::Event event) override;
   int numberOfRows() const override { return k_numberOfRows; }
   void viewWillAppear() override;
-  TitlesDisplay titlesDisplay() const override {
+  void didBecomeFirstResponder() override;
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayLastTitle;
   }
 
@@ -45,18 +46,13 @@ class CurveParameterController
 
   void setRecord(Ion::Storage::Record record, int derivationOrder);
 
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
-
  private:
   using ParameterCell = Escher::MenuCellWithEditableText<
       Escher::OneLineBufferTextView<KDFont::Size::Large>>;
-
   enum class ParameterIndex {
     Abscissa = 0,
     Image1,
     Image2,
-    Image3,
     FirstDerivative1,
     FirstDerivative2,
     SecondDerivative1,
@@ -64,7 +60,7 @@ class CurveParameterController
     NumberOfParameters,
   };
 
-  KDCoordinate separatorBeforeRow(int row) const override {
+  KDCoordinate separatorBeforeRow(int row) override {
     return cell(row) == &m_calculationCell ? k_defaultRowSeparator : 0;
   }
   ParameterCell* parameterCell(ParameterIndex index) {
@@ -72,41 +68,28 @@ class CurveParameterController
   }
   double parameterAtIndex(int index) override;
   bool setParameterAtIndex(int parameterIndex, double f) override {
-    assert(0 <= parameterIndex && parameterIndex <= k_numberOfParameterRows);
-    return confirmParameterAtIndex(static_cast<ParameterIndex>(parameterIndex),
-                                   f);
+    return confirmParameterAtIndex(parameterIndex, f);
   }
-
-  const Escher::HighlightCell* cell(int row) const;
   Escher::HighlightCell* cell(int row) override;
   bool textFieldDidFinishEditing(Escher::AbstractTextField* textField,
                                  Ion::Events::Event event) override;
   Escher::TextField* textFieldOfCellAtRow(int row) override;
   Shared::ExpiringPointer<Shared::ContinuousFunction> function() const;
-  bool confirmParameterAtIndex(ParameterIndex index, double f);
+  bool confirmParameterAtIndex(int parameterIndex, double f);
   void fillParameterCellAtRow(int row) override;
-  bool parameterAtIndexIsPreimage(ParameterIndex index) const;
-  bool parameterAtIndexIsFirstComponent(ParameterIndex index) const;
-  bool parameterAtIndexIsEditable(ParameterIndex index) const;
-  int derivationOrderOfParameterAtIndex(ParameterIndex index) const;
-  double evaluateCurveAt(ParameterIndex index,
-                         Poincare::Context* context) const;
-  double evaluateDerivativeAt(ParameterIndex index, int derivationOrder,
-                              Poincare::Context* context) const;
-
+  bool parameterAtRowIsFirstComponent(int row) const;
+  int derivationOrderOfParameterAtRow(int row) const;
   Escher::StackViewController* stackController() const;
 
   /* max(Function::k_maxNameWithArgumentSize + CalculateOnFx,
    * CalculateOnTheCurve + max(Color*Curve)) */
-  constexpr static size_t k_titleSize =
+  static constexpr size_t k_titleSize =
       40;  // "Berechnen auf der türkisen Kurve"
   constexpr static int k_numberOfParameterRows =
       static_cast<int>(ParameterIndex::NumberOfParameters);
   constexpr static int k_numberOfRows = k_numberOfParameterRows + 2;
 
-  /* m_titleBuffer is declared as mutable so that ViewController::title() can
-   * remain const-qualified in the generic case. */
-  mutable char m_title[k_titleSize];
+  char m_title[k_titleSize];
   ParameterCell m_parameterCells[k_numberOfParameterRows];
   Escher::MenuCell<Escher::MessageTextView, Escher::EmptyCellWidget,
                    Escher::ChevronView>

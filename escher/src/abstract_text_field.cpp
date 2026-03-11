@@ -5,9 +5,14 @@
 #include <escher/text_input_helpers.h>
 #include <ion/events.h>
 #include <ion/keyboard/layout_events.h>
-#include <omg/utf8_helper.h>
-#include <poincare/helpers/layout.h>
-#include <poincare/xnt.h>
+#include <ion/unicode/utf8_helper.h>
+#include <poincare/aliases_list.h>
+#include <poincare/parametered_expression.h>
+#include <poincare/serialization_helper.h>
+#include <poincare/symbol_abstract.h>
+#include <poincare/xnt_helpers.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 #include <algorithm>
 
@@ -21,7 +26,7 @@ static char s_draftTextBuffer[AbstractTextField::MaxBufferSize()];
 
 /* AbstractTextField::ContentView */
 
-AbstractTextField::ContentView::ContentView(char* textBuffer,
+AbstractTextField::ContentView::ContentView(char *textBuffer,
                                             size_t textBufferSize,
                                             KDGlyph::Format format)
     : TextInput::ContentView(format),
@@ -47,11 +52,11 @@ void AbstractTextField::ContentView::setTextColor(KDColor textColor) {
   markWholeFrameAsDirty();
 }
 
-void AbstractTextField::ContentView::drawRect(KDContext* ctx,
+void AbstractTextField::ContentView::drawRect(KDContext *ctx,
                                               KDRect rect) const {
   KDColor backgroundColor = m_format.style.backgroundColor;
   if (m_isEditing) {
-    backgroundColor = KDColorWhite;
+    backgroundColor = Theme::ThemeGestion::getColor("KDColorWhite");
   }
   ctx->fillRect(bounds(), backgroundColor);
   KDGlyph::Style glyphStyle{.glyphColor = m_format.style.glyphColor,
@@ -63,7 +68,7 @@ void AbstractTextField::ContentView::drawRect(KDContext* ctx,
   } else {
     assert(m_isEditing);
     int selectionOffset = selectionLeft() - draftText();
-    const char* textToDraw = text();
+    const char *textToDraw = text();
     // Draw the non selected text on the left of the selection
     ctx->drawString(textToDraw, glyphFrameAtPosition(text(), text()).origin(),
                     glyphStyle, selectionOffset);
@@ -73,7 +78,7 @@ void AbstractTextField::ContentView::drawRect(KDContext* ctx,
     ctx->drawString(text() + selectionOffset,
                     glyphFrameAtPosition(text(), textToDraw).origin(),
                     {.glyphColor = m_format.style.glyphColor,
-                     .backgroundColor = Palette::Select,
+                     .backgroundColor = Theme::ThemeGestion::getColor("Select"),
                      .font = m_format.style.font},
                     selectionLength);
     textToDraw += selectionLength;
@@ -84,19 +89,19 @@ void AbstractTextField::ContentView::drawRect(KDContext* ctx,
   }
 }
 
-const char* AbstractTextField::ContentView::text() const {
-  return const_cast<const char*>(m_isEditing ? s_draftTextBuffer
-                                             : m_textBuffer);
+const char *AbstractTextField::ContentView::text() const {
+  return const_cast<const char *>(m_isEditing ? s_draftTextBuffer
+                                              : m_textBuffer);
 }
 
-const char* AbstractTextField::ContentView::draftText() const {
+const char *AbstractTextField::ContentView::draftText() const {
   return s_draftTextBuffer;
 }
 
-void AbstractTextField::ContentView::setText(const char* text) {
+void AbstractTextField::ContentView::setText(const char *text) {
   size_t textRealLength = strlen(text);
   size_t maxBufferSize = m_isEditing ? draftTextBufferSize() : m_textBufferSize;
-  char* buffer = const_cast<char*>(this->text());
+  char *buffer = const_cast<char *>(this->text());
   if (textRealLength > maxBufferSize - 1) {
     /* The text was too long to be copied
      * TODO Maybe add a warning for the user? */
@@ -107,7 +112,8 @@ void AbstractTextField::ContentView::setText(const char* text) {
   strlcpy(buffer, text, maxBufferSize);
   /* Replace System parentheses (used to keep layout tree structure) by normal
    * parentheses */
-  UTF8Helper::ReplaceSystemParenthesesAndBracesByUserParentheses(buffer);
+  SerializationHelper::ReplaceSystemParenthesesAndBracesByUserParentheses(
+      buffer);
   markWholeFrameAsDirty();
 }
 
@@ -120,8 +126,8 @@ void AbstractTextField::ContentView::setEditing(bool isEditing) {
   }
   resetSelection();
   m_isEditing = isEditing;
-  const char* bufferStart = draftText();
-  const char* bufferEnd = draftTextEnd();
+  const char *bufferStart = draftText();
+  const char *bufferEnd = draftTextEnd();
   if (m_cursorLocation < bufferStart || m_cursorLocation > bufferEnd) {
     m_cursorLocation = bufferEnd;
   }
@@ -143,12 +149,12 @@ void AbstractTextField::ContentView::reinitDraftTextBuffer() {
   setCursorLocation(draftText());
 }
 
-bool AbstractTextField::ContentView::insertTextAtLocation(const char* text,
-                                                          char* location,
+bool AbstractTextField::ContentView::insertTextAtLocation(const char *text,
+                                                          char *location,
                                                           int textLen) {
   assert(m_isEditing);
 
-  char* buffer = const_cast<char*>(draftText());
+  char *buffer = const_cast<char *>(draftText());
   size_t editedLength = draftTextLength();
 
   size_t textLength = textLen < 0 ? strlen(text) : (size_t)textLen;
@@ -165,7 +171,7 @@ bool AbstractTextField::ContentView::insertTextAtLocation(const char* text,
   size_t copySize = std::min(
       textLength + 1,
       static_cast<size_t>((buffer + draftTextBufferSize()) - location));
-  char* overridenByteLocation = location + copySize - 1;
+  char *overridenByteLocation = location + copySize - 1;
   char overridenByte = *overridenByteLocation;
   strlcpy(location, text, copySize);
   *overridenByteLocation = overridenByte;
@@ -188,7 +194,7 @@ KDSize AbstractTextField::ContentView::minimalSizeForOptimalDisplay() const {
 bool AbstractTextField::ContentView::removePreviousGlyph() {
   assert(m_isEditing);
 
-  char* buffer = const_cast<char*>(draftText());
+  char *buffer = const_cast<char *>(draftText());
 
   if (m_format.horizontalAlignment > 0.0f) {
     /* Reload the view. If we do it later, the text beins supposedly shorter, we
@@ -197,7 +203,7 @@ bool AbstractTextField::ContentView::removePreviousGlyph() {
   }
   // Remove the glyph if possible
   int removedLength = UTF8Helper::RemovePreviousGlyph(
-      buffer, const_cast<char*>(cursorLocation()));
+      buffer, const_cast<char *>(cursorLocation()));
   if (removedLength == 0) {
     assert(cursorLocation() == buffer);
     return false;
@@ -215,14 +221,14 @@ bool AbstractTextField::ContentView::removePreviousGlyph() {
 
 bool AbstractTextField::ContentView::removeEndOfLine() {
   assert(m_isEditing);
-  char* buffer = const_cast<char*>(draftText());
+  char *buffer = const_cast<char *>(draftText());
   size_t lengthToCursor = (size_t)(cursorLocation() - buffer);
   if (draftTextLength() == lengthToCursor) {
     return false;
   }
   reloadRectFromPosition(m_format.horizontalAlignment == 0.0f ? cursorLocation()
                                                               : buffer);
-  *(const_cast<char*>(cursorLocation())) = 0;
+  *(const_cast<char *>(cursorLocation())) = 0;
   layoutSubviews();
   return true;
 }
@@ -240,8 +246,8 @@ void AbstractTextField::ContentView::didModifyTextBuffer() {
   layoutSubviews();
 }
 
-size_t AbstractTextField::dumpContent(char* buffer, size_t bufferSize,
-                                      int* cursorOffset) {
+size_t AbstractTextField::dumpContent(char *buffer, size_t bufferSize,
+                                      int *cursorOffset) {
   size_t size = draftTextLength() + 1;
   if (size > bufferSize) {
     buffer[0] = 0;
@@ -257,8 +263,8 @@ size_t AbstractTextField::ContentView::deleteSelection() {
   assert(!selectionIsEmpty());
   assert(m_isEditing);
   size_t removedLength = selectionRight() - selectionLeft();
-  char* buffer = const_cast<char*>(draftText());
-  strlcpy(const_cast<char*>(selectionLeft()), selectionRight(),
+  char *buffer = const_cast<char *>(draftText());
+  strlcpy(const_cast<char *>(selectionLeft()), selectionRight(),
           draftTextBufferSize() - (selectionLeft() - buffer));
   // We cannot call resetSelection() because m_selectionEnd is invalid.
   m_selectionStart = nullptr;
@@ -270,7 +276,7 @@ KDRect AbstractTextField::ContentView::cursorRect() const {
 }
 
 KDRect AbstractTextField::ContentView::glyphFrameAtPosition(
-    const char* buffer, const char* position) const {
+    const char *buffer, const char *position) const {
   assert(buffer != nullptr && position != nullptr);
   assert(position >= buffer);
   KDSize glyphSize = KDFont::GlyphSize(m_format.style.font);
@@ -292,9 +298,9 @@ KDRect AbstractTextField::ContentView::glyphFrameAtPosition(
 
 /* AbstractTextField */
 
-AbstractTextField::AbstractTextField(Responder* parentResponder,
-                                     View* contentView,
-                                     TextFieldDelegate* delegate)
+AbstractTextField::AbstractTextField(Responder *parentResponder,
+                                     View *contentView,
+                                     TextFieldDelegate *delegate)
     : TextInput(parentResponder, contentView), m_delegate(delegate) {}
 
 void AbstractTextField::setBackgroundColor(KDColor backgroundColor) {
@@ -302,7 +308,7 @@ void AbstractTextField::setBackgroundColor(KDColor backgroundColor) {
   contentView()->setBackgroundColor(backgroundColor);
 }
 
-void AbstractTextField::setText(const char* text) {
+void AbstractTextField::setText(const char *text) {
   if (contentView()->isStalled()) {
     return;
   }
@@ -332,11 +338,11 @@ bool AbstractTextField::prepareToEdit() {
   return true;
 }
 
-bool AbstractTextField::findXNT(char* buffer, size_t bufferSize, int xntIndex,
-                                size_t* cycleSize) {
+bool AbstractTextField::findXNT(char *buffer, size_t bufferSize, int xntIndex,
+                                size_t *cycleSize) {
   UTF8Decoder decoder(text(), cursorLocation());
-  return Poincare::XNT::FindXNTSymbol1D(decoder, buffer, bufferSize, xntIndex,
-                                        cycleSize);
+  return XNTHelpers::FindXNTSymbol1D(decoder, buffer, bufferSize, xntIndex,
+                                     cycleSize);
 }
 
 void AbstractTextField::removePreviousXNT() {
@@ -347,14 +353,9 @@ void AbstractTextField::removePreviousXNT() {
   (void)success;  // Silence compilation warnings
 }
 
-void AbstractTextField::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == Responder::ResponderChainEventType::WillResignFirst) {
-    contentView()->stallOrStopEditing();
-    TextInput::handleResponderChainEvent(event);
-  } else {
-    TextInput::handleResponderChainEvent(event);
-  }
+void AbstractTextField::willResignFirstResponder() {
+  contentView()->stallOrStopEditing();
+  TextInput::willResignFirstResponder();
 }
 
 bool AbstractTextField::handleEvent(Ion::Events::Event event) {
@@ -371,7 +372,7 @@ bool AbstractTextField::handleEvent(Ion::Events::Event event) {
 }
 
 bool AbstractTextField::privateHandleEvent(Ion::Events::Event event,
-                                           bool* textDidChange) {
+                                           bool *textDidChange) {
   assert(!contentView()->isStalled());
   size_t previousTextLength = strlen(text());
   *textDidChange = false;
@@ -449,7 +450,7 @@ bool AbstractTextField::privateHandleEvent(Ion::Events::Event event,
 
   // Enter edition
   if ((event == Ion::Events::OK || event == Ion::Events::EXE) && !isEditing()) {
-    const char* previousText = text();
+    const char *previousText = text();
     prepareToEdit();
     setText(previousText);
     *textDidChange = true;
@@ -502,12 +503,12 @@ bool AbstractTextField::privateHandleEvent(Ion::Events::Event event,
 }
 
 size_t AbstractTextField::getTextFromEvent(Ion::Events::Event event,
-                                           char* buffer, size_t bufferSize) {
+                                           char *buffer, size_t bufferSize) {
   if (event == Ion::Events::DoubleQuotes && m_delegate &&
       m_delegate->shouldInsertSingleQuoteInsteadOfDoubleQuotes(this)) {
-    return UTF8Helper::WriteCodePoint(buffer, bufferSize, '\'');
+    return SerializationHelper::CodePoint(buffer, bufferSize, '\'');
   }
-  return EditableField::getTextFromEvent(event, buffer, bufferSize);
+  return Ion::Events::copyText(static_cast<uint8_t>(event), buffer, bufferSize);
 }
 
 void AbstractTextField::scrollToCursor() {
@@ -551,7 +552,7 @@ bool AbstractTextField::handleSelectEvent(Ion::Events::Event event) {
   return false;
 }
 
-bool AbstractTextField::insertText(const char* eventText, bool indentation,
+bool AbstractTextField::insertText(const char *eventText, bool indentation,
                                    bool forceCursorRightOfText) {
   prepareToEdit();
   assert(isEditing());
@@ -578,13 +579,14 @@ bool AbstractTextField::insertText(const char* eventText, bool indentation,
     }
     /* Replace System parentheses (used to keep layout tree structure) by normal
      * parentheses */
-    UTF8Helper::ReplaceSystemParenthesesAndBracesByUserParentheses(buffer);
+    SerializationHelper::ReplaceSystemParenthesesAndBracesByUserParentheses(
+        buffer);
 
-    if (insertTextAtLocation(buffer, const_cast<char*>(cursorLocation()))) {
+    if (insertTextAtLocation(buffer, const_cast<char *>(cursorLocation()))) {
       /* The cursor position depends on the text as we sometimes want to
        * position the cursor at the end of the text and sometimes after the
        * first parenthesis. */
-      const char* nextCursorLocation = cursorLocation();
+      const char *nextCursorLocation = cursorLocation();
       if (forceCursorRightOfText) {
         nextCursorLocation += strlen(buffer);
       } else {
@@ -596,7 +598,7 @@ bool AbstractTextField::insertText(const char* eventText, bool indentation,
   return true;
 }
 
-bool AbstractTextField::handleEventWithText(const char* eventText,
+bool AbstractTextField::handleEventWithText(const char *eventText,
                                             bool indentation,
                                             bool forceCursorRightOfText) {
   /* TODO: this method should not exist, we should only have
@@ -610,18 +612,6 @@ bool AbstractTextField::handleEventWithText(const char* eventText,
   return false;
 }
 
-bool AbstractTextField::handleEventWithLayout(Poincare::Layout layout,
-                                              bool forceCursorRightOfText) {
-  constexpr size_t bufferSize = MaxBufferSize();
-  char buffer[bufferSize];
-  size_t length = layout.serialize(buffer);
-  if (length == LayoutHelpers::k_bufferOverflow) {
-    return false;
-  }
-  assert(length <= bufferSize);
-  return handleEventWithText(buffer, false, forceCursorRightOfText);
-}
-
 void AbstractTextField::removeWholeText() {
   assert(isEditable());
   reinitDraftTextBuffer();
@@ -633,11 +623,11 @@ void AbstractTextField::removeWholeText() {
 
 bool AbstractTextField::storeInClipboard() const {
   if (!isEditing()) {
-    Clipboard::SharedClipboard()->storeText(text());
+    Clipboard::SharedClipboard()->store(text());
     return true;
   } else if (!selectionIsEmpty()) {
-    const char* start = nonEditableContentView()->selectionLeft();
-    Clipboard::SharedClipboard()->storeText(
+    const char *start = nonEditableContentView()->selectionLeft();
+    Clipboard::SharedClipboard()->store(
         start, nonEditableContentView()->selectionRight() - start);
     return true;
   }
@@ -645,20 +635,18 @@ bool AbstractTextField::storeInClipboard() const {
 }
 
 bool AbstractTextField::handleStoreEvent() {
-  if (App::app()->canStoreLayout()) {
-    if (!isEditing() && m_delegate && m_delegate->textFieldIsStorable(this)) {
-      App::app()->storeLayout(Layout::String(text()));
-    } else if (isEditing() && !selectionIsEmpty()) {
-      const char* start = nonEditableContentView()->selectionLeft();
-      static_assert(TextField::MaxBufferSize() ==
-                    Escher::Clipboard::k_bufferSize);
-      char buffer[Escher::Clipboard::k_bufferSize];
-      strlcpy(buffer, start,
-              nonEditableContentView()->selectionRight() - start + 1);
-      App::app()->storeLayout(Layout::String(buffer));
-    } else {
-      App::app()->storeLayout();
-    }
+  if (!isEditing() && m_delegate && m_delegate->textFieldIsStorable(this)) {
+    App::app()->storeValue(text());
+  } else if (isEditing() && !selectionIsEmpty()) {
+    const char *start = nonEditableContentView()->selectionLeft();
+    static_assert(TextField::MaxBufferSize() ==
+                  Escher::Clipboard::k_bufferSize);
+    char buffer[Escher::Clipboard::k_bufferSize];
+    strlcpy(buffer, start,
+            nonEditableContentView()->selectionRight() - start + 1);
+    App::app()->storeValue(buffer);
+  } else {
+    App::app()->storeValue();
   }
   return true;
 }

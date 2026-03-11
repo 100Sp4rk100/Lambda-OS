@@ -19,16 +19,15 @@ class FunctionZoomAndPanCurveViewController
       Responder* parentResponder,
       InteractiveCurveViewRange* interactiveCurveViewRange,
       AbstractPlotView* curveView);
-  const char* title() const override;
+  const char* title() override;
   Escher::View* view() override { return &m_contentView; }
   void viewWillAppear() override;
-  TitlesDisplay titlesDisplay() const override {
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayNoTitle;
   }
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  TELEMETRY_ID("Zoom");
 
  private:
   constexpr static KDCoordinate k_standardViewHeight = 174;
@@ -44,7 +43,6 @@ class FunctionZoomAndPanCurveViewController
     AbstractPlotView* curveView();
     bool displayLegend() const { return m_displayLegend; }
     void setDisplayLegend(bool v) { m_displayLegend = v; }
-
    private:
     class LegendView : public Escher::View {
      public:
@@ -55,8 +53,6 @@ class FunctionZoomAndPanCurveViewController
       constexpr static int k_numberOfLegends = 3;
       constexpr static int k_numberOfTokens = 6;
       constexpr static KDCoordinate k_tokenWidth = 10;
-      constexpr static KDColor k_backgroundColor =
-          Shared::BannerView::k_bannerFieldFormat.style.backgroundColor;
 
       void layoutSubviews(bool force = false) override;
       int numberOfSubviews() const override;

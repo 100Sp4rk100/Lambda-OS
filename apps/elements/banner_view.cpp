@@ -1,8 +1,9 @@
 #include "banner_view.h"
 
 #include <assert.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/horizontal_layout.h>
+#include <poincare/layout_helper.h>
 
 #include "app.h"
 
@@ -14,7 +15,7 @@ namespace Elements {
 
 void BannerView::DotView::drawRect(KDContext* ctx, KDRect rect) const {
   ctx->fillAntialiasedCircle(KDPointZero, k_dotDiameter / 2, m_color,
-                             k_backgroundColor);
+                             Theme::ThemeGestion::getColor("GrayWhite"));
 }
 
 void BannerView::DotView::setColor(KDColor color) {
@@ -29,18 +30,18 @@ void BannerView::DotView::setColor(KDColor color) {
 BannerView::BannerView(Escher::Responder* textFieldParent,
                        Escher::TextFieldDelegate* textFieldDelegate)
     : m_textField(textFieldParent, textFieldDelegate),
-      m_legendView({.style = {.glyphColor = k_legendColor,
-                              .backgroundColor = k_backgroundColor,
+      m_legendView({.style = {.glyphColor = Theme::ThemeGestion::getColor("GrayVeryDark"),
+                              .backgroundColor = Theme::ThemeGestion::getColor("GrayWhite"),
                               .font = k_legendSize}}),
-      m_button(k_backgroundColor) {
+      m_button(Theme::ThemeGestion::getColor("GrayWhite")) {
   m_textField.margins()->setLeft(Escher::Metric::CommonSmallMargin);
 }
 
 void BannerView::drawRect(KDContext* ctx, KDRect rect) const {
-  ctx->fillRect(KDRect(0, 0, bounds().width(), k_borderHeight), k_borderColor);
+  ctx->fillRect(KDRect(0, 0, bounds().width(), k_borderHeight), Theme::ThemeGestion::getColor("YellowDark"));
   ctx->fillRect(KDRect(0, k_borderHeight, bounds().width() - k_buttonWidth,
                        k_bannerHeight),
-                k_backgroundColor);
+                Theme::ThemeGestion::getColor("GrayWhite"));
 }
 
 void BannerView::reload() {
@@ -88,10 +89,10 @@ void BannerView::layoutSubviews(bool force) {
     setChildFrame(&m_dotView, dotRect, force);
     m_dotView.setColor(dataSource->field()->getColors(z).fg());
     x += dotRect.width() + k_dotLegendMargin;
-    buttonColor = k_backgroundColor;
+    buttonColor = Theme::ThemeGestion::getColor("GrayWhite");
   } else {
     setChildFrame(&m_dotView, KDRectZero, force);
-    buttonColor = k_selectedButtonColor;
+    buttonColor = Theme::ThemeGestion::getColor("Select");
   }
 
   setChildFrame(&m_button,
@@ -102,24 +103,28 @@ void BannerView::layoutSubviews(bool force) {
 
   I18n::Message legendMessage = dataSource->field()->getMessage(z);
   if (legendMessage != I18n::Message::Default) {
-    m_legendView.setLayout(Layout::String(I18n::translate(legendMessage)));
+    m_legendView.setLayout(
+        LayoutHelper::String(I18n::translate(legendMessage)));
   } else {
-    Layout h =
-        Layout::String(I18n::translate(dataSource->field()->fieldLegend()));
+    HorizontalLayout h = HorizontalLayout::Builder();
+    h.addOrMergeChildAtIndex(LayoutHelper::String(I18n::translate(
+                                 dataSource->field()->fieldLegend())),
+                             0);
     if (dataSource->field()->hasDouble(z)) {
-      h = Layout::Create(KA ^ " "_l ^ KB,
-                         {.KA = h, .KB = dataSource->field()->getLayout(z)});
+      h.addOrMergeChildAtIndex(CodePointLayout::Builder(' '),
+                               h.numberOfChildren());
+      h.addOrMergeChildAtIndex(dataSource->field()->getLayout(z),
+                               h.numberOfChildren());
     }
     m_legendView.setLayout(h);
   }
   KDCoordinate bannerBaseline = k_bannerHeight / 2 + 1;
   KDCoordinate legendY = k_borderHeight + bannerBaseline -
-                         m_legendView.layout()->baseline(k_legendSize);
-  setChildFrame(
-      &m_legendView,
-      KDRect(x, legendY, bounds().width() - k_buttonWidth - x,
-             m_legendView.layout()->layoutSize(k_legendSize).height()),
-      force);
+                         m_legendView.layout().baseline(k_legendSize);
+  setChildFrame(&m_legendView,
+                KDRect(x, legendY, bounds().width() - k_buttonWidth - x,
+                       m_legendView.layout().layoutSize(k_legendSize).height()),
+                force);
 }
 
 }  // namespace Elements

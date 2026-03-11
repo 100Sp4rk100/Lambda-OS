@@ -1,7 +1,7 @@
 #include "explicit_float_parameter_controller.h"
 
-#include <apps/math_preferences.h>
 #include <assert.h>
+#include <poincare/preferences.h>
 
 #include <cmath>
 
@@ -13,20 +13,15 @@ using namespace Poincare;
 namespace Shared {
 
 ExplicitFloatParameterController::ExplicitFloatParameterController(
-    Responder* parentResponder)
+    Responder *parentResponder)
     : ExplicitSelectableListViewController(parentResponder) {}
 
-void ExplicitFloatParameterController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (selectedRow() >= 0) {
-      int selRow = std::min(selectedRow(), numberOfRows() - 1);
-      selectRow(selRow);
-    }
-    ExplicitSelectableListViewController::handleResponderChainEvent(event);
-  } else {
-    ExplicitSelectableListViewController::handleResponderChainEvent(event);
+void ExplicitFloatParameterController::didBecomeFirstResponder() {
+  if (selectedRow() >= 0) {
+    int selRow = std::min(selectedRow(), numberOfRows() - 1);
+    selectRow(selRow);
   }
+  ExplicitSelectableListViewController::didBecomeFirstResponder();
 }
 
 void ExplicitFloatParameterController::viewWillAppear() {
@@ -65,19 +60,19 @@ void ExplicitFloatParameterController::fillParameterCellAtRow(int row) {
   char buffer[bufferSize];
   PoincareHelpers::ConvertFloatToTextWithDisplayMode(
       parameterAtIndex(row), buffer, bufferSize, precision,
-      MathPreferences::SharedPreferences()->displayMode());
+      Preferences::PrintFloatMode::Decimal);
   textFieldOfCellAtRow(row)->setText(buffer);
 }
 
 bool ExplicitFloatParameterController::textFieldShouldFinishEditing(
-    AbstractTextField* textField, Ion::Events::Event event) {
+    AbstractTextField *textField, Ion::Events::Event event) {
   return (event == Ion::Events::Down && selectedRow() < numberOfRows() - 1) ||
          (event == Ion::Events::Up && selectedRow() > 0) ||
          MathTextFieldDelegate::textFieldShouldFinishEditing(textField, event);
 }
 
 bool ExplicitFloatParameterController::textFieldDidFinishEditing(
-    AbstractTextField* textField, Ion::Events::Event event) {
+    AbstractTextField *textField, Ion::Events::Event event) {
   double floatBody = ParseInputFloatValue<double>(textField->draftText());
   int row = selectedRow();
   if (HasUndefinedValue(floatBody)) {

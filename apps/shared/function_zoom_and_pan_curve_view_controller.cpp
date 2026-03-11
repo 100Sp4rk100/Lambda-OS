@@ -15,7 +15,7 @@ FunctionZoomAndPanCurveViewController::FunctionZoomAndPanCurveViewController(
       m_contentView(curveView),
       m_interactiveRange(interactiveRange) {}
 
-const char* FunctionZoomAndPanCurveViewController::title() const {
+const char* FunctionZoomAndPanCurveViewController::title() {
   return I18n::translate(I18n::Message::Navigate);
 }
 
@@ -24,13 +24,8 @@ void FunctionZoomAndPanCurveViewController::viewWillAppear() {
   ZoomAndPanCurveViewController::viewWillAppear();
 }
 
-void FunctionZoomAndPanCurveViewController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    m_contentView.layoutSubviews();
-  } else {
-    ZoomAndPanCurveViewController::handleResponderChainEvent(event);
-  }
+void FunctionZoomAndPanCurveViewController::didBecomeFirstResponder() {
+  m_contentView.layoutSubviews();
 }
 
 bool FunctionZoomAndPanCurveViewController::handleEvent(
@@ -133,7 +128,7 @@ FunctionZoomAndPanCurveViewController::ContentView::LegendView::LegendView()
   for (int i = 0; i < k_numberOfLegends; i++) {
     m_legends[i].setFont(ContentView::k_legendFont);
     m_legends[i].setMessage(messages[i]);
-    m_legends[i].setBackgroundColor(k_backgroundColor);
+    m_legends[i].setBackgroundColor(Shared::BannerView::k_bannerFieldFormat().style.backgroundColor);
     m_legends[i].setAlignment(KDGlyph::k_alignCenter, KDGlyph::k_alignCenter);
   }
 }
@@ -142,7 +137,7 @@ void FunctionZoomAndPanCurveViewController::ContentView::LegendView::drawRect(
     KDContext* ctx, KDRect rect) const {
   ctx->fillRect(KDRect(0, bounds().height() - k_legendHeight, bounds().width(),
                        k_legendHeight),
-                k_backgroundColor);
+                Shared::BannerView::k_bannerFieldFormat().style.backgroundColor);
 }
 
 int FunctionZoomAndPanCurveViewController::ContentView::LegendView::

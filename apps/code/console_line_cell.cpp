@@ -22,7 +22,7 @@ void ConsoleLineCell::ScrollableConsoleLineView::ConsoleLineView::setLine(
 
 void ConsoleLineCell::ScrollableConsoleLineView::ConsoleLineView::drawRect(
     KDContext* ctx, KDRect rect) const {
-  ctx->fillRect(bounds(), KDColorWhite);
+  ctx->fillRect(bounds(), Theme::ThemeGestion::getColor("KDColorWhite"));
   ctx->drawString(
       m_line->text(), KDPointZero,
       {.glyphColor = textColor(m_line),
@@ -42,7 +42,7 @@ ConsoleLineCell::ScrollableConsoleLineView::ScrollableConsoleLineView(
     Responder* parentResponder)
     : ScrollableView(parentResponder, &m_consoleLineView, this) {
   decorator()->setFont(GlobalPreferences::SharedGlobalPreferences()->font());
-  setBackgroundColor(KDColorWhite);
+  setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
 }
 
 ConsoleLineCell::ConsoleLineCell(Responder* parentResponder)
@@ -111,13 +111,8 @@ void ConsoleLineCell::layoutSubviews(bool force) {
   setChildFrame(&m_scrollableView, bounds(), force);
 }
 
-void ConsoleLineCell::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(&m_scrollableView);
-  } else {
-    Responder::handleResponderChainEvent(event);
-  }
+void ConsoleLineCell::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(&m_scrollableView);
 }
 
 }  // namespace Code

@@ -1,8 +1,12 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/settings/,$(addsuffix :-test, \
+apps += Settings::App
+app_headers += apps/settings/app.h
+
+app_settings_src = $(addprefix apps/settings/,\
   app.cpp \
   main_controller.cpp \
   main_controller_prompt_beta.cpp:+beta \
-  main_controller_prompt_none.cpp:-beta:-update \
+  main_controller_prompt_none.cpp:-beta \
+  main_controller_prompt_none.cpp:-update \
   main_controller_prompt_update.cpp:+update \
   sub_menu/about_controller.cpp \
   sub_menu/display_mode_controller.cpp \
@@ -11,14 +15,16 @@ SOURCES_apps += $(addprefix $(PATH_apps)/settings/,$(addsuffix :-test, \
   sub_menu/localization_controller.cpp \
   sub_menu/preferences_controller.cpp \
   sub_menu/press_to_test_controller.cpp \
-  sub_menu/screen_timeout_controller.cpp \
   sub_menu/selectable_view_with_messages.cpp \
   sub_menu/test_mode_controller.cpp \
-  sub_menu/press_to_test_success.png \
-  settings_icon.png \
-))
+)
 
-$(call depends_on_image,$(PATH_apps)/settings/app.cpp,$(PATH_apps)/settings/settings_icon.png)
-$(call depends_on_transparent_image,$(PATH_apps)/settings/sub_menu/press_to_test_controller.cpp,$(PATH_apps)/settings/sub_menu/press_to_test_success.png)
+app_settings_src += $(app_settings_test_src)
+apps_src += $(app_settings_src)
 
-$(call i18n_with_universal,settings/i18n/base)
+i18n_files += $(call i18n_with_universal_for,settings/i18n/base)
+
+$(eval $(call depends_on_image,apps/settings/app.cpp,apps/settings/settings_icon.png))
+$(eval $(call depends_on_image,apps/settings/app.cpp,apps/settings/settings_icon_epsilon.png))
+$(eval $(call depends_on_transparent_image,apps/settings/sub_menu/press_to_test_controller.cpp,apps/settings/sub_menu/press_to_test_success.png))
+$(eval $(call depends_on_transparent_image,apps/settings/sub_menu/press_to_test_controller.cpp,apps/settings/sub_menu/press_to_test_success_epsilon.png))

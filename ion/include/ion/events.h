@@ -2,8 +2,6 @@
 #define ION_EVENTS_H
 
 #include <ion/keyboard.h>
-#include <omg/directions.h>
-
 #if ION_EVENTS_JOURNAL
 #include <string.h>
 #endif
@@ -27,12 +25,10 @@ class ShiftAlphaStatus {
   constexpr ShiftAlphaStatus()
       : ShiftAlphaStatus(ShiftStatus::Inactive, AlphaStatus::Inactive) {}
 
-  bool operator==(const ShiftAlphaStatus& other) const {
+  bool operator==(const ShiftAlphaStatus& other) {
     return m_shift == other.m_shift && m_alpha == other.m_alpha;
   }
-  bool operator!=(const ShiftAlphaStatus& other) const {
-    return !(*this == other);
-  }
+  bool operator!=(const ShiftAlphaStatus& other) { return !(*this == other); }
 
   bool shiftIsActive() const { return m_shift != ShiftStatus::Inactive; }
   bool alphaIsActive() const { return m_alpha != AlphaStatus::Inactive; }
@@ -61,8 +57,6 @@ class ShiftAlphaStatus {
 };
 static_assert(sizeof(ShiftAlphaStatus) == sizeof(uint8_t));
 
-enum class EventId : uint8_t;
-
 class Event {
  public:
   constexpr static int k_pageSize = Keyboard::NumberOfKeys;
@@ -86,21 +80,16 @@ class Event {
   }
 
   // Return Ion::Event::None by default
-  constexpr Event() : m_id(static_cast<EventId>(k_specialEventsOffset)) {}
-  constexpr Event(int i) : m_id(static_cast<EventId>(i)) {
-    assert(static_cast<int>(id()) == i);
-  }
-  constexpr Event(EventId id) : m_id(id) {}
-  constexpr operator uint8_t() const { return id(); }
+  constexpr Event() : m_id(k_specialEventsOffset) {}
+  constexpr Event(int i) : m_id(i) { assert(static_cast<int>(m_id) == i); }
+  constexpr explicit operator uint8_t() const { return m_id; }
 
   Event(Keyboard::Key key, bool shift, bool alpha, bool lock);
 
-  bool operator==(const Event& other) const = default;
-  bool operator!=(const Event& other) const = default;
-  bool operator==(const EventId& other) const { return (m_id == other); }
-  bool operator!=(const EventId& other) const { return (m_id != other); }
-  bool isKeyboardEvent() const { return id() < k_specialEventsOffset; }
-  bool isSpecialEvent() const { return id() >= k_specialEventsOffset; }
+  bool operator==(const Event& other) const { return (m_id == other.m_id); }
+  bool operator!=(const Event& other) const { return (m_id != other.m_id); }
+  bool isKeyboardEvent() const { return m_id < k_specialEventsOffset; }
+  bool isSpecialEvent() const { return m_id >= k_specialEventsOffset; }
   bool isMoveEvent() const;
   bool isSelectionEvent() const;
   bool isKeyPress() const;
@@ -112,12 +101,9 @@ class Event {
   const char* name() const;
 #endif
 
-  OMG::Direction direction() const;
-
  private:
   const char* defaultText() const;
-  constexpr uint8_t id() const { return static_cast<uint8_t>(m_id); }
-  EventId m_id;
+  uint8_t m_id;
 };
 
 #if ION_EVENTS_JOURNAL
@@ -153,56 +139,182 @@ inline int longPressFactor() {
   return (longPressCounter() / 20) * 4 + 1;
 }
 
-// Keyboard events
+// Plain
 
-#define DUMMY_KEY(...) PLAIN_KEY(__VA_ARGS__)
-#define PLAIN_KEY(Name, ...) Name = Event::PlainKey(Keyboard::Key::Name),
+constexpr Event Left = Event::PlainKey(Keyboard::Key::Left);
+constexpr Event Up = Event::PlainKey(Keyboard::Key::Up);
+constexpr Event Down = Event::PlainKey(Keyboard::Key::Down);
+constexpr Event Right = Event::PlainKey(Keyboard::Key::Right);
+constexpr Event OK = Event::PlainKey(Keyboard::Key::OK);
+constexpr Event Back = Event::PlainKey(Keyboard::Key::Back);
 
-#define SHIFT_KEY(Name, R, C, SEvent, ...)     \
-  Name = Event::PlainKey(Keyboard::Key::Name), \
-  SEvent = Event::ShiftKey(Keyboard::Key::Name),
+/* The Home event is only used on simulators, as they cannot handle preemption.
+ */
+constexpr Event Home = Event::PlainKey(Keyboard::Key::Home);
+constexpr Event OnOff = Event::PlainKey(Keyboard::Key::OnOff);
 
-#define ALPHA_KEY(Name, R, C, AEvent, SAEvent, ...) \
-  Name = Event::PlainKey(Keyboard::Key::Name),      \
-  AEvent = Event::AlphaKey(Keyboard::Key::Name),    \
-  SAEvent = Event::ShiftAlphaKey(Keyboard::Key::Name),
+constexpr Event Shift = Event::PlainKey(Keyboard::Key::Shift);
+constexpr Event Alpha = Event::PlainKey(Keyboard::Key::Alpha);
+constexpr Event XNT = Event::PlainKey(Keyboard::Key::XNT);
+constexpr Event Var = Event::PlainKey(Keyboard::Key::Var);
+constexpr Event Toolbox = Event::PlainKey(Keyboard::Key::Toolbox);
+constexpr Event Backspace = Event::PlainKey(Keyboard::Key::Backspace);
 
-#define SHIFT_ALPHA_KEY(Name, R, C, SEvent, AEvent, SAEvent, ...) \
-  Name = Event::PlainKey(Keyboard::Key::Name),                    \
-  SEvent = Event::ShiftKey(Keyboard::Key::Name),                  \
-  AEvent = Event::AlphaKey(Keyboard::Key::Name),                  \
-  SAEvent = Event::ShiftAlphaKey(Keyboard::Key::Name),
+constexpr Event Exp = Event::PlainKey(Keyboard::Key::Exp);
+constexpr Event Ln = Event::PlainKey(Keyboard::Key::Ln);
+constexpr Event Log = Event::PlainKey(Keyboard::Key::Log);
+constexpr Event Imaginary = Event::PlainKey(Keyboard::Key::Imaginary);
+constexpr Event Comma = Event::PlainKey(Keyboard::Key::Comma);
+constexpr Event Power = Event::PlainKey(Keyboard::Key::Power);
 
-enum class EventId : uint8_t {
-  None = Event::Special(0),
-  Termination = Event::Special(1),
-  TimerFire = Event::Special(2),
-  USBEnumeration = Event::Special(3),
-  USBPlug = Event::Special(4),
-  BatteryCharging = Event::Special(5),
-  /* This event is only here to avoid breaking old simulator state_file
-   * that could contains this event. In this case, it is ignored, just like the
-   * ExternalText event before PR#7228. */
-  DeprecatedExternalText = Event::Special(6),
-  /* This event is fired one time after the getEvent did not find any event. */
-  Idle = Event::Special(7),
-  /* This event is only used in the simulator, to handle text that cannot be
-   * associated with a key. */
-  ExternalText = Event::Special(8),
+constexpr Event Sine = Event::PlainKey(Keyboard::Key::Sine);
+constexpr Event Cosine = Event::PlainKey(Keyboard::Key::Cosine);
+constexpr Event Tangent = Event::PlainKey(Keyboard::Key::Tangent);
+constexpr Event Pi = Event::PlainKey(Keyboard::Key::Pi);
+constexpr Event Sqrt = Event::PlainKey(Keyboard::Key::Sqrt);
+constexpr Event Square = Event::PlainKey(Keyboard::Key::Square);
 
-#include <ion/keys.inc>
-};
+constexpr Event Seven = Event::PlainKey(Keyboard::Key::Seven);
+constexpr Event Eight = Event::PlainKey(Keyboard::Key::Eight);
+constexpr Event Nine = Event::PlainKey(Keyboard::Key::Nine);
+constexpr Event LeftParenthesis =
+    Event::PlainKey(Keyboard::Key::LeftParenthesis);
+constexpr Event RightParenthesis =
+    Event::PlainKey(Keyboard::Key::RightParenthesis);
 
-// EventIds are declared as an enum for the debugger to print their names.
-using enum EventId;
+constexpr Event Four = Event::PlainKey(Keyboard::Key::Four);
+constexpr Event Five = Event::PlainKey(Keyboard::Key::Five);
+constexpr Event Six = Event::PlainKey(Keyboard::Key::Six);
+constexpr Event Multiplication = Event::PlainKey(Keyboard::Key::Multiplication);
+constexpr Event Division = Event::PlainKey(Keyboard::Key::Division);
 
-#undef PLAIN_KEY
-#undef SHIFT_KEY
-#undef ALPHA_KEY
-#undef SHIFT_ALPHA_KEY
-#undef DUMMY_KEY
+constexpr Event One = Event::PlainKey(Keyboard::Key::One);
+constexpr Event Two = Event::PlainKey(Keyboard::Key::Two);
+constexpr Event Three = Event::PlainKey(Keyboard::Key::Three);
+constexpr Event Plus = Event::PlainKey(Keyboard::Key::Plus);
+constexpr Event Minus = Event::PlainKey(Keyboard::Key::Minus);
+
+constexpr Event Zero = Event::PlainKey(Keyboard::Key::Zero);
+constexpr Event Dot = Event::PlainKey(Keyboard::Key::Dot);
+constexpr Event EE = Event::PlainKey(Keyboard::Key::EE);
+constexpr Event Ans = Event::PlainKey(Keyboard::Key::Ans);
+constexpr Event EXE = Event::PlainKey(Keyboard::Key::EXE);
+
+// Shift
+
+constexpr Event ShiftLeft = Event::ShiftKey(Keyboard::Key::Left);
+constexpr Event ShiftRight = Event::ShiftKey(Keyboard::Key::Right);
+constexpr Event ShiftUp = Event::ShiftKey(Keyboard::Key::Up);
+constexpr Event ShiftDown = Event::ShiftKey(Keyboard::Key::Down);
+
+constexpr Event AlphaCaps = Event::ShiftKey(Keyboard::Key::Alpha);
+constexpr Event Cut = Event::ShiftKey(Keyboard::Key::XNT);
+constexpr Event Copy = Event::ShiftKey(Keyboard::Key::Var);
+constexpr Event Paste = Event::ShiftKey(Keyboard::Key::Toolbox);
+constexpr Event Clear = Event::ShiftKey(Keyboard::Key::Backspace);
+
+constexpr Event LeftBracket = Event::ShiftKey(Keyboard::Key::Exp);
+constexpr Event RightBracket = Event::ShiftKey(Keyboard::Key::Ln);
+constexpr Event LeftBrace = Event::ShiftKey(Keyboard::Key::Log);
+constexpr Event RightBrace = Event::ShiftKey(Keyboard::Key::Imaginary);
+constexpr Event Underscore = Event::ShiftKey(Keyboard::Key::Comma);
+constexpr Event Sto = Event::ShiftKey(Keyboard::Key::Power);
+
+constexpr Event Arcsine = Event::ShiftKey(Keyboard::Key::Sine);
+constexpr Event Arccosine = Event::ShiftKey(Keyboard::Key::Cosine);
+constexpr Event Arctangent = Event::ShiftKey(Keyboard::Key::Tangent);
+constexpr Event Equal = Event::ShiftKey(Keyboard::Key::Pi);
+constexpr Event Lower = Event::ShiftKey(Keyboard::Key::Sqrt);
+constexpr Event Greater = Event::ShiftKey(Keyboard::Key::Square);
+
+// Alpha
+
+constexpr Event Colon = Event::AlphaKey(Keyboard::Key::XNT);
+constexpr Event SemiColon = Event::AlphaKey(Keyboard::Key::Var);
+constexpr Event DoubleQuotes = Event::AlphaKey(Keyboard::Key::Toolbox);
+constexpr Event Percent = Event::AlphaKey(Keyboard::Key::Backspace);
+
+constexpr Event LowerA = Event::AlphaKey(Keyboard::Key::Exp);
+constexpr Event LowerB = Event::AlphaKey(Keyboard::Key::Ln);
+constexpr Event LowerC = Event::AlphaKey(Keyboard::Key::Log);
+constexpr Event LowerD = Event::AlphaKey(Keyboard::Key::Imaginary);
+constexpr Event LowerE = Event::AlphaKey(Keyboard::Key::Comma);
+constexpr Event LowerF = Event::AlphaKey(Keyboard::Key::Power);
+
+constexpr Event LowerG = Event::AlphaKey(Keyboard::Key::Sine);
+constexpr Event LowerH = Event::AlphaKey(Keyboard::Key::Cosine);
+constexpr Event LowerI = Event::AlphaKey(Keyboard::Key::Tangent);
+constexpr Event LowerJ = Event::AlphaKey(Keyboard::Key::Pi);
+constexpr Event LowerK = Event::AlphaKey(Keyboard::Key::Sqrt);
+constexpr Event LowerL = Event::AlphaKey(Keyboard::Key::Square);
+
+constexpr Event LowerM = Event::AlphaKey(Keyboard::Key::Seven);
+constexpr Event LowerN = Event::AlphaKey(Keyboard::Key::Eight);
+constexpr Event LowerO = Event::AlphaKey(Keyboard::Key::Nine);
+constexpr Event LowerP = Event::AlphaKey(Keyboard::Key::LeftParenthesis);
+constexpr Event LowerQ = Event::AlphaKey(Keyboard::Key::RightParenthesis);
+
+constexpr Event LowerR = Event::AlphaKey(Keyboard::Key::Four);
+constexpr Event LowerS = Event::AlphaKey(Keyboard::Key::Five);
+constexpr Event LowerT = Event::AlphaKey(Keyboard::Key::Six);
+constexpr Event LowerU = Event::AlphaKey(Keyboard::Key::Multiplication);
+constexpr Event LowerV = Event::AlphaKey(Keyboard::Key::Division);
+
+constexpr Event LowerW = Event::AlphaKey(Keyboard::Key::One);
+constexpr Event LowerX = Event::AlphaKey(Keyboard::Key::Two);
+constexpr Event LowerY = Event::AlphaKey(Keyboard::Key::Three);
+constexpr Event LowerZ = Event::AlphaKey(Keyboard::Key::Plus);
+constexpr Event Space = Event::AlphaKey(Keyboard::Key::Minus);
+
+constexpr Event Question = Event::AlphaKey(Keyboard::Key::Zero);
+constexpr Event Exclamation = Event::AlphaKey(Keyboard::Key::Dot);
+
+// Shift + Alpha
+
+constexpr Event UpperA = Event::ShiftAlphaKey(Keyboard::Key::Exp);
+constexpr Event UpperB = Event::ShiftAlphaKey(Keyboard::Key::Ln);
+constexpr Event UpperC = Event::ShiftAlphaKey(Keyboard::Key::Log);
+constexpr Event UpperD = Event::ShiftAlphaKey(Keyboard::Key::Imaginary);
+constexpr Event UpperE = Event::ShiftAlphaKey(Keyboard::Key::Comma);
+constexpr Event UpperF = Event::ShiftAlphaKey(Keyboard::Key::Power);
+
+constexpr Event UpperG = Event::ShiftAlphaKey(Keyboard::Key::Sine);
+constexpr Event UpperH = Event::ShiftAlphaKey(Keyboard::Key::Cosine);
+constexpr Event UpperI = Event::ShiftAlphaKey(Keyboard::Key::Tangent);
+constexpr Event UpperJ = Event::ShiftAlphaKey(Keyboard::Key::Pi);
+constexpr Event UpperK = Event::ShiftAlphaKey(Keyboard::Key::Sqrt);
+constexpr Event UpperL = Event::ShiftAlphaKey(Keyboard::Key::Square);
+
+constexpr Event UpperM = Event::ShiftAlphaKey(Keyboard::Key::Seven);
+constexpr Event UpperN = Event::ShiftAlphaKey(Keyboard::Key::Eight);
+constexpr Event UpperO = Event::ShiftAlphaKey(Keyboard::Key::Nine);
+constexpr Event UpperP = Event::ShiftAlphaKey(Keyboard::Key::LeftParenthesis);
+constexpr Event UpperQ = Event::ShiftAlphaKey(Keyboard::Key::RightParenthesis);
+
+constexpr Event UpperR = Event::ShiftAlphaKey(Keyboard::Key::Four);
+constexpr Event UpperS = Event::ShiftAlphaKey(Keyboard::Key::Five);
+constexpr Event UpperT = Event::ShiftAlphaKey(Keyboard::Key::Six);
+constexpr Event UpperU = Event::ShiftAlphaKey(Keyboard::Key::Multiplication);
+constexpr Event UpperV = Event::ShiftAlphaKey(Keyboard::Key::Division);
+
+constexpr Event UpperW = Event::ShiftAlphaKey(Keyboard::Key::One);
+constexpr Event UpperX = Event::ShiftAlphaKey(Keyboard::Key::Two);
+constexpr Event UpperY = Event::ShiftAlphaKey(Keyboard::Key::Three);
+constexpr Event UpperZ = Event::ShiftAlphaKey(Keyboard::Key::Plus);
 
 // Special
+
+constexpr Event None = Event::Special(0);
+constexpr Event Termination = Event::Special(1);
+constexpr Event TimerFire = Event::Special(2);
+constexpr Event USBEnumeration = Event::Special(3);
+constexpr Event USBPlug = Event::Special(4);
+constexpr Event BatteryCharging = Event::Special(5);
+/* This event is only used in the simulator, to handle text that cannot be
+ * associated with a key. */
+constexpr Event ExternalText = Event::Special(6);
+/* This event is fired one time after the getEvent did not find any event. */
+constexpr Event Idle = Event::Special(7);
 
 inline bool Event::isMoveEvent() const {
   return *this == Left || *this == Right || *this == Up || *this == Down;
@@ -220,17 +332,6 @@ inline bool Event::isKeyPress() const {
 inline bool Event::isRepeatable() const {
   return isMoveEvent() || isSelectionEvent() || *this == Events::Back ||
          *this == Events::Backspace;
-}
-
-inline OMG::Direction Event::direction() const {
-  assert(isMoveEvent() || isSelectionEvent());
-  return (*this == Ion::Events::Left || *this == Ion::Events::ShiftLeft)
-             ? OMG::Direction::Left()
-         : (*this == Ion::Events::Up || *this == Ion::Events::ShiftUp)
-             ? OMG::Direction::Up()
-         : (*this == Ion::Events::Down || *this == Ion::Events::ShiftDown)
-             ? OMG::Direction::Down()
-             : OMG::Direction::Right();
 }
 
 }  // namespace Events

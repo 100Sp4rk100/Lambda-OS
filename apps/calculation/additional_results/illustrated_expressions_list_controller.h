@@ -2,6 +2,7 @@
 #define CALCULATION_ILLUSTRATED_EXPRESSIONS_LIST_CONTROLLER_H
 
 #include <apps/i18n.h>
+#include <poincare/variable_context.h>
 
 #include "../calculation_store.h"
 #include "chained_expressions_list_controller.h"
@@ -19,6 +20,8 @@ class IllustratedExpressionsListController
       : ChainedExpressionsListController(editExpressionController,
                                          highlightWholeCells, this) {}
 
+  // Responder
+  void didBecomeFirstResponder() override;
   // ViewController
   void viewWillAppear() override;
 
@@ -42,15 +45,13 @@ class IllustratedExpressionsListController
   constexpr static uint8_t k_expressionCellType = 1;
   void setShowIllustration(bool showIllustration);
   /* Helper to add a line in the format func(arg) = exact ~ approx */
-  void setLineAtIndex(int index, const Poincare::UserExpression formula,
-                      const Poincare::UserExpression expression,
-                      const Poincare::Internal::ProjectionContext* ctx);
-  // Responder
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  void setLineAtIndex(int index, Poincare::Expression formula,
+                      Poincare::Expression expression,
+                      const Poincare::ComputationContext& computationContext);
 
  private:
-  Poincare::Layout layoutAtIndex(Escher::HighlightCell* cell,
-                                 int index) override;
+  size_t textAtIndex(char* buffer, size_t bufferSize,
+                     Escher::HighlightCell* cell, int index) override;
   virtual KDCoordinate illustrationHeight() { return k_illustrationHeight; }
   virtual IllustrationCell* illustrationCell() = 0;
 };

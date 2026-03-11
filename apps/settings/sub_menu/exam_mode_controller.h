@@ -13,24 +13,24 @@ namespace Settings {
 class ExamModeController : public GenericSubController {
  public:
   ExamModeController(Escher::Responder* parentResponder);
-  const char* title() const override {
+  const char* title() override {
     return I18n::translate(I18n::Message::ExamMode);
   }
   Escher::View* view() override { return &m_contentView; }
   bool handleEvent(Ion::Events::Event event) override;
+  TELEMETRY_ID("ExamMode");
+  void didEnterResponderChain(
+      Escher::Responder* previousFirstResponder) override;
   int numberOfRows() const override;
   Escher::HighlightCell* reusableCell(int index, int type) override;
   int reusableCellCount(int type) const override;
   void fillCellForRow(Escher::HighlightCell* cell, int row) override;
 
- protected:
-  void handleResponderChainEvent(
-      Escher::Responder::ResponderChainEvent event) override;
-
  private:
   constexpr static int k_numberOfDeactivationMessageLines = 3;
+  // -2 for ExamMode::Ruleset::Off and ExamMode::Ruleset::Press-to-test
   constexpr static int k_maxNumberOfCells =
-      Ion::ExamMode::k_numberOfActiveModes;
+      static_cast<size_t>(Ion::ExamMode::Ruleset::NumberOfRulesets) - 2;
 
   int initialSelectedRow() const override;
   Poincare::ExamMode examMode();

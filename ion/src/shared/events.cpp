@@ -36,7 +36,7 @@ Event::Event(Keyboard::Key key, bool shift, bool alpha, bool lock) {
   // shift-alpha-X -> alpha-X -> X
   assert(static_cast<int>(key) >= 0 &&
          static_cast<int>(key) < Keyboard::NumberOfKeys);
-  m_id = Events::None;
+  m_id = Events::None.m_id;
 
   int noFallbackOffsets[] = {k_plainEventsOffset};
   int shiftFallbackOffsets[] = {k_shiftEventsOffset, k_plainEventsOffset};
@@ -52,24 +52,24 @@ Event::Event(Keyboard::Key key, bool shift, bool alpha, bool lock) {
   int offset = k_plainEventsOffset;
   do {
     offset = fallbackOffset[i++];
-    m_id = static_cast<EventId>(offset + (int)key);
-  } while (offset > k_plainEventsOffset && !s_dataForEvent[id()].isDefined() &&
-           static_cast<uint8_t>(m_id) < k_specialEventsOffset);
+    m_id = offset + (int)key;
+  } while (offset > k_plainEventsOffset && !s_dataForEvent[m_id].isDefined() &&
+           m_id < k_specialEventsOffset);
 
   // If we press percent in alphalock, change to backspace
-  if (m_id == Ion::Events::Percent && lock) {
-    m_id = Ion::Events::Backspace;
+  if (m_id == static_cast<uint8_t>(Ion::Events::Percent) && lock) {
+    m_id = static_cast<uint8_t>(Ion::Events::Backspace);
   }
-  assert(m_id != Events::None);
+  assert(m_id != Events::None.m_id);
 }
 
 const char* Event::defaultText() const {
   /* As the ExternalText event is only available on the simulator, we save a
    * comparison by not handling it on the device. */
-  if (id() >= k_specialEventsOffset) {
+  if (m_id >= k_specialEventsOffset) {
     return nullptr;
   }
-  return s_dataForEvent[id()].text();
+  return s_dataForEvent[m_id].text();
 }
 
 // Internal functions
@@ -214,8 +214,8 @@ bool sharedIsDefined(uint8_t eventId) {
     return s_dataForEvent[static_cast<uint8_t>(e)].isDefined();
   } else {
     return (e == None || e == Termination || e == USBEnumeration ||
-            e == USBPlug || e == BatteryCharging ||
-            e == DeprecatedExternalText || e == Idle || e == ExternalText);
+            e == USBPlug || e == BatteryCharging || e == ExternalText ||
+            e == Idle);
   }
 }
 

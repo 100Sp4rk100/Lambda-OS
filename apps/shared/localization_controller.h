@@ -13,6 +13,8 @@
 
 #include <algorithm>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Shared {
 
 class LocalizationController
@@ -35,7 +37,10 @@ class LocalizationController
   bool shouldDisplayWarning() const { return mode() == Mode::Country; }
 
   Escher::View* view() override { return &m_contentView; }
-  const char* title() const override;
+  const char* title() override;
+  void didBecomeFirstResponder() override {
+    Escher::App::app()->setFirstResponder(selectableListView());
+  }
   void viewWillAppear() override;
   bool handleEvent(Ion::Events::Event event) override;
 
@@ -60,7 +65,7 @@ class LocalizationController
       return &m_selectableListView;
     }
     void drawRect(KDContext* ctx, KDRect rect) const override {
-      ctx->fillRect(bounds(), Escher::Palette::WallScreen);
+      ctx->fillRect(bounds(), Theme::ThemeGestion::getColor("WallScreen"));
     }
     void modeHasChanged();
 
@@ -85,7 +90,6 @@ class LocalizationController
   Escher::SelectableListView* selectableListView() {
     return m_contentView.selectableListView();
   }
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
   ContentView m_contentView;
 

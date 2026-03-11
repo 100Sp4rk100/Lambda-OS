@@ -1,6 +1,6 @@
 #include "data.h"
 
-#include <poincare/solver/solver.h>
+#include <poincare/solver.h>
 #include <stdint.h>
 
 #include <cmath>
@@ -160,8 +160,8 @@ double computeRPct(double N, double PV, double Pmt, double FV, double PY,
   const double parameters[7] = {N, PV, Pmt, FV, PY, CY, S};
   // We must solve this expression. An exact solution cannot be found.
   Poincare::Solver<double>::FunctionEvaluation evaluation =
-      [](double x, const void* aux) {
-        const double* pack = static_cast<const double*>(aux);
+      [](double x, const void *aux) {
+        const double *pack = static_cast<const double *>(aux);
         double N = pack[0];
         double PV = pack[1];
         double Pmt = pack[2];

@@ -11,14 +11,13 @@ class RationalListController : public ChainableExpressionsListController {
       : ChainableExpressionsListController(editExpressionController, true) {}
 
   void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) override;
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) override;
 
  private:
   I18n::Message messageAtIndex(int index) override;
-  Poincare::Layout layoutAtIndex(Escher::HighlightCell* cell,
-                                 int index) override;
+  size_t textAtIndex(char* buffer, size_t bufferSize,
+                     Escher::HighlightCell* cell, int index) override;
 };
 
 }  // namespace Calculation

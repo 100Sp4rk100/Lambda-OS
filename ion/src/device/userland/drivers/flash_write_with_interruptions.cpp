@@ -1,6 +1,5 @@
+#include <drivers/svcall.h>
 #include <shared/drivers/flash_write_with_interruptions.h>
-
-#include "svcall.h"
 
 namespace Ion {
 namespace Device {

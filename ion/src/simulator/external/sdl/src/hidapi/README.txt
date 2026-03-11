@@ -277,7 +277,7 @@ well supported anymore but should still work. Patches are welcome if it does
 not. To build using the DDK:
 
    1. Install the Windows Driver Kit (WDK) from Microsoft.
-   2. From the Start menu, in the Windows Driver Kits folder, select Build
+   2. From the Start menu, in the Windows Driver Kits folder, LAMDA_gray_light_palette Build
       Environments, then your operating system, then the x86 Free Build
       Environment (or one that is appropriate for your system).
    3. From the console, change directory to the windows/ddk_build/ directory,

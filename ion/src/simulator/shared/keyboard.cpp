@@ -45,47 +45,7 @@ constexpr static KeySDLKeyPair sKeyPairs[] = {
     KeySDLKeyPair(Key::Toolbox, SDL_SCANCODE_TAB),
 };
 
-constexpr static KeySDLKeyPair sKeyPairsPythonAddon[] = {
-    KeySDLKeyPair(Key::Alpha, SDL_SCANCODE_LALT),
-    KeySDLKeyPair(Key::Alpha, SDL_SCANCODE_RALT),
-    KeySDLKeyPair(Key::Backspace, SDL_SCANCODE_BACKSPACE),
-    // KeySDLKeyPair(Key::XNT, SDL_SCANCODE_X),
-    // KeySDLKeyPair(Key::XNT, SDL_SCANCODE_N),
-    // KeySDLKeyPair(Key::XNT, SDL_SCANCODE_T),
-    // KeySDLKeyPair(Key::Comma, SDL_SCANCODE_COMMA),
-    // KeySDLKeyPair(Key::Square, SDL_SCANCODE_GRAVE),
-    KeySDLKeyPair(Key::Zero, SDL_SCANCODE_0),
-    KeySDLKeyPair(Key::Zero, SDL_SCANCODE_KP_0),
-    KeySDLKeyPair(Key::One, SDL_SCANCODE_1),
-    KeySDLKeyPair(Key::One, SDL_SCANCODE_KP_1),
-    KeySDLKeyPair(Key::Two, SDL_SCANCODE_2),
-    KeySDLKeyPair(Key::Two, SDL_SCANCODE_KP_2),
-    KeySDLKeyPair(Key::Three, SDL_SCANCODE_3),
-    KeySDLKeyPair(Key::Three, SDL_SCANCODE_KP_3),
-    KeySDLKeyPair(Key::Four, SDL_SCANCODE_4),
-    KeySDLKeyPair(Key::Four, SDL_SCANCODE_KP_4),
-    KeySDLKeyPair(Key::Five, SDL_SCANCODE_5),
-    KeySDLKeyPair(Key::Five, SDL_SCANCODE_KP_5),
-    KeySDLKeyPair(Key::Six, SDL_SCANCODE_6),
-    KeySDLKeyPair(Key::Six, SDL_SCANCODE_KP_6),
-    KeySDLKeyPair(Key::Seven, SDL_SCANCODE_7),
-    KeySDLKeyPair(Key::Seven, SDL_SCANCODE_KP_7),
-    KeySDLKeyPair(Key::Eight, SDL_SCANCODE_8),
-    KeySDLKeyPair(Key::Eight, SDL_SCANCODE_KP_8),
-    KeySDLKeyPair(Key::Nine, SDL_SCANCODE_9),
-    KeySDLKeyPair(Key::Nine, SDL_SCANCODE_KP_9),
-    KeySDLKeyPair(Key::Multiplication, SDL_SCANCODE_KP_MULTIPLY),
-    KeySDLKeyPair(Key::Division, SDL_SCANCODE_SLASH),
-    KeySDLKeyPair(Key::Division, SDL_SCANCODE_KP_DIVIDE),
-    KeySDLKeyPair(Key::Plus, SDL_SCANCODE_KP_PLUS),
-    KeySDLKeyPair(Key::Minus, SDL_SCANCODE_MINUS),
-    KeySDLKeyPair(Key::Minus, SDL_SCANCODE_KP_MINUS),
-    KeySDLKeyPair(Key::Dot, SDL_SCANCODE_KP_PERIOD),
-    KeySDLKeyPair(Key::Dot, SDL_SCANCODE_PERIOD),
-};
-
 constexpr int sNumberOfKeyPairs = std::size(sKeyPairs);
-constexpr int sNumberOfKeyPairsPython = std::size(sKeyPairsPythonAddon);
 
 namespace Ion {
 namespace Keyboard {
@@ -96,11 +56,7 @@ State scanForInterruptionAndPopState() {
   return popState();
 }
 
-/* forPython allows gathering more keyboard information when the requester is
- * python. It is useful because most simulator keys are mapped via ExternalText
- * while not on Python. But Python does not use this event detection system
- * and so misses a lot of relevent keypresses via `ion.keydown` */
-State scan(bool forPython) {
+State scan() {
   State state(0);
 
   if (Simulator::Window::isHeadless()) {
@@ -130,14 +86,6 @@ State scan(bool forPython) {
     KeySDLKeyPair pair = sKeyPairs[i];
     if (SDLstate[pair.SDLKey()]) {
       state.setKey(pair.key());
-    }
-  }
-  if (forPython) {
-    for (int i = 0; i < sNumberOfKeyPairsPython; i++) {
-      KeySDLKeyPair pair = sKeyPairsPythonAddon[i];
-      if (SDLstate[pair.SDLKey()]) {
-        state.setKey(pair.key());
-      }
     }
   }
 

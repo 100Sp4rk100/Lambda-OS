@@ -5,19 +5,27 @@
 
 namespace Shared {
 
+KDGlyph::Format BannerView::k_bannerFieldFormat(){
+      return {.style = {.glyphColor = Theme::ThemeGestion::getColor("KDColorBlack"),
+                .backgroundColor = Theme::ThemeGestion::getColor("GrayMiddle"),
+                .font = k_font},
+      .horizontalAlignment = KDGlyph::k_alignCenter
+      };
+    }
+
 KDCoordinate BannerView::HeightGivenNumberOfLines(int linesCount) {
   return k_lineSpacing +
          (KDFont::GlyphHeight(k_font) + k_lineSpacing) * linesCount;
 }
 
-void BannerView::drawRect(KDContext* ctx, KDRect rect) const {
+void BannerView::drawRect(KDContext *ctx, KDRect rect) const {
   assert(!bounds().isEmpty());
   const KDCoordinate frameHeight = bounds().height();
   const KDCoordinate lineHeight = KDFont::GlyphHeight(k_font) + k_lineSpacing;
   const KDCoordinate lineWidth = bounds().width();
   for (KDCoordinate y = 0; y < frameHeight; y += lineHeight) {
     ctx->fillRect(KDRect(0, y, lineWidth, k_lineSpacing),
-                  k_bannerFieldFormat.style.backgroundColor);
+                  k_bannerFieldFormat().style.backgroundColor);
   }
 }
 
@@ -78,12 +86,12 @@ int BannerView::numberOfLinesGivenWidth(KDCoordinate width) const {
 }
 
 int BannerView::numberOfSubviewsOnOneLine(int firstSubview, KDCoordinate width,
-                                          KDCoordinate* remainingWidth) const {
+                                          KDCoordinate *remainingWidth) const {
   KDCoordinate tempWidth;
-  KDCoordinate* lineWidth = remainingWidth ? remainingWidth : &tempWidth;
+  KDCoordinate *lineWidth = remainingWidth ? remainingWidth : &tempWidth;
   *lineWidth = width;
   for (int i = firstSubview; i < numberOfSubviews(); i++) {
-    View* subview = const_cast<Shared::BannerView*>(this)->subviewAtIndex(i);
+    View *subview = const_cast<Shared::BannerView *>(this)->subviewAtIndex(i);
     KDCoordinate subviewWidth =
         subview->minimalSizeForOptimalDisplay().width() +
         k_minimalSpaceBetweenSubviews;
@@ -111,7 +119,7 @@ KDSize BannerView::LabelledView::minimalSizeForOptimalDisplay() const {
   return KDSize(labelSize.width() + infoSize.width(), labelSize.height());
 }
 
-Escher::View* BannerView::LabelledView::subviewAtIndex(int index) {
+Escher::View *BannerView::LabelledView::subviewAtIndex(int index) {
   assert(0 <= index && index < numberOfSubviews());
   if (index == 0) {
     return m_labelView;

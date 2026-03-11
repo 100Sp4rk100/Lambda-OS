@@ -2,29 +2,30 @@
 #define POINCARE_EMPTY_CONTEXT_H
 
 #include <assert.h>
-
-#include "context.h"
+#include <poincare/context.h>
+#include <poincare/expression.h>
 
 namespace Poincare {
-
-class Expression;
-class ContextWithParent;
 
 class EmptyContext : public Context {
  public:
   // Context
-  UserNamedType expressionTypeForIdentifier(const char* identifier,
-                                            int length) override {
-    return UserNamedType::None;
+  SymbolAbstractType expressionTypeForIdentifier(const char* identifier,
+                                                 int length) override {
+    return SymbolAbstractType::None;
   }
-  bool setExpressionForUserNamed(const Internal::Tree* expression,
-                                 const Internal::Tree* symbol) override {
+  bool setExpressionForSymbolAbstract(const Expression& expression,
+                                      const SymbolAbstract& symbol) override {
     assert(false);
     return false;
   }
 
-  const Internal::Tree* expressionForUserNamed(
-      const Internal::Tree* symbol) override;
+ protected:
+  const Expression protectedExpressionForSymbolAbstract(
+      const SymbolAbstract& symbol, bool clone,
+      ContextWithParent* lastDescendantContext) override {
+    return Expression();
+  }
 };
 
 }  // namespace Poincare

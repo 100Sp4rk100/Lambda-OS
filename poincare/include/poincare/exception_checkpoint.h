@@ -1,27 +1,20 @@
 #ifndef POINCARE_EXCEPTION_CHECKPOINT_H
 #define POINCARE_EXCEPTION_CHECKPOINT_H
 
-#include <setjmp.h>
-
 #include <new>
-
-#include "pool_checkpoint.h"
-
-/* WARNING:
- * ExceptionCheckpoint is raised when a TreeStackCheckpoint is raised and does
- * not have an active checkpoint. Therefore, an ExceptionCheckpoint cannot be
- * set below an active TreeStackCheckpoint. */
+#include <poincare/checkpoint.h>
+#include <setjmp.h>
 
 #define ExceptionRun(checkpoint) \
   (CheckpointRun(checkpoint, setjmp(*checkpoint.jumpBuffer())) != 0)
 
 namespace Poincare {
 
-class ExceptionCheckpoint final : public PoolCheckpoint {
+class ExceptionCheckpoint final : public Checkpoint {
  public:
   static void Raise();
 
-  using PoolCheckpoint::PoolCheckpoint;
+  using Checkpoint::Checkpoint;
 
   jmp_buf* jumpBuffer() { return &m_jumpBuffer; }
   bool setActive(bool interruption);

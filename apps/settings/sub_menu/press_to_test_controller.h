@@ -14,10 +14,11 @@ namespace Settings {
 class PressToTestController : public Escher::ListWithTopAndBottomController {
  public:
   PressToTestController(Escher::Responder* parentResponder);
-  const char* title() const override {
+  const char* title() override {
     return I18n::translate(I18n::Message::PressToTest);
   }
   bool handleEvent(Ion::Events::Event event) override;
+  TELEMETRY_ID("PressToTest");
   void viewWillAppear() override;
   int numberOfRows() const override;
   int typeAtRow(int row) const override;
@@ -25,7 +26,7 @@ class PressToTestController : public Escher::ListWithTopAndBottomController {
   int reusableCellCount(int type) const override;
   void fillCellForRow(Escher::HighlightCell* cell, int row) override;
   KDCoordinate nonMemoizedRowHeight(int row) override;
-  KDCoordinate separatorBeforeRow(int row) const override {
+  KDCoordinate separatorBeforeRow(int row) override {
     return typeAtRow(row) == k_buttonCellType ? k_defaultRowSeparator : 0;
   }
   Poincare::ExamMode::PressToTestFlags getPressToTestParams();

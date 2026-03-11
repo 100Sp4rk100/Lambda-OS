@@ -3,32 +3,12 @@
 
 #include <type_traits>
 
-#include "_pair"
-
 namespace std {
 
 template <class T>
 typename remove_reference<T>::type&& move(T&& a) {
   return (typename remove_reference<T>::type &&) a;
 }
-
-using size_t = size_t;
-
-template <class T, T... Ints>
-struct integer_sequence {
-  typedef T value_type;
-  constexpr static size_t size() noexcept { return sizeof...(Ints); }
-};
-
-// This uses a builtin for GCC
-template <class T, T End>
-using make_integer_sequence = integer_sequence<T, __integer_pack(End)...>;
-
-template <size_t... Ints>
-using index_sequence = integer_sequence<size_t, Ints...>;
-
-template <size_t N>
-using make_index_sequence = make_integer_sequence<size_t, N>;
 
 }  // namespace std
 

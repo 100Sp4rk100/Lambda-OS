@@ -1,6 +1,8 @@
 #include <escher/palette.h>
 #include <escher/unequal_view.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 constexpr static KDCoordinate k_size = 9;
@@ -23,7 +25,7 @@ static void drawUnequal(KDContext* ctx, KDRect bounds) {
   KDRect frame(bounds.width() - k_size, bounds.height() / 2 - k_size / 2,
                k_size, k_size);
   KDColor buffer[k_size * k_size];
-  ctx->blendRectWithMask(frame, Palette::GrayDark, &unequalMask[0][0], buffer);
+  ctx->blendRectWithMask(frame, Theme::ThemeGestion::getColor("GrayDark"), &unequalMask[0][0], buffer);
 }
 
 KDSize UnequalView::minimalSizeForOptimalDisplay() const {

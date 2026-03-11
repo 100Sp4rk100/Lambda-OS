@@ -6,8 +6,7 @@
 #include <escher/selectable_table_view.h>
 #include <ion/events.h>
 #include <ion/keyboard/layout_events.h>
-#include <poincare/code_points.h>
-#include <poincare/helpers/symbol.h>
+#include <poincare/symbol.h>
 
 #include <algorithm>
 
@@ -19,7 +18,7 @@ namespace Shared {
 /* Table Data Source */
 
 ExpressionModelListController::ExpressionModelListController(
-    Responder* parentResponder, I18n::Message text)
+    Responder *parentResponder, I18n::Message text)
     : ViewController(parentResponder),
       m_addNewModelCell({{.font = k_font}}),
       m_editedCellIndex(-1) {
@@ -28,8 +27,8 @@ ExpressionModelListController::ExpressionModelListController(
 }
 
 int ExpressionModelListController::numberOfRows() const {
-  const ExpressionModelStore* store =
-      const_cast<ExpressionModelListController*>(this)->modelStore();
+  const ExpressionModelStore *store =
+      const_cast<ExpressionModelListController *>(this)->modelStore();
   int modelsCount = store->numberOfModels();
   int nRows = 0;
   for (int i = 0; i < modelsCount; i++) {
@@ -45,7 +44,6 @@ bool ExpressionModelListController::isAddEmptyRow(int row) const {
 
 int ExpressionModelListController::typeAtRow(int row) const {
   if (row == m_editedCellIndex) {
-    assert(!isAddEmptyRow(row));
     return k_editableCellType;
   }
   if (isAddEmptyRow(row)) {
@@ -58,9 +56,9 @@ KDCoordinate ExpressionModelListController::expressionRowHeight(int row) {
   assert(typeAtRow(row) == k_expressionCellType);
   ExpiringPointer<ExpressionModelHandle> m =
       modelStore()->modelForRecord(recordAtRow(row));
-  KDCoordinate expressionHeight =
-      m->layout().isUninitialized() ? 0
-                                    : m->layout()->layoutSize(k_font).height();
+  KDCoordinate expressionHeight = m->layout().isUninitialized()
+                                      ? 0
+                                      : m->layout().layoutSize(k_font).height();
   return expressionHeight + 2 * k_defaultVerticalMargin;
 }
 
@@ -160,7 +158,11 @@ bool ExpressionModelListController::addEmptyModel() {
 void ExpressionModelListController::editExpression(Ion::Events::Event event) {
   m_editedCellIndex = selectedRow();
   if (event == Ion::Events::OK || event == Ion::Events::EXE) {
-    layoutField()->setLayout(getLayoutForSelectedRecord());
+    constexpr size_t initialTextContentMaxSize =
+        Constant::MaxSerializedExpressionSize;
+    char initialTextContent[initialTextContentMaxSize];
+    getTextForSelectedRecord(initialTextContent, initialTextContentMaxSize);
+    layoutField()->setText(initialTextContent);
   }
   layoutField()->setEditing(true);
   App::app()->setFirstResponder(layoutField());
@@ -170,20 +172,22 @@ void ExpressionModelListController::editExpression(Ion::Events::Event event) {
   layoutFieldDidChangeSize(layoutField());
 }
 
-bool ExpressionModelListController::editSelectedRecordWithLayout(
-    Layout layout) {
+bool ExpressionModelListController::editSelectedRecordWithText(
+    const char *text) {
+  telemetryReportEvent("Edit", text);
   Ion::Storage::Record record = selectedRecord();
   ExpiringPointer<ExpressionModelHandle> model =
       modelStore()->modelForRecord(record);
-  bool result = (model->setContent(layout, App::app()->localContext()) ==
+  bool result = (model->setContent(text, App::app()->localContext()) ==
                  Ion::Storage::Record::ErrorStatus::None);
   didChangeModelsList();
   return result;
 }
 
-Layout ExpressionModelListController::getLayoutForSelectedRecord() const {
+void ExpressionModelListController::getTextForSelectedRecord(
+    char *text, size_t size) const {
   Ion::Storage::Record record = selectedRecord();
-  return modelStore()->modelForRecord(record)->layout();
+  modelStore()->modelForRecord(record)->text(text, size);
 }
 
 bool ExpressionModelListController::removeModelRow(
@@ -194,7 +198,7 @@ bool ExpressionModelListController::removeModelRow(
 }
 
 int ExpressionModelListController::modelIndexForRow(int row,
-                                                    int* relativeRow) const {
+                                                    int *relativeRow) const {
   *relativeRow = 0;
   if (row < 0) {
     return row;
@@ -223,7 +227,7 @@ int ExpressionModelListController::modelIndexForRow(int row) const {
 }
 
 void ExpressionModelListController::layoutFieldDidChangeSize(
-    LayoutField* layoutField) {
+    LayoutField *layoutField) {
   selectableListView()->reloadData(false);
 }
 
@@ -232,31 +236,32 @@ void ExpressionModelListController::finishEdition() {
   selectableListView()->reloadData();
 }
 
-static CodePoint symbolForEquation(UserExpression expression) {
-  CodePoint symbol = CodePoints::k_cartesianSymbol;
+static CodePoint symbolForEquation(Expression expression) {
+  CodePoint symbol = Symbol::k_cartesianSymbol;
   expression.recursivelyMatches(
-      [](const Expression e, Context* context, void* auxiliary) {
-        CodePoint* symbol = static_cast<CodePoint*>(auxiliary);
+      [](const Expression e, Context *context, void *auxiliary) {
+        CodePoint *symbol = static_cast<CodePoint *>(auxiliary);
         assert(symbol);
-        if (SymbolHelper::IsSymbol(e, CodePoints::k_polarSymbol)) {
-          *symbol = CodePoints::k_polarSymbol;
+        if (e.isIdenticalTo(Symbol::Builder(Symbol::k_polarSymbol))) {
+          *symbol = Symbol::k_polarSymbol;
           return true;
         }
-        if (SymbolHelper::IsSymbol(e, CodePoints::k_parametricSymbol)) {
-          *symbol = CodePoints::k_parametricSymbol;
+        if (e.isIdenticalTo(Symbol::Builder(Symbol::k_parametricSymbol))) {
+          *symbol = Symbol::k_parametricSymbol;
           return true;
         }
         return false;
       },
-      nullptr, SymbolicComputation::KeepAllSymbols, &symbol);
+      nullptr, SymbolicComputation::DoNotReplaceAnySymbol, &symbol);
   return symbol;
 }
 
 bool ExpressionModelListController::layoutFieldDidFinishEditing(
-    LayoutField* layoutField, Ion::Events::Event event) {
+    LayoutField *layoutField, Ion::Events::Event event) {
   assert(!layoutField->isEditing());
-  UserExpression parsedExpression =
-      UserExpression::Parse(layoutField->layout(), nullptr);
+  char buffer[TextField::MaxBufferSize()];
+  layoutField->layout().serializeForParsing(buffer, TextField::MaxBufferSize());
+  Expression parsedExpression = Expression::Parse(buffer, nullptr);
   if (parsedExpression.isUninitialized()) {
     App::app()->displayWarning(I18n::Message::SyntaxError);
     return false;
@@ -275,19 +280,19 @@ bool ExpressionModelListController::layoutFieldDidFinishEditing(
   if (!isValidExpressionModel(parsedExpression)) {
     return false;
   }
-  editSelectedRecordWithLayout(layoutField->layout());
+  editSelectedRecordWithText(layoutField->text());
   finishEdition();
   layoutField->clearLayout();
   return true;
 }
 
 void ExpressionModelListController::layoutFieldDidAbortEditing(
-    Escher::LayoutField* layoutField) {
+    Escher::LayoutField *layoutField) {
   finishEdition();
 }
 
 Ion::Storage::Record ExpressionModelListController::recordAtRow(
-    int row, int* relativeRow) const {
+    int row, int *relativeRow) const {
   return modelStore()->recordAtIndex(modelIndexForRow(row, relativeRow));
 }
 
@@ -297,7 +302,7 @@ Ion::Storage::Record ExpressionModelListController::recordAtRow(int row) const {
 }
 
 Ion::Storage::Record ExpressionModelListController::selectedRecord(
-    int* relativeRow) const {
+    int *relativeRow) const {
   return recordAtRow(selectedRow(), relativeRow);
 }
 

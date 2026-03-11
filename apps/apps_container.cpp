@@ -2,17 +2,16 @@
 
 #include <escher/clipboard.h>
 #include <ion.h>
-#include <omg/unreachable.h>
 #include <poincare/circuit_breaker_checkpoint.h>
 #include <poincare/exception_checkpoint.h>
 #include <poincare/init.h>
-#include <poincare/src/memory/tree_stack_checkpoint.h>
 
 #include "apps_container_storage.h"
 #include "global_preferences.h"
-#include "math_preferences.h"
-#include "on_boarding/startup_prompt_controller.h"
 #include "shared/record_restrictive_extensions_helper.h"
+
+#include "clock_timer.h"
+#include "background_timer.h"
 
 extern "C" {
 #include <assert.h>
@@ -32,28 +31,20 @@ AppsContainer::AppsContainer()
       m_dfuBetweenEvents(false),
       m_examPopUpController(),
       m_promptController(k_promptMessages, k_promptColors,
-                         k_promptNumberOfMessages,
-                         OnBoarding::StartupModalHandleEvent),
-      m_backlightDimmingTimer(GlobalPreferences::k_defaultDimmingTime)
+                         k_promptNumberOfMessages)
 #if EPSILON_GETOPT
       ,
       m_initialAppSnapshot(nullptr)
 #endif
 {
-  m_emptyBatteryWindow.setAbsoluteFrame(Ion::Display::Rect);
+  m_emptyBatteryWindow.setAbsoluteFrame(KDRectScreen);
   Ion::Storage::FileSystem::sharedFileSystem->setDelegate(this);
   Shared::RecordRestrictiveExtensions::
       registerRestrictiveExtensionsToSharedStorage();
 }
 
-int AppsContainer::numberOfExternalApps() {
-  return Ion::ExternalApps::numberOfApps(
-      MathPreferences::SharedPreferences()->examMode().isActive());
-}
-
 Ion::ExternalApps::App AppsContainer::externalAppAtIndex(int index) {
-  for (Ion::ExternalApps::App a : Ion::ExternalApps::Apps(
-           MathPreferences::SharedPreferences()->examMode().isActive())) {
+  for (Ion::ExternalApps::App a : Ion::ExternalApps::Apps()) {
     if (index == 0) {
       return a;
     }
@@ -77,44 +68,29 @@ App::Snapshot* AppsContainer::usbConnectedAppSnapshot() {
 
 void AppsContainer::setExamMode(Poincare::ExamMode targetExamMode,
                                 Poincare::ExamMode previousMode) {
-  // Dismiss modal and switch to Home app before altering snapshot data.
+  Preferences::SharedPreferences()->setExamMode(targetExamMode);
+
+  if (targetExamMode.ruleset() != ExamMode::Ruleset::Off) {
+    // Empty storage (delete functions, variables, python scripts)
+    Ion::Storage::FileSystem::sharedFileSystem->destroyAllRecords();
+    // Empty clipboard
+    Clipboard::SharedClipboard()->reset();
+    for (int i = 0; i < numberOfBuiltinApps(); i++) {
+      appSnapshotAtIndex(i)->reset();
+    }
+  } else if (previousMode.ruleset() == ExamMode::Ruleset::PressToTest) {
+    // Reset when leaving PressToTest mode.
+    Ion::Reset::core();
+  }
+
+  refreshPreferences();
   App* app = activeApp();
   if (app) {
     app->modalViewController()->dismissModal();
     if (app->snapshot() != onBoardingAppSnapshot()) {
       switchToBuiltinApp(homeAppSnapshot());
-      if (app->snapshot() == homeAppSnapshot()) {
-        /* Window needs to be redrawn if a warning display has been shown, it is
-         * not done when switching from Home app to Home app. */
-        window()->redraw(true);
-      }
     }
   }
-
-  // Apply exam mode and delete data
-  MathPreferences::SharedPreferences()->setExamMode(targetExamMode);
-
-  // Update storage records (functions, variables, python scripts)
-  if (targetExamMode == previousMode) {
-    assert(targetExamMode.ruleset() != Poincare::ExamMode::Ruleset::Off);
-    // Erase every enabled records
-    Ion::Storage::FileSystem::sharedFileSystem->destroyAllRecords();
-  } else if (targetExamMode.ruleset() != Poincare::ExamMode::Ruleset::Off) {
-    // Disable enabled records
-    Ion::Storage::FileSystem::sharedFileSystem->disableAllRecords();
-  } else {
-    // Erase every enabled records and restore disabled ones
-    Ion::Storage::FileSystem::sharedFileSystem->destroyAllRecords();
-    Ion::Storage::FileSystem::sharedFileSystem->restoreDisabledRecords();
-  }
-
-  // Empty clipboard and snapshots
-  Clipboard::SharedClipboard()->reset();
-  for (int i = 0; i < numberOfBuiltinApps(); i++) {
-    appSnapshotAtIndex(i)->reset();
-  }
-
-  refreshPreferences();
 }
 
 Shared::GlobalContext* AppsContainer::globalContext() {
@@ -194,9 +170,9 @@ bool AppsContainer::processEvent(Ion::Events::Event event) {
       Ion::USB::clearEnumerationInterrupt();
       return false;
     }
-    if (!MathPreferences::SharedPreferences()->examMode().isActive()) {
+    if (!Preferences::SharedPreferences()->examMode().isActive()) {
       openDFU(true);
-      if (MathPreferences::SharedPreferences()->examMode().isActive()) {
+      if (Preferences::SharedPreferences()->examMode().isActive()) {
         Ion::USB::enable();
       }
     } else if (m_firstUSBEnumeration) {
@@ -256,18 +232,11 @@ void AppsContainer::switchToExternalApp(Ion::ExternalApps::App app) {
   reloadTitleBarView();
   Ion::Events::setSpinner(false);
   Ion::Display::setScreenshotCallback(nullptr);
-  /* NOTE: deinit shared objects as they can be corrupted by heap usage of
-   * external app */
-  Internal::TreeStack::SharedTreeStack.deinit();
-  Pool::sharedPool.deinit();
   ExternalAppMain appStart =
       reinterpret_cast<ExternalAppMain>(app.entryPoint());
   if (appStart) {
     appStart();
   }
-  /* NOTE: init shared objects once we exit external app */
-  Internal::TreeStack::SharedTreeStack.init();
-  Pool::sharedPool.init();
   switchToBuiltinApp(homeAppSnapshot());
   assert(activeApp());
   if (!appStart) {
@@ -298,13 +267,16 @@ void AppsContainer::handleRunException() {
   switchToBuiltinApp(homeAppSnapshot());
 }
 
+void AppsContainer::hide_title_bar_win(){
+  m_window.hideTitleBarView(true);
+}
+
 void AppsContainer::run() {
-  window()->setAbsoluteFrame(Ion::Display::Rect);
-  const MathPreferences* preferences = MathPreferences::SharedPreferences();
-  Poincare::ExamMode examMode = preferences->examMode();
+  window()->setAbsoluteFrame(KDRectScreen);
+  Preferences* poincarePreferences = Preferences::SharedPreferences();
+  Poincare::ExamMode examMode = poincarePreferences->examMode();
   if (examMode.isActive()) {
-    setExamMode(examMode,
-                Poincare::ExamMode(Ion::ExamMode::Ruleset::Uninitialized));
+    setExamMode(examMode, Poincare::ExamMode());
   } else {
     refreshPreferences();
   }
@@ -343,20 +315,21 @@ void AppsContainer::run() {
       }
     } else {
       /* Normal execution. The exception checkpoint must be created before
-       * switching to the first app, because the first app might create objects
-       * on the pool. */
+       * switching to the first app, because the first app might create nodes on
+       * the pool. */
       switchToBuiltinApp(initialAppSnapshot());
     }
   } else {
     /* We lock the Poincare pool until the application is destroyed (the pool
      * is then asserted empty). This prevents from allocating new handles
      * with the same identifiers as potential dangling handles (that have
-     * lost their objects in the exception). */
-    Pool::Lock();
+     * lost their nodes in the exception). */
+    TreePool::Lock();
     handleRunException();
-    Pool::Unlock();
+    TreePool::Unlock();
     activeApp()->displayWarning(I18n::Message::PoolMemoryFull, true);
   }
+
   Container::run();
   switchToBuiltinApp(nullptr);
 }
@@ -368,11 +341,12 @@ bool AppsContainer::updateBatteryState() {
   return batteryLevelUpdated || pluggedStateUpdated || chargingStateUpdated;
 }
 
-void AppsContainer::refreshPreferences() {
-  m_backlightDimmingTimer.setNewTimeout(
-      GlobalPreferences::SharedGlobalPreferences()->dimmingTime());
-  m_window.refreshPreferences();
+bool AppsContainer::updateTime(int h, int m) {
+  bool clock = m_window.updateClock(h, m);
+  return clock;
 }
+
+void AppsContainer::refreshPreferences() { m_window.refreshPreferences(); }
 
 void AppsContainer::reloadTitleBarView() { m_window.reloadTitleBarView(); }
 
@@ -407,7 +381,7 @@ void AppsContainer::setShiftAlphaStatus(
 
 bool AppsContainer::updateAlphaLock() { return m_window.updateAlphaLock(); }
 
-Shared::PromptController* AppsContainer::promptController() {
+OnBoarding::PromptController* AppsContainer::promptController() {
   if (k_promptNumberOfMessages == 0) {
     return nullptr;
   }
@@ -415,6 +389,8 @@ Shared::PromptController* AppsContainer::promptController() {
 }
 
 void AppsContainer::redrawWindow() { m_window.redraw(); }
+
+void AppsContainer::forceRedrawWindow() { m_window.redraw(true); }
 
 bool AppsContainer::storageCanChangeForRecordName(
     const Ion::Storage::Record::Name recordName) const {
@@ -440,12 +416,15 @@ void AppsContainer::storageIsFull() {
 
 Window* AppsContainer::window() { return &m_window; }
 
-int AppsContainer::numberOfContainerTimers() { return 4; }
+int AppsContainer::numberOfContainerTimers() { 
+  return 6;
+}
 
 Timer* AppsContainer::containerTimerAtIndex(int i) {
-  Timer* timers[4] = {&m_batteryTimer, &m_suspendTimer,
-                      &m_backlightDimmingTimer, &m_blinkTimer};
-  return timers[i];
+  Timer* timers[6] = {&m_batteryTimer, &m_suspendTimer,
+                      &m_backlightDimmingTimer, &m_blinkTimer, &ClockTimer::ClockTimer::instance(), &BackgroundTimer::BackgroundTimer::instance()
+      };
+      return timers[i];
 }
 
 void AppsContainer::listenToExternalEvents() {
@@ -465,7 +444,7 @@ void AppsContainer::resetShiftAlphaStatus() {
 }
 
 void AppsContainer::openDFU(bool blocking) {
-  const MathPreferences* preferences = MathPreferences::SharedPreferences();
+  Preferences* preferences = Preferences::SharedPreferences();
   App::Snapshot* activeSnapshot =
       (activeApp() == nullptr ? homeAppSnapshot() : activeApp()->snapshot());
   Poincare::ExamMode activeExamMode = preferences->examMode();
@@ -482,7 +461,6 @@ void AppsContainer::openDFU(bool blocking) {
 
   Ion::USB::DFU(blocking ? Ion::USB::DFUParameters::Blocking()
                          : Ion::USB::DFUParameters::PassThrough());
-  m_batteryTimer.doNotShowModal();
 
   /* DFU might have changed preferences and global preferences, update those
    * that have callbacks: country and exam mode.*/
@@ -490,12 +468,10 @@ void AppsContainer::openDFU(bool blocking) {
   if (activeExamMode.isActive() &&
       Ion::Authentication::clearanceLevel() !=
           Ion::Authentication::ClearanceLevel::NumWorks) {
-    assert(Ion::ExamMode::get() == activeExamMode);
-    setExamMode(ExamMode(ExamMode::Ruleset::Off), activeExamMode);
+    setExamMode(ExamMode(ExamMode::Ruleset::Off), Ion::ExamMode::get());
   } else if (preferences->examMode() != activeExamMode ||
              preferences->forceExamModeReload()) {
-    assert(Ion::ExamMode::get() == activeExamMode);
-    setExamMode(preferences->examMode(), activeExamMode);
+    setExamMode(preferences->examMode(), Ion::ExamMode::get());
     m_firstUSBEnumeration = true;
   }
   // Update LED when exiting DFU mode

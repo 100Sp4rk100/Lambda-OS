@@ -2,12 +2,14 @@
 #include <escher/expression_input_bar.h>
 #include <poincare/preferences.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 #include <algorithm>
 
 namespace Escher {
 
 AbstractExpressionInputBar::AbstractExpressionInputBar()
-    : m_line(Palette::GrayMiddle) {}
+    : m_line(Theme::ThemeGestion::getColor("GrayMiddle")) {}
 
 void AbstractExpressionInputBar::layoutSubviews(bool force) {
   setChildFrame(&m_line, KDRect(0, 0, bounds().width(), k_separatorThickness),

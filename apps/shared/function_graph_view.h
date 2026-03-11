@@ -10,26 +10,25 @@ namespace Shared {
 
 class FunctionGraphPolicy {
  public:
-  Poincare::Context* context() const { return m_context; }
-  void setContext(Poincare::Context* context) { m_context = context; }
+  Poincare::Context *context() const { return m_context; }
+  void setContext(Poincare::Context *context) { m_context = context; }
 
  protected:
-  void drawPlot(const AbstractPlotView* plotView, KDContext* ctx,
+  void drawPlot(const AbstractPlotView *plotView, KDContext *ctx,
                 KDRect rect) const;
 
   virtual Ion::Storage::Record initModelBeforeDrawingPlot(int modelIndex) const;
   virtual int numberOfDrawnRecords() const = 0;
-  virtual void drawRecord(Ion::Storage::Record record, int index, KDContext*,
+  virtual void drawRecord(Ion::Storage::Record record, int index, KDContext *,
                           KDRect, bool firstDrawnRecord) const = 0;
-  virtual void tidyModel(int i,
-                         const Poincare::PoolObject* treePoolCursor) const = 0;
+  virtual void tidyModel(int i, Poincare::TreeNode *treePoolCursor) const = 0;
   virtual int selectedRecordIndex() const = 0;
-  virtual FunctionStore* functionStore() const = 0;
+  virtual FunctionStore *functionStore() const = 0;
 
   bool functionWasInterrupted(int index) const;
   void setFunctionInterrupted(int index) const;
 
-  Poincare::Context* m_context;
+  Poincare::Context *m_context;
   mutable uint32_t m_functionsInterrupted;
 };
 
@@ -37,17 +36,16 @@ class FunctionGraphView
     : public PlotView<PlotPolicy::TwoLabeledAxes, FunctionGraphPolicy,
                       PlotPolicy::WithBanner, PlotPolicy::WithCursor> {
  public:
-  FunctionGraphView(InteractiveCurveViewRange* graphRange,
-                    CurveViewCursor* cursor, BannerView* bannerView,
-                    CursorView* cursorView);
+  FunctionGraphView(InteractiveCurveViewRange *graphRange,
+                    CurveViewCursor *cursor, BannerView *bannerView,
+                    CursorView *cursorView);
 
   // AbstractPlotView
-  void reload(bool resetInterrupted = false, bool force = false,
-              bool forceRedrawAxes = false) override;
+  void reload(bool resetInterrupted = false, bool force = false) override;
   void resetInterruption() override { m_functionsInterrupted = 0; }
 
   void selectRecord(Ion::Storage::Record record);
-  // Select second record to draw area between it and the main record
+  // LAMDA_gray_light_palette second record to draw area between it and the main record
   void selectSecondRecord(Ion::Storage::Record record);
   virtual void setAreaHighlightColor(bool highlightColor);
   void setAreaHighlight(float start, float end);

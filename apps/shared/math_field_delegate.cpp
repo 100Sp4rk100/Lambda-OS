@@ -13,7 +13,7 @@ using namespace Escher;
 
 namespace Shared {
 
-bool AbstractMathFieldDelegate::handleEventForField(EditableField* field,
+bool AbstractMathFieldDelegate::handleEventForField(EditableField *field,
                                                     Ion::Events::Event event) {
   if (event == Ion::Events::XNT) {
     bool inserted = field->handleXNT(m_currentXNTIndex, defaultXNT());
@@ -32,22 +32,22 @@ void AbstractMathFieldDelegate::updateXNTIndex(Ion::Events::Event event) {
 }
 
 CodePoint AbstractMathFieldDelegate::defaultXNT() {
-  return CodePoints::k_cartesianSymbol;
+  return ContinuousFunction::k_cartesianSymbol;
 }
 
-bool AbstractMathFieldDelegate::isAcceptableExpression(const UserExpression exp,
-                                                       Context* context) {
-  return !exp.isUninitialized() && !exp.isStore();
+bool AbstractMathFieldDelegate::isAcceptableExpression(const Expression exp,
+                                                       Context *context) {
+  return !exp.isUninitialized() && exp.type() != ExpressionNode::Type::Store;
 }
 
-bool AbstractMathFieldDelegate::isAcceptableText(const char* text,
-                                                 Context* context) {
+bool AbstractMathFieldDelegate::isAcceptableText(const char *text,
+                                                 Context *context) {
   /* Parsing
    * Do not parse for assignment to detect if there is a syntax error, since
    * some errors could be missed.
    * Sometimes the field needs to be parsed for assignment but this is
-   * done later, namely by ContinuousFunction::buildExpressionFromLayout. */
-  UserExpression exp = UserExpression::Parse(text, context);
+   * done later, namely by ContinuousFunction::buildExpressionFromText. */
+  Expression exp = Expression::Parse(text, context);
   if (exp.isUninitialized()) {
     // Unparsable expression
     return false;
@@ -58,8 +58,8 @@ bool AbstractMathFieldDelegate::isAcceptableText(const char* text,
    * - log(x,2) */
   constexpr int bufferSize = TextField::MaxBufferSize();
   char buffer[bufferSize];
-  int length = exp.serialize(
-      buffer, false, MathPreferences::SharedPreferences()->displayMode());
+  int length = exp.serialize(buffer, bufferSize,
+                             Preferences::SharedPreferences()->displayMode());
   if (length >= bufferSize - 1) {
     /* If the buffer is totally full, it is VERY likely that writeTextInBuffer
      * escaped before printing utterly the expression. */
@@ -68,30 +68,41 @@ bool AbstractMathFieldDelegate::isAcceptableText(const char* text,
   return isAcceptableExpression(exp, context);
 }
 
-MathLayoutFieldDelegate* MathLayoutFieldDelegate::Default() {
+MathLayoutFieldDelegate *MathLayoutFieldDelegate::Default() {
   static MathLayoutFieldDelegate s_defaultMathLayoutFieldDelegate;
   return &s_defaultMathLayoutFieldDelegate;
 }
 
 bool MathLayoutFieldDelegate::layoutFieldDidReceiveEvent(
-    LayoutField* layoutField, Ion::Events::Event event) {
+    LayoutField *layoutField, Ion::Events::Event event) {
   return LayoutFieldDelegate::layoutFieldDidReceiveEvent(layoutField, event)
              ? true
              : handleEventForField(layoutField, event);
 }
 
 bool MathLayoutFieldDelegate::isAcceptableLayout(Layout layout,
-                                                 Poincare::Context* context) {
+                                                 Poincare::Context *context) {
   if (layout.isEmpty()) {
     // Accept empty layouts
     return true;
   }
-  UserExpression exp = UserExpression::Parse(layout, context);
-  return isAcceptableExpression(exp, context);
+  /* Simple layout serialisation. Resulting texts can be parsed but
+   * not displayed, like:
+   * - 2a
+   * - log_{2}(x) */
+  constexpr size_t bufferSize = TextField::MaxBufferSize();
+  char buffer[bufferSize];
+  size_t length = layout.serializeForParsing(buffer, bufferSize);
+  if (length >= bufferSize - 1) {
+    /* If the buffer is totally full, it is VERY likely that writeTextInBuffer
+     * escaped before printing utterly the expression. */
+    return false;
+  }
+  return isAcceptableText(buffer, context);
 }
 
 bool MathLayoutFieldDelegate::layoutFieldDidFinishEditing(
-    LayoutField* layoutField, Ion::Events::Event event) {
+    LayoutField *layoutField, Ion::Events::Event event) {
   assert(!layoutField->isEditing());
   if (!isAcceptableLayout(layoutField->layout(), context())) {
     App::app()->displayWarning(I18n::Message::SyntaxError);
@@ -100,20 +111,20 @@ bool MathLayoutFieldDelegate::layoutFieldDidFinishEditing(
   return true;
 }
 
-MathTextFieldDelegate* MathTextFieldDelegate::Default() {
+MathTextFieldDelegate *MathTextFieldDelegate::Default() {
   static MathTextFieldDelegate s_defaultMathTextFieldDelegate;
   return &s_defaultMathTextFieldDelegate;
 }
 
 bool MathTextFieldDelegate::textFieldDidReceiveEvent(
-    AbstractTextField* textField, Ion::Events::Event event) {
+    AbstractTextField *textField, Ion::Events::Event event) {
   return TextFieldDelegate::textFieldDidReceiveEvent(textField, event)
              ? true
              : handleEventForField(textField, event);
 }
 
 bool MathTextFieldDelegate::textFieldDidFinishEditing(
-    AbstractTextField* textField, Ion::Events::Event event) {
+    AbstractTextField *textField, Ion::Events::Event event) {
   assert(!textField->isEditing());
   if (textField->text()[0] != 0 &&
       !isAcceptableText(textField->text(), App::app()->localContext())) {
@@ -124,11 +135,9 @@ bool MathTextFieldDelegate::textFieldDidFinishEditing(
 }
 
 template <typename T>
-T MathTextFieldDelegate::ParseInputFloatValue(const char* text) {
-  return UserExpression::ParseAndSimplifyAndApproximateToRealScalar<T>(
-      text, App::app()->localContext(),
-      MathPreferences::SharedPreferences()->complexFormat(),
-      MathPreferences::SharedPreferences()->angleUnit());
+T MathTextFieldDelegate::ParseInputFloatValue(const char *text) {
+  return Expression::ParseAndSimplifyAndApproximateToScalar<T>(
+      text, App::app()->localContext());
 }
 
 template <typename T>
@@ -143,9 +152,9 @@ bool MathTextFieldDelegate::HasUndefinedValue(T value, bool enablePlusInfinity,
   return isUndefined;
 }
 
-template float MathTextFieldDelegate::ParseInputFloatValue<float>(const char*);
+template float MathTextFieldDelegate::ParseInputFloatValue<float>(const char *);
 template double MathTextFieldDelegate::ParseInputFloatValue<double>(
-    const char*);
+    const char *);
 template bool MathTextFieldDelegate::HasUndefinedValue(float, bool, bool);
 template bool MathTextFieldDelegate::HasUndefinedValue(double, bool, bool);
 

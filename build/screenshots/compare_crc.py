@@ -19,69 +19,39 @@ parser.add_argument(
     help="epsilon executable to test",
 )
 parser.add_argument(
-    "-n",
-    "--no-screenshots",
-    action="store_true",
-    help="Do not take screenshots at each step of failed scenarios.",
-)
-parser.add_argument(
     "-r",
     "--ref",
     type=existing_file,
-    help="epsilon reference executable, only used for failed scenarios to generate screenshots at each step",
+    help="epsilon reference executable, only used for failed scenari to generate screenshots at each step",
 )
 parser.add_argument(
     "-f",
     "--filter",
     default="",
-    help="Specify a regular expression to filter scenarios by name.",
+    help="Specify a regular expression to filter scenari by name.",
 )
 parser.add_argument(
     "-u",
     "--update",
     action="store_true",
-    help="Update crc32 of failed scenarios.",
+    default=0,
+    help="Update crc32 of failed scenari.",
 )
-parser.add_argument(
-    "-d",
-    "--dataset",
-    type=existing_directory,
-    help="Dataset to test",
-)
-parser.add_argument(
-    "--ignore-failure",
-    action="store_true",
-    help="Do not exit with an error status even if some scenarios failed.",
-)
-parser.add_argument(
-    "--asan",
-    action="store_true",
-    help="Skip test known to fail when using ASAN",
-)
-# TODO: pass those tests even when ASAN=1
-known_asan_failure = [
-    "python_parabola",
-    "python_console_variablebox",
-    "python_editor_delete",
-]
 
 
 def run_test(scenario_name, state_file, executable, computed_crc32_list):
-    p = compute_crc32_process(state_file, executable)
-    p.wait()
-    print("Computing crc32 of", scenario_name)
-    computed_crc32_list.append((scenario_name, find_crc32_in_log(p.stdout)))
+    try:
+        p = compute_crc32_process(state_file, executable)
+        p.wait()
+        print("Computing crc32 of", scenario_name)
+        computed_crc32_list.append((scenario_name, find_crc32_in_log(p.stdout)))
+    except:  # Handle Interrupt exceptions
+        sys.exit(1)
 
 
 def main():
     # Parse args
     args = parser.parse_args()
-
-    # Get dataset
-    if args.dataset is None:
-        dataset = default_dataset
-    else:
-        dataset = args.dataset
 
     # Create output folder
     output_folder = "compare_crc_output"
@@ -93,39 +63,29 @@ def main():
     ignored = 0
     computed_crc32_list = []
 
-    try:
-        with ThreadPoolExecutor(max_workers=os.cpu_count()) as pool:
-            for scenario_name in sorted(os.listdir(dataset)):
-                if not re.match(args.filter, scenario_name):
-                    continue
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for scenario_name in sorted(os.listdir(dataset())):
+            if not re.match(args.filter, scenario_name):
+                continue
 
-                scenario_folder = folder(scenario_name, dataset)
-                if not os.path.isdir(scenario_folder):
-                    continue
+            scenario_folder = folder(scenario_name)
+            if not os.path.isdir(scenario_folder):
+                continue
 
-                state_file = get_file_with_extension(scenario_folder, ".nws")
-                reference_crc32_file = get_file_with_extension(scenario_folder, ".txt")
-                if (
-                    state_file == ""
-                    or reference_crc32_file == ""
-                    or (args.asan and scenario_name in known_asan_failure)
-                ):
-                    ignored = ignored + 1
-                    continue
-                print("Collecting data from", scenario_folder)
+            print("Collecting data from", scenario_folder)
+            state_file = get_file_with_extension(scenario_folder, ".nws")
+            reference_crc32_file = get_file_with_extension(scenario_folder, ".txt")
+            if state_file == "" or reference_crc32_file == "":
+                ignored = ignored + 1
+                continue
 
-                pool.submit(
-                    run_test,
-                    scenario_name,
-                    state_file,
-                    args.executable,
-                    computed_crc32_list,
-                )
-
-    except KeyboardInterrupt:
-        pool.shutdown(cancel_futures=True)
-        print("^C")
-        sys.exit(1)
+            pool.submit(
+                run_test,
+                scenario_name,
+                state_file,
+                args.executable,
+                computed_crc32_list,
+            )
 
     # Compare with ref
     print("\nComparing crc32")
@@ -133,7 +93,7 @@ def main():
     fails = 0
     count = 0
     for scenario_name, computed_crc32 in computed_crc32_list:
-        scenario_folder = folder(scenario_name, dataset)
+        scenario_folder = folder(scenario_name)
         assert os.path.isdir(scenario_folder)
         state_file = get_file_with_extension(scenario_folder, ".nws")
         assert state_file != ""
@@ -167,7 +127,7 @@ def main():
             print("Comparing crc32 of", scenario_name, bold(red("FAILED")))
 
         # Take screenshot at each step
-        if not success and not args.no_screenshots:
+        if not success:
             # Create output subfolder
             output_scenario_folder = os.path.join(output_folder, scenario_name)
             os.mkdir(output_scenario_folder)
@@ -208,7 +168,7 @@ def main():
     print("==============================")
     if ignored > 0:
         print(ignored, "folders ignored")
-    print(count, "scenarios tested")
+    print(count, "scenari tested")
     if fails > 0:
         print(fails, "failed")
     else:
@@ -219,8 +179,7 @@ def main():
     if fails == 0:
         shutil.rmtree(output_folder)
 
-    if not args.ignore_failure:
-        sys.exit(fails)
+    sys.exit(fails)
 
 
 if __name__ == "__main__":

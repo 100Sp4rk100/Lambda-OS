@@ -2,13 +2,15 @@
 #include <escher/palette.h>
 #include <escher/stack_view.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 StackView::StackView(Style style, bool extendVertically,
                      OMG::AbstractStack<StackHeaderView>* headerViewStack)
     : View(),
       m_stackHeaderViews(headerViewStack),
-      m_borderView(Palette::GrayBright),
+      m_borderView(Theme::ThemeGestion::getColor("GrayBright")),
       m_contentView(nullptr),
       m_style(style),
       m_headersOverlapHeaders(true),
@@ -29,22 +31,22 @@ void StackView::setupHeadersBorderOverlaping(
   m_borderView.setColor(headersContentBorderColor);
 }
 
-void StackView::pushStack(const ViewController* vc) {
-  KDColor textColor = Palette::GrayDarkMiddle;
-  KDColor backgroundColor = KDColorWhite;
-  KDColor separatorColor = Palette::GrayBright;
+void StackView::pushStack(ViewController* vc) {
+  KDColor textColor = Theme::ThemeGestion::getColor("GrayDarkMiddle");
+  KDColor backgroundColor = Theme::ThemeGestion::getColor("KDColorWhite");
+  KDColor separatorColor = Theme::ThemeGestion::getColor("GrayBright");
   int numberOfStacks = m_stackHeaderViews->size();
   if (m_style == Style::GrayGradation) {
-    textColor = KDColorWhite;
-    constexpr KDColor k_grayGradationColors[] = {
-        Palette::PurpleBright, Palette::GrayDark, Palette::GrayDarkMiddle};
+    textColor = Theme::ThemeGestion::getColor("KDColorWhite");
+    KDColor k_grayGradationColors[] = {
+        Theme::ThemeGestion::getColor("PurpleBright"), Theme::ThemeGestion::getColor("GrayDark"), Theme::ThemeGestion::getColor("GrayDarkMiddle")};
     backgroundColor = k_grayGradationColors[numberOfStacks];
     separatorColor = k_grayGradationColors[numberOfStacks];
   } else if (m_style == Style::PurpleWhite) {
     if (numberOfStacks == 0) {
-      textColor = KDColorWhite;
-      backgroundColor = Palette::PopUpTitleBackground;
-      separatorColor = Palette::PurpleDark;
+      textColor = Theme::ThemeGestion::getColor("KDColorWhite");
+      backgroundColor = Theme::ThemeGestion::getColor("PopUpTitleBackground");
+      separatorColor = Theme::ThemeGestion::getColor("PurpleDark");
     }
   } else {
     assert(m_style == Style::WhiteUniform);

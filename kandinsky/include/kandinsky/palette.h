@@ -18,8 +18,6 @@ class KDPalette {
     assert(i >= 0 && i < S);
     return m_colors[i];
   }
-  KDColor from() const { return colorAtIndex(0); }
-  KDColor to() const { return colorAtIndex(S - 1); }
 
  private:
   KDPalette() {}

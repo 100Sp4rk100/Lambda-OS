@@ -4,6 +4,8 @@
 #include <kandinsky/color.h>
 #include <kandinsky/font.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 class KDGlyph {
  public:
   constexpr static float k_alignLeft = 0.;
@@ -13,8 +15,8 @@ class KDGlyph {
   constexpr static float k_alignBottom = 1.;
 
   struct Style {
-    KDColor glyphColor = KDColorBlack;
-    KDColor backgroundColor = KDColorWhite;
+    KDColor glyphColor = Theme::ThemeGestion::getColor("KDColorBlack");
+    KDColor backgroundColor = Theme::ThemeGestion::getColor("KDColorWhite");
     KDFont::Size font = KDFont::Size::Large;
   };
 

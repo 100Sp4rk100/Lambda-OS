@@ -1,8 +1,8 @@
 #include "plot_view_plots.h"
 
-#include <float.h>
-
 #include <algorithm>
+
+#include "float.h"
 
 using namespace Poincare;
 
@@ -24,11 +24,12 @@ WithCurves::Pattern::Pattern(bool s0, bool s1, bool s2, bool s3, KDColor color,
 WithCurves::Pattern::Pattern(int s, KDColor color, KDColor backgroundColor)
     : Pattern(s == 0, s == 1, s == 2, s == 3, color, backgroundColor) {}
 
-void WithCurves::Pattern::drawInLine(const AbstractPlotView* plotView,
-                                     KDContext* ctx, KDRect rect,
-                                     OMG::Axis parallel, float position,
-                                     float min, float max) const {
-  OMG::Axis perpendicular = OMG::OtherAxis(parallel);
+void WithCurves::Pattern::drawInLine(const AbstractPlotView *plotView,
+                                     KDContext *ctx, KDRect rect,
+                                     AbstractPlotView::Axis parallel,
+                                     float position, float min,
+                                     float max) const {
+  AbstractPlotView::Axis perpendicular = AbstractPlotView::OtherAxis(parallel);
   KDCoordinate posC =
       plotView->floatToKDCoordinatePixel(perpendicular, position);
 
@@ -44,7 +45,7 @@ void WithCurves::Pattern::drawInLine(const AbstractPlotView* plotView,
   bool canSpeedUpDrawing =
       firstColor == m_cBackground && secondColor == m_cBackground;
   if (canSpeedUpDrawing) {
-    if (m_cBackground != k_transparent) {
+    if (m_cBackground != Theme::ThemeGestion::getColor("KDColorWhite")) {
       plotView->drawStraightSegment(ctx, rect, parallel, position, min, max,
                                     m_cBackground);
     }
@@ -56,7 +57,7 @@ void WithCurves::Pattern::drawInLine(const AbstractPlotView* plotView,
   }
   KDCoordinate minC = plotView->floatToKDCoordinatePixel(parallel, min);
   KDCoordinate maxC = plotView->floatToKDCoordinatePixel(parallel, max);
-  if (parallel == OMG::Axis::Horizontal) {
+  if (parallel == AbstractPlotView::Axis::Horizontal) {
     minC = std::max(minC, rect.left());
     maxC = std::min(maxC, static_cast<KDCoordinate>(rect.right() + 1));
   } else {
@@ -87,9 +88,10 @@ void WithCurves::Pattern::drawInLine(const AbstractPlotView* plotView,
 
   for (int i = minC; i < maxC; i++) {
     KDColor color = colors[i % k_size];
-    if (color != k_transparent) {
-      ctx->setPixel(parallel == OMG::Axis::Horizontal ? KDPoint(i, posC)
-                                                      : KDPoint(posC, i),
+    if (color != Theme::ThemeGestion::getColor("KDColorWhite")) {
+      ctx->setPixel(parallel == AbstractPlotView::Axis::Horizontal
+                        ? KDPoint(i, posC)
+                        : KDPoint(posC, i),
                     color);
     }
   }
@@ -97,7 +99,7 @@ void WithCurves::Pattern::drawInLine(const AbstractPlotView* plotView,
 
 // WithCurves::CurveDrawing
 
-WithCurves::CurveDrawing::CurveDrawing(Curve2D curve, void* context,
+WithCurves::CurveDrawing::CurveDrawing(Curve2D curve, void *context,
                                        float tStart, float tEnd, float tStep,
                                        KDColor color, bool thick, bool dashed)
     : m_curve(curve),
@@ -111,7 +113,7 @@ WithCurves::CurveDrawing::CurveDrawing(Curve2D curve, void* context,
       m_patternStart(NAN),
       m_patternEnd(NAN),
       m_color(color),
-      m_axis(OMG::Axis::Horizontal),
+      m_axis(AbstractPlotView::Axis::Horizontal),
       m_thick(thick),
       m_dashed(dashed),
       m_patternWithoutCurve(false),
@@ -124,7 +126,7 @@ WithCurves::CurveDrawing::CurveDrawing(Curve2D curve, void* context,
 void WithCurves::CurveDrawing::setPatternOptions(
     Pattern pattern, float patternStart, float patternEnd,
     Curve2D patternLowerBound, Curve2D patternUpperBound,
-    bool patternWithoutCurve, OMG::Axis axis) {
+    bool patternWithoutCurve, AbstractPlotView::Axis axis) {
   m_pattern = pattern;
   m_patternStart = patternStart;
   m_patternEnd = patternEnd;
@@ -142,8 +144,8 @@ void WithCurves::CurveDrawing::setPrecisionOptions(
   m_discontinuity = discontinuity;
 }
 
-void WithCurves::CurveDrawing::draw(const AbstractPlotView* plotView,
-                                    KDContext* ctx, KDRect rect) const {
+void WithCurves::CurveDrawing::draw(const AbstractPlotView *plotView,
+                                    KDContext *ctx, KDRect rect) const {
   assert(plotView);
   if (m_tStart > m_tEnd) {
     return;
@@ -187,8 +189,8 @@ static bool pointInBoundingBox(float x1, float y1, float x2, float y2, float xC,
           (y2 == yC && yC == y1));
 }
 
-void WithCurves::CurveDrawing::joinDots(const AbstractPlotView* plotView,
-                                        KDContext* ctx, KDRect rect, float t1,
+void WithCurves::CurveDrawing::joinDots(const AbstractPlotView *plotView,
+                                        KDContext *ctx, KDRect rect, float t1,
                                         Coordinate2D<float> xy1, float t2,
                                         Coordinate2D<float> xy2,
                                         int remainingIterations,
@@ -278,7 +280,7 @@ void WithCurves::CurveDrawing::joinDots(const AbstractPlotView* plotView,
   }
   remainingIterations--;
 
-  CurveViewRange* range = plotView->range();
+  CurveViewRange *range = plotView->range();
   float xMin = range->xMin();
   float xMax = range->xMax();
   float yMin = range->yMin();
@@ -308,15 +310,15 @@ void WithCurves::CurveDrawing::joinDots(const AbstractPlotView* plotView,
 }
 
 void WithCurves::CurveDrawing::drawPattern(
-    const AbstractPlotView* plotView, KDContext* ctx, KDRect rect, float t,
+    const AbstractPlotView *plotView, KDContext *ctx, KDRect rect, float t,
     Poincare::Coordinate2D<float> xy) const {
   // Draw a line with the pattern
   float (Coordinate2D<float>::*abscissa)() const =
-      m_axis == OMG::Axis::Horizontal ? &Coordinate2D<float>::x
-                                      : &Coordinate2D<float>::y;
+      m_axis == AbstractPlotView::Axis::Horizontal ? &Coordinate2D<float>::x
+                                                   : &Coordinate2D<float>::y;
   float (Coordinate2D<float>::*ordinate)() const =
-      m_axis == OMG::Axis::Horizontal ? &Coordinate2D<float>::y
-                                      : &Coordinate2D<float>::x;
+      m_axis == AbstractPlotView::Axis::Horizontal ? &Coordinate2D<float>::y
+                                                   : &Coordinate2D<float>::x;
   float patternMin =
       ((m_patternLowerBound ? m_patternLowerBound.evaluate(t, m_context) : xy).*
        ordinate)();
@@ -333,15 +335,16 @@ void WithCurves::CurveDrawing::drawPattern(
   }
   if (!(std::isnan(patternMin) || std::isnan(patternMax)) &&
       patternMin != patternMax && m_patternStart <= t && t < m_patternEnd) {
-    m_pattern.drawInLine(plotView, ctx, rect, OMG::OtherAxis(m_axis),
-                         (xy.*abscissa)(), patternMin, patternMax);
+    m_pattern.drawInLine(plotView, ctx, rect,
+                         AbstractPlotView::OtherAxis(m_axis), (xy.*abscissa)(),
+                         patternMin, patternMax);
   }
 }
 
 // WithCurves
 
-void WithCurves::drawArcOfEllipse(const AbstractPlotView* plotView,
-                                  KDContext* ctx, KDRect rect,
+void WithCurves::drawArcOfEllipse(const AbstractPlotView *plotView,
+                                  KDContext *ctx, KDRect rect,
                                   Coordinate2D<float> center, float width,
                                   float height, float angleStart,
                                   float angleEnd, KDColor color) const {
@@ -352,8 +355,8 @@ void WithCurves::drawArcOfEllipse(const AbstractPlotView* plotView,
                                  height / plotView->pixelHeight());
   float angleStep = segmentLength / radiusInPixel;
   float parameters[] = {center.x(), center.y(), width, height};
-  Curve2DEvaluation<float> arc = [](float t, void* model, void*) {
-    float* parameters = reinterpret_cast<float*>(model);
+  Curve2DEvaluation<float> arc = [](float t, void *model, void *) {
+    float *parameters = reinterpret_cast<float *>(model);
     float x = parameters[0];
     float y = parameters[1];
     float a = parameters[2];
@@ -369,7 +372,7 @@ void WithCurves::drawArcOfEllipse(const AbstractPlotView* plotView,
 // WithHistogram::HistogramDrawing
 
 WithHistogram::HistogramDrawing::HistogramDrawing(
-    Curve1D curve, void* model, void* context, HighlightTest highlightTest,
+    Curve1D curve, void *model, void *context, HighlightTest highlightTest,
     double start, double barsWidth, bool displayBorder, bool fillBars,
     KDColor color, KDColor highlightColor, KDColor borderColor)
     : m_curve(curve),
@@ -384,8 +387,8 @@ WithHistogram::HistogramDrawing::HistogramDrawing(
       m_highlightColor(highlightColor),
       m_borderColor(borderColor) {}
 
-void WithHistogram::HistogramDrawing::draw(const AbstractPlotView* plotView,
-                                           KDContext* ctx, KDRect rect) const {
+void WithHistogram::HistogramDrawing::draw(const AbstractPlotView *plotView,
+                                           KDContext *ctx, KDRect rect) const {
   /* To values interval [a, b[ correspond a pixel
    * interval [A, B[. Tick for a is at pixel A and
    * tick for b is at pixel B.
@@ -402,14 +405,16 @@ void WithHistogram::HistogramDrawing::draw(const AbstractPlotView* plotView,
    */
   double barsWidth =
       std::max(static_cast<double>(plotView->pixelWidth()), m_barsWidth);
-  double rectMin = plotView->pixelToFloat(OMG::Axis::Horizontal, rect.left());
+  double rectMin =
+      plotView->pixelToFloat(AbstractPlotView::Axis::Horizontal, rect.left());
   double rectMinBarIndex = std::floor((rectMin - m_start) / barsWidth);
   double rectMinBarStart = m_start + rectMinBarIndex * barsWidth;
-  double rectMax = plotView->pixelToFloat(OMG::Axis::Horizontal, rect.right());
+  double rectMax =
+      plotView->pixelToFloat(AbstractPlotView::Axis::Horizontal, rect.right());
   double rectMaxBarIndex = std::floor((rectMax - m_start) / barsWidth);
   double rectMaxBarEnd = m_start + (rectMaxBarIndex + 1) * barsWidth;
   KDCoordinate plotViewHeight =
-      plotView->floatToKDCoordinatePixel(OMG::Axis::Vertical, 0.f);
+      plotView->floatToKDCoordinatePixel(AbstractPlotView::Axis::Vertical, 0.f);
   KDCoordinate borderWidth = m_displayBorder ? k_borderWidth : 0;
 
   double xPrevious = NAN;
@@ -431,10 +436,10 @@ void WithHistogram::HistogramDrawing::draw(const AbstractPlotView* plotView,
 
     /* Step 2: Compute pixels
      *   Step 2.1: Bar width */
-    KDCoordinate left =
-        plotView->floatToKDCoordinatePixel(OMG::Axis::Horizontal, x);
+    KDCoordinate left = plotView->floatToKDCoordinatePixel(
+        AbstractPlotView::Axis::Horizontal, x);
     KDCoordinate leftOfNextBar = plotView->floatToKDCoordinatePixel(
-        OMG::Axis::Horizontal, x + barsWidth);
+        AbstractPlotView::Axis::Horizontal, x + barsWidth);
     if (leftOfNextBar <= rect.left()) {
       continue;
     }
@@ -451,7 +456,7 @@ void WithHistogram::HistogramDrawing::draw(const AbstractPlotView* plotView,
 
     //   Step 2.2: Bar height
     KDCoordinate top =
-        plotView->floatToKDCoordinatePixel(OMG::Axis::Vertical, y);
+        plotView->floatToKDCoordinatePixel(AbstractPlotView::Axis::Vertical, y);
     assert(top >= 0);
     KDCoordinate barHeight = plotViewHeight - top;
     assert(barHeight >= 0);

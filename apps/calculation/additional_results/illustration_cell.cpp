@@ -1,5 +1,7 @@
 #include "illustration_cell.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Shared;
 using namespace Poincare;
 using namespace Escher;
@@ -16,7 +18,7 @@ void IllustrationCell::layoutSubviews(bool force) {
 }
 
 void IllustrationCell::drawRect(KDContext* ctx, KDRect rect) const {
-  drawBorderOfRect(ctx, bounds(), Palette::GrayBright);
+  drawBorderOfRect(ctx, bounds(), Theme::ThemeGestion::getColor("GrayBright"));
 }
 
 }  // namespace Calculation

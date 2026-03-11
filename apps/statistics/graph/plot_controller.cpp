@@ -1,18 +1,17 @@
 #include "plot_controller.h"
 
-#include <apps/math_preferences.h>
 #include <poincare/print.h>
 
 #include "../data/store_controller.h"
 
 namespace Statistics {
 
-PlotController::PlotController(Escher::Responder* parentResponder,
-                               Escher::ButtonRowController* header,
-                               Escher::TabViewController* tabController,
-                               Escher::StackViewController* stackViewController,
-                               Escher::ViewController* typeViewController,
-                               Store* store)
+PlotController::PlotController(Escher::Responder *parentResponder,
+                               Escher::ButtonRowController *header,
+                               Escher::TabViewController *tabController,
+                               Escher::StackViewController *stackViewController,
+                               Escher::ViewController *typeViewController,
+                               Store *store)
     : DataViewController(parentResponder, tabController, header,
                          stackViewController, typeViewController, store),
       m_cursor(FLT_MAX),
@@ -62,11 +61,11 @@ bool PlotController::reloadBannerView() {
       bannerView()->minimalSizeForOptimalDisplay().height();
 
   int precision =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+      Poincare::Preferences::SharedPreferences()->numberOfSignificantDigits();
   Poincare::Preferences::PrintFloatMode displayMode =
-      MathPreferences::SharedPreferences()->displayMode();
+      Poincare::Preferences::SharedPreferences()->displayMode();
   constexpr static int k_bufferSize =
-      Escher::Metric::MaxNumberOfSmallGlyphsInDisplayWidth;
+      Poincare::Print::k_maxNumberOfSmallGlyphsInScreenWidth + 1;
   char buffer[k_bufferSize] = "";
 
   // Display series name
@@ -109,7 +108,7 @@ void PlotController::computeRanges(KDCoordinate bannerHeight) {
                          yMin, yMax);
 }
 
-void PlotController::computeXBounds(float* xMin, float* xMax) const {
+void PlotController::computeXBounds(float *xMin, float *xMax) const {
   *xMin = m_store->minValueForAllSeries(handleNullFrequencies(),
                                         activeSeriesMethod());
   *xMax = m_store->maxValueForAllSeries(handleNullFrequencies(),

@@ -11,7 +11,8 @@ class MinimumGraphController : public CalculationGraphController {
                          GraphView* graphView, BannerView* bannerView,
                          Shared::InteractiveCurveViewRange* curveViewRange,
                          Shared::CurveViewCursor* cursor);
-  const char* title() const override;
+  const char* title() override;
+  TELEMETRY_ID("Minimum");
 
  private:
   Poincare::Solver<double>::Interest specialInterest() const override {
@@ -25,7 +26,8 @@ class MaximumGraphController : public CalculationGraphController {
                          GraphView* graphView, BannerView* bannerView,
                          Shared::InteractiveCurveViewRange* curveViewRange,
                          Shared::CurveViewCursor* cursor);
-  const char* title() const override;
+  const char* title() override;
+  TELEMETRY_ID("Maximum");
 
  private:
   Poincare::Solver<double>::Interest specialInterest() const override {

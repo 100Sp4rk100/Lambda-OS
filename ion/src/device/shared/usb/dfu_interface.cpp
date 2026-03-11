@@ -6,8 +6,6 @@
 #include <shared/drivers/flash_write_with_interruptions.h>
 #include <string.h>
 
-#include "dfu_interfaces.h"
-
 namespace Ion {
 namespace Device {
 namespace USB {
@@ -16,7 +14,7 @@ static inline uint32_t minUint32T(uint32_t x, uint32_t y) {
   return x < y ? x : y;
 }
 
-void DFUInterface::StatusData::push(Channel* c) const {
+void DFUInterface::StatusData::push(Channel *c) const {
   c->push(m_bStatus);
   c->push(m_bwPollTimeout[2]);
   c->push(m_bwPollTimeout[1]);
@@ -25,11 +23,11 @@ void DFUInterface::StatusData::push(Channel* c) const {
   c->push(m_iString);
 }
 
-void DFUInterface::StateData::push(Channel* c) const { c->push(m_bState); }
+void DFUInterface::StateData::push(Channel *c) const { c->push(m_bState); }
 
-void DFUInterface::wholeDataReceivedCallback(SetupPacket* request,
-                                             uint8_t* transferBuffer,
-                                             uint16_t* transferBufferLength) {
+void DFUInterface::wholeDataReceivedCallback(SetupPacket *request,
+                                             uint8_t *transferBuffer,
+                                             uint16_t *transferBufferLength) {
   if (request->bRequest() == (uint8_t)DFURequest::Download) {
     // Handle a download request
     if (request->wValue() == 0) {
@@ -64,9 +62,9 @@ void DFUInterface::wholeDataReceivedCallback(SetupPacket* request,
   }
 }
 
-void DFUInterface::wholeDataSentCallback(SetupPacket* request,
-                                         uint8_t* transferBuffer,
-                                         uint16_t* transferBufferLength) {
+void DFUInterface::wholeDataSentCallback(SetupPacket *request,
+                                         uint8_t *transferBuffer,
+                                         uint16_t *transferBufferLength) {
   if (request->bRequest() == (uint8_t)DFURequest::GetStatus) {
     // Do any needed action after the GetStatus request.
     if (m_state == State::dfuMANIFEST) {
@@ -92,9 +90,9 @@ void DFUInterface::wholeDataSentCallback(SetupPacket* request,
   }
 }
 
-bool DFUInterface::processSetupInRequest(SetupPacket* request,
-                                         uint8_t* transferBuffer,
-                                         uint16_t* transferBufferLength,
+bool DFUInterface::processSetupInRequest(SetupPacket *request,
+                                         uint8_t *transferBuffer,
+                                         uint16_t *transferBufferLength,
                                          uint16_t transferBufferMaxLength) {
   if (Interface::processSetupInRequest(request, transferBuffer,
                                        transferBufferLength,
@@ -126,7 +124,7 @@ bool DFUInterface::processSetupInRequest(SetupPacket* request,
 }
 
 bool DFUInterface::processDownloadRequest(uint16_t wLength,
-                                          uint16_t* transferBufferLength) {
+                                          uint16_t *transferBufferLength) {
   if (m_state != State::dfuIDLE && m_state != State::dfuDNLOADIDLE) {
     m_state = State::dfuERROR;
     m_status = Status::errNOTDONE;
@@ -144,9 +142,9 @@ bool DFUInterface::processDownloadRequest(uint16_t wLength,
   return true;
 }
 
-bool DFUInterface::processUploadRequest(SetupPacket* request,
-                                        uint8_t* transferBuffer,
-                                        uint16_t* transferBufferLength,
+bool DFUInterface::processUploadRequest(SetupPacket *request,
+                                        uint8_t *transferBuffer,
+                                        uint16_t *transferBufferLength,
                                         uint16_t transferBufferMaxLength) {
   if (m_state != State::dfuIDLE && m_state != State::dfuUPLOADIDLE) {
     m_ep0->stallTransaction();
@@ -163,24 +161,23 @@ bool DFUInterface::processUploadRequest(SetupPacket* request,
     m_ep0->stallTransaction();
     return false;
   } else {
+    /* We decided to never protect Read operation. Else we would have to check
+     * here it is not protected before reading. */
+
     // Compute the reading address
     uint32_t readAddress =
         (request->wValue() - 2) * Endpoint0::MaxTransferSize + m_addressPointer;
-
     // Copy the requested memory zone into the transfer buffer.
     uint16_t copySize = minUint32T(transferBufferMaxLength, request->wLength());
-
-    if (interface(m_bInterfaceAlternateSetting)
-            ->read(readAddress, copySize, transferBuffer)) {
-      *transferBufferLength = copySize;
-    }
+    memcpy(transferBuffer, (void *)readAddress, copySize);
+    *transferBufferLength = copySize;
   }
   m_state = State::dfuUPLOADIDLE;
   return true;
 }
 
-void DFUInterface::setAddressPointerCommand(SetupPacket* request,
-                                            uint8_t* transferBuffer,
+void DFUInterface::setAddressPointerCommand(SetupPacket *request,
+                                            uint8_t *transferBuffer,
                                             uint16_t transferBufferLength) {
   assert(transferBufferLength == 5);
   // Compute the new address but change it after the next getStatus request.
@@ -202,7 +199,7 @@ void DFUInterface::changeAddressPointerIfNeeded() {
   m_status = Status::OK;
 }
 
-void DFUInterface::eraseCommand(uint8_t* transferBuffer,
+void DFUInterface::eraseCommand(uint8_t *transferBuffer,
                                 uint16_t transferBufferLength) {
   /* We determine whether the commands asks for a mass erase or which sector to
    * erase. The erase must be done after the next getStatus request. */
@@ -234,42 +231,58 @@ void DFUInterface::eraseMemoryIfNeeded() {
     return;
   }
 
-  bool erased = interface(m_bInterfaceAlternateSetting)->erase(m_erasePage);
-  if (erased) {
-    /* Put an out of range value in m_erasePage to indicate that no erase is
-     * waiting. */
-    m_erasePage = -1;
-    // Change the interface state and status
-    m_state = State::dfuDNLOADIDLE;
-    m_status = Status::OK;
+  bool erased = true;
+  if (m_erasePage == Flash::TotalNumberOfSectors()) {
+    Flash::MassEraseWithInterruptions(false);
   } else {
+    erased = Flash::EraseSectorWithInterruptions(m_erasePage, false);
+  }
+  if (!erased) {
     // Unrecognized or unwritable sector
     m_state = State::dfuERROR;
     m_status = Status::errTARGET;
   }
-  return;
+
+  /* Put an out of range value in m_erasePage to indicate that no erase is
+   * waiting. */
+  m_erasePage = -1;
+  m_state = State::dfuDNLOADIDLE;
+  m_status = Status::OK;
 }
 
 void DFUInterface::writeOnMemory() {
-  bool written =
-      interface(m_bInterfaceAlternateSetting)
-          ->write(m_writeAddress, m_largeBufferLength, m_largeBuffer);
-  if (written) {
-    // Reset the buffer length
-    m_largeBufferLength = 0;
-    // Change the interface state and status
-    m_state = State::dfuDNLOADIDLE;
-    m_status = Status::OK;
+  if (m_writeAddress >= Board::writableSRAMStartAddress() &&
+      m_writeAddress + m_largeBufferLength < Board::writableSRAMEndAddress()) {
+    // Write on SRAM
+    // FIXME We should check that we are not overriding the current
+    // instructions.
+    memcpy((void *)m_writeAddress, m_largeBuffer, m_largeBufferLength);
   } else {
-    // Invalid write address
-    m_largeBufferLength = 0;
-    m_state = State::dfuERROR;
-    m_status = Status::errTARGET;
+    int writeSector = Flash::SectorAtAddress(m_writeAddress);
+    bool written = false;
+    if (writeSector >= 0) {
+      written = Flash::WriteMemoryWithInterruptions(
+          reinterpret_cast<uint8_t *>(m_writeAddress), m_largeBuffer,
+          m_largeBufferLength, false);
+    }
+    if (!written) {
+      // Invalid write address
+      m_largeBufferLength = 0;
+      m_state = State::dfuERROR;
+      m_status = Status::errTARGET;
+      return;
+    }
   }
+
+  // Reset the buffer length
+  m_largeBufferLength = 0;
+  // Change the interface state and status
+  m_state = State::dfuDNLOADIDLE;
+  m_status = Status::OK;
 }
 
-bool DFUInterface::getStatus(SetupPacket* request, uint8_t* transferBuffer,
-                             uint16_t* transferBufferLength,
+bool DFUInterface::getStatus(SetupPacket *request, uint8_t *transferBuffer,
+                             uint16_t *transferBufferLength,
                              uint16_t transferBufferMaxLength) {
   // Change the status if needed
   if (m_state == State::dfuMANIFESTSYNC) {
@@ -283,8 +296,8 @@ bool DFUInterface::getStatus(SetupPacket* request, uint8_t* transferBuffer,
   return true;
 }
 
-bool DFUInterface::clearStatus(SetupPacket* request, uint8_t* transferBuffer,
-                               uint16_t* transferBufferLength,
+bool DFUInterface::clearStatus(SetupPacket *request, uint8_t *transferBuffer,
+                               uint16_t *transferBufferLength,
                                uint16_t transferBufferMaxLength) {
   m_status = Status::OK;
   m_state = State::dfuIDLE;
@@ -292,13 +305,13 @@ bool DFUInterface::clearStatus(SetupPacket* request, uint8_t* transferBuffer,
                    transferBufferMaxLength);
 }
 
-bool DFUInterface::getState(uint8_t* transferBuffer,
-                            uint16_t* transferBufferLength, uint16_t maxSize) {
+bool DFUInterface::getState(uint8_t *transferBuffer,
+                            uint16_t *transferBufferLength, uint16_t maxSize) {
   *transferBufferLength = StateData(m_state).copy(transferBuffer, maxSize);
   return true;
 }
 
-bool DFUInterface::dfuAbort(uint16_t* transferBufferLength) {
+bool DFUInterface::dfuAbort(uint16_t *transferBufferLength) {
   m_status = Status::OK;
   m_state = State::dfuIDLE;
   *transferBufferLength = 0;
@@ -308,53 +321,6 @@ bool DFUInterface::dfuAbort(uint16_t* transferBufferLength) {
 void DFUInterface::leaveDFUAndReset() {
   m_device->setResetOnDisconnect(true);
   m_device->detach();
-}
-
-uint32_t DFUInterface::leaveAddress() const {
-  return interface(m_bInterfaceAlternateSetting)
-      ->leaveAddress(m_addressPointer);
-}
-
-bool DFUMemoryBackend::rangeIsValid(uint32_t address, uint32_t length) const {
-  return m_base <= address && address + length <= m_base + m_length;
-}
-
-bool DFUMemoryBackend::read(uint32_t address, uint32_t length,
-                            uint8_t* destination) const {
-  if (!rangeIsValid(address, length)) {
-    return false;
-  }
-  /* 2048 is the maximum size that can be configured with wTransferSize in the
-   * DFU descriptor */
-  assert(length <= 2048);
-  memcpy(destination, reinterpret_cast<uint8_t*>(address), length);
-  return true;
-}
-
-bool DFURAMBackend::write(uint32_t address, uint32_t length,
-                          const uint8_t* source) const {
-  if (!rangeIsValid(address, length)) {
-    return false;
-  }
-  memcpy(reinterpret_cast<uint8_t*>(address), source, length);
-  return true;
-}
-
-bool DFUFlashBackend::write(uint32_t address, uint32_t length,
-                            const uint8_t* source) const {
-  if (!rangeIsValid(address, length)) {
-    return false;
-  }
-  return Flash::WriteMemoryWithInterruptions(
-      reinterpret_cast<uint8_t*>(address), source, length, false);
-}
-
-bool DFUFlashBackend::erase(uint32_t pageId) const {
-  if (pageId == static_cast<uint32_t>(Flash::TotalNumberOfSectors())) {
-    Flash::MassEraseWithInterruptions(false);
-    return true;
-  }
-  return Flash::EraseSectorWithInterruptions(pageId, false);
 }
 
 }  // namespace USB

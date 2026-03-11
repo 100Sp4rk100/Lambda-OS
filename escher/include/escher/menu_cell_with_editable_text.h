@@ -56,6 +56,11 @@ class AbstractWithEditableText : public Responder,
 
   void setEditable(bool isEditable) { m_editable = isEditable; }
 
+  void didBecomeFirstResponder() override {
+    if (m_editable) {
+      App::app()->setFirstResponder(&m_textField);
+    }
+  }
   TextField* textField() { return &m_textField; }
   virtual void relayout() = 0;
 
@@ -69,13 +74,11 @@ class AbstractWithEditableText : public Responder,
   }
 
  protected:
-  constexpr static KDGlyph::Format k_defaultFormat = {
-      .horizontalAlignment = KDGlyph::k_alignRight};
+  static KDGlyph::Format k_defaultFormat();
 
   TextField m_textField;
   char m_textBody[Poincare::PrintFloat::k_maxFloatCharSize];
   bool m_editable;
-  void handleResponderChainEvent(Responder::ResponderChainEvent event) override;
 };
 
 template <typename Label, typename SubLabel = EmptyCellWidget>

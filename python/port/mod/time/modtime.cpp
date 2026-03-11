@@ -8,6 +8,8 @@ extern "C" {
 
 #include "../../helpers.h"
 
+#include "apps/clock_timer.h"
+
 mp_obj_t modtime_sleep(mp_obj_t seconds_o) {
 #if MICROPY_PY_BUILTINS_FLOAT
   mp_float_t duration = mp_obj_get_float(seconds_o);
@@ -23,4 +25,23 @@ mp_obj_t modtime_sleep(mp_obj_t seconds_o) {
 
 mp_obj_t modtime_monotonic() {
   return mp_obj_new_float(Ion::Timing::millis() / 1000.0);
+}
+
+mp_obj_t modtime_getTime() {
+  return mp_obj_new_str(ClockTimer::ClockTimer::getAll(), 9);
+}
+
+mp_obj_t modtime_setTime(mp_obj_t h, mp_obj_t m, mp_obj_t s) {
+  int h_int = mp_obj_get_int(h);
+  int m_int = mp_obj_get_int(m);
+  int s_int = mp_obj_get_int(s);
+  if (h_int<24 && 0<=h_int && m_int<60 && 0<=m_int && s_int<60 && 0<=s_int){
+    ClockTimer::ClockTimer::set(h_int, m_int, s_int);
+  }
+  return mp_const_none;
+}
+
+mp_obj_t modtime_resetTime() {
+  ClockTimer::ClockTimer::init();
+  return mp_const_none;
 }

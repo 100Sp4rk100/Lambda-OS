@@ -4,11 +4,13 @@
 #include <escher/palette.h>
 #include <poincare/print_float.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 void AbstractEditableTextCell::setHighlighted(bool highlight) {
   HighlightCell::setHighlighted(highlight);
-  KDColor backgroundColor = highlight ? Palette::Select : KDColorWhite;
+  KDColor backgroundColor = highlight ? Theme::ThemeGestion::getColor("Select") : Theme::ThemeGestion::getColor("KDColorWhite");
   textField()->setBackgroundColor(backgroundColor);
 }
 
@@ -31,13 +33,8 @@ void AbstractEditableTextCell::layoutSubviews(bool force) {
   setChildFrame(textField(), cellBounds, force);
 }
 
-void AbstractEditableTextCell::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(textField());
-  } else {
-    Responder::handleResponderChainEvent(event);
-  }
+void AbstractEditableTextCell::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(textField());
 }
 
 KDSize AbstractEditableTextCell::minimalSizeForOptimalDisplay() const {

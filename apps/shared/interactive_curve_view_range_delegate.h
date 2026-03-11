@@ -1,7 +1,6 @@
 #ifndef SHARED_INTERACTIVE_CURVE_VIEW_DELEGATE_H
 #define SHARED_INTERACTIVE_CURVE_VIEW_DELEGATE_H
 
-#include <apps/math_preferences.h>
 #include <assert.h>
 #include <poincare/context.h>
 #include <poincare/range.h>
@@ -26,8 +25,8 @@ class InteractiveCurveViewRangeDelegate {
     return (static_cast<uint64_t>(
                 Ion::Storage::FileSystem::sharedFileSystem->checksum())
             << 32) +
-           static_cast<uint64_t>(
-               MathPreferences::SharedPreferences()->mathPreferencesCheckSum());
+           static_cast<uint64_t>(Poincare::Preferences::SharedPreferences()
+                                     ->mathPreferencesCheckSum());
   }
   virtual Poincare::Range2D<float> optimalRange(
       bool computeX, bool computeY,
@@ -37,7 +36,7 @@ class InteractiveCurveViewRangeDelegate {
   Poincare::Range2D<float> addMargins(Poincare::Range2D<float> range) const;
   virtual void refreshCursorAfterComputingRange() = 0;
   virtual void updateZoomButtons() = 0;
-  virtual void tidyModels(const Poincare::PoolObject* treePoolCursor) = 0;
+  virtual void tidyModels(Poincare::TreeNode* treePoolCursor) = 0;
 };
 
 }  // namespace Shared

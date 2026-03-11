@@ -40,7 +40,7 @@ void ColorsLCDTestController::ContentView::setColor(KDColor color) {
 }
 
 void ColorsLCDTestController::ContentView::layoutSubviews(bool force) {
-  setChildFrame(&m_colorsLCDStateView, Ion::Display::Rect, force);
+  setChildFrame(&m_colorsLCDStateView, KDRectScreen, force);
 }
 
 }  // namespace HardwareTest

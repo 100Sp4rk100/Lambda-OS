@@ -1,4 +1,7 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/elements/,$(addsuffix :-test, \
+apps += Elements::App
+app_headers += apps/elements/app.h
+
+app_elements_src = $(addprefix apps/elements/,\
   app.cpp \
   banner_view.cpp \
   data_field.cpp \
@@ -11,9 +14,11 @@ SOURCES_apps += $(addprefix $(PATH_apps)/elements/,$(addsuffix :-test, \
   single_element_view.cpp \
   suggestion_text_field.cpp \
   table_layout.cpp \
-  elements_icon.png \
-))
+)
 
-$(call depends_on_image,$(PATH_apps)/elements/app.cpp,$(PATH_apps)/elements/elements_icon.png)
+apps_src += $(app_elements_src)
 
-$(call i18n_with_universal,elements/i18n/base)
+i18n_files += $(call i18n_with_universal_for,elements/i18n/base)
+
+$(eval $(call depends_on_image,apps/elements/app.cpp,apps/elements/elements_icon.png))
+$(eval $(call depends_on_image,apps/elements/app.cpp,apps/elements/elements_icon_epsilon.png))

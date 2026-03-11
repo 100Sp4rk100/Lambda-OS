@@ -60,9 +60,8 @@ class StoreColumnHelper {
 
   /* Fill with formula */
   void displayFormulaInput();
-  void fillFormulaInputWithTemplate(const Poincare::Layout& templateLayout);
-  void fillFormulaInputWithFormula(const Poincare::Layout& formulaLayout);
-  bool fillColumnWithFormula(const Poincare::Layout& formulaLayout);
+  void fillFormulaInputWithTemplate(Poincare::Layout layout);
+  bool fillColumnWithFormula(const char* text);
 
   /* Clear series */
   size_t fillColumnNameFromStore(int column, char* buffer) {
@@ -84,7 +83,7 @@ class StoreColumnHelper {
   virtual Poincare::Layout memoizedFormula(int index) {
     return Poincare::Layout();
   }
-  virtual void memoizeFormula(const Poincare::Layout& formula, int index) {}
+  virtual void memoizeFormula(Poincare::Layout formula, int index) {}
   int formulaMemoizationIndex(int series, int relativeColumn);
   enum class FillColumnStatus : uint8_t {
     Success,
@@ -93,7 +92,8 @@ class StoreColumnHelper {
     DataNotSuitable,
   };
   FillColumnStatus privateFillColumnWithFormula(
-      const Poincare::Layout& formulaLayout, int* series, int* column);
+      const char* text, int* series, int* column,
+      Poincare::Layout* formulaLayout);
 
   ClearColumnHelper* m_clearColumnHelper;
   /* Fill with formula */

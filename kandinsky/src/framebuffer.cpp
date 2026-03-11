@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <kandinsky/framebuffer.h>
 #include <string.h>
 
@@ -8,13 +7,10 @@ KDFrameBuffer::KDFrameBuffer(KDColor* pixels, KDSize size)
 KDRect KDFrameBuffer::bounds() { return KDRect(KDPointZero, m_size); }
 
 KDColor* KDFrameBuffer::pixelAddress(KDPoint p) const {
-  assert(p.x() >= 0 && p.y() >= 0 && m_size.isValid());
-  assert(p.x() < m_size.width() && p.y() < m_size.height());
   return m_pixels + p.x() + p.y() * m_size.width();
 }
 
 void KDFrameBuffer::pushRect(KDRect rect, const KDColor* pixels) {
-  assert(rect.isValid());
   const KDColor* line = pixels;
   for (KDCoordinate j = 0; j < rect.height(); j++) {
     KDPoint lineOffset = KDPoint(0, j);
@@ -25,7 +21,6 @@ void KDFrameBuffer::pushRect(KDRect rect, const KDColor* pixels) {
 }
 
 void KDFrameBuffer::pushRectUniform(KDRect rect, KDColor color) {
-  assert(rect.isValid());
   // Caution: this code is used very frequently. It's worth optimizing!
   KDColor* pixel = pixelAddress(rect.origin());
   int lineDelta = m_size.width() - rect.width();
@@ -42,7 +37,6 @@ void KDFrameBuffer::pushRectUniform(KDRect rect, KDColor color) {
 }
 
 void KDFrameBuffer::pullRect(KDRect rect, KDColor* pixels) {
-  assert(rect.isValid());
   KDColor* line = pixels;
   for (KDCoordinate j = 0; j < rect.height(); j++) {
     KDPoint lineOffset = KDPoint(0, j);

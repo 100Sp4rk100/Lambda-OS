@@ -2,6 +2,8 @@
 #include <escher/alternate_empty_view_controller.h>
 #include <escher/container.h>
 
+using namespace Poincare;
+
 namespace Escher {
 
 /* ContentView */
@@ -10,17 +12,17 @@ AlternateEmptyViewController::ContentView::ContentView(
     ViewController* mainViewController, AlternateEmptyViewDelegate* delegate)
     : m_mainViewController(mainViewController),
       m_delegate(delegate),
-      m_isEmpty(OMG::Troolean::Unknown) {}
+      m_isEmpty(TrinaryBoolean::Unknown) {}
 
 bool AlternateEmptyViewController::ContentView::isEmpty() {
-  if (m_isEmpty == OMG::Troolean::Unknown) {
-    m_isEmpty = OMG::BoolToTroolean(m_delegate->isEmpty());
+  if (m_isEmpty == TrinaryBoolean::Unknown) {
+    m_isEmpty = BinaryToTrinaryBool(m_delegate->isEmpty());
   }
-  return OMG::TrooleanToBool(m_isEmpty);
+  return TrinaryToBinaryBool(m_isEmpty);
 }
 
 View* AlternateEmptyViewController::ContentView::currentView() {
-  assert(m_isEmpty == OMG::BoolToTroolean(m_delegate->isEmpty()));
+  assert(m_isEmpty == BinaryToTrinaryBool(m_delegate->isEmpty()));
   return isEmpty() ? m_delegate->emptyView() : m_mainViewController->view();
 }
 
@@ -41,26 +43,20 @@ AlternateEmptyViewController::AlternateEmptyViewController(
     : ViewController(parentResponder),
       m_contentView(mainViewController, delegate) {}
 
-const char* AlternateEmptyViewController::title() const {
+const char* AlternateEmptyViewController::title() {
   return m_contentView.mainViewController()->title();
 }
 
-ViewController::TitlesDisplay AlternateEmptyViewController::titlesDisplay()
-    const {
+ViewController::TitlesDisplay AlternateEmptyViewController::titlesDisplay() {
   return m_contentView.mainViewController()->titlesDisplay();
 }
 
-void AlternateEmptyViewController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (!m_contentView.isEmpty()) {
-      App::app()->setFirstResponder(m_contentView.mainViewController());
-    } else {
-      App::app()->setFirstResponder(
-          m_contentView.alternateEmptyViewDelegate()->responderWhenEmpty());
-    }
+void AlternateEmptyViewController::didBecomeFirstResponder() {
+  if (!m_contentView.isEmpty()) {
+    App::app()->setFirstResponder(m_contentView.mainViewController());
   } else {
-    Escher::ViewController::handleResponderChainEvent(event);
+    App::app()->setFirstResponder(
+        m_contentView.alternateEmptyViewDelegate()->responderWhenEmpty());
   }
 }
 

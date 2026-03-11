@@ -5,7 +5,6 @@
 #include <poincare/exception_checkpoint.h>
 
 #include <algorithm>
-#include <array>
 
 #include "../app.h"
 
@@ -15,6 +14,13 @@ using namespace Shared;
 namespace Graph {
 
 // PointsOfInterestCache
+
+PointsOfInterestCache PointsOfInterestCache::clone() const {
+  PointsOfInterestCache result = *this;
+  Expression cloneList = result.list().clone();
+  result.m_list.setList(static_cast<List &>(cloneList));
+  return result;
+}
 
 void PointsOfInterestCache::setBounds(float start, float end) {
   assert(start <= end);
@@ -51,23 +57,15 @@ bool PointsOfInterestCache::computeUntilNthPoint(int n) {
   return true;
 }
 
-bool PointsOfInterestCache::PointFitInterest(
-    PointOfInterest poi, Solver<double>::Interest interest) {
-  return interest == Solver<double>::Interest::None ||
-         poi.interest == interest ||
-         (interest == Solver<double>::Interest::Intersection &&
-          poi.interest == Solver<double>::Interest::UnreachedIntersection);
-}
-
 int PointsOfInterestCache::numberOfPoints(
-    Solver<double>::Interest interest) const {
+    Poincare::Solver<double>::Interest interest) const {
   int n = numberOfPoints();
   if (interest == Poincare::Solver<double>::Interest::None) {
     return n;
   }
   int result = 0;
   for (int i = 0; i < n; i++) {
-    if (PointFitInterest(pointAtIndex(i), interest)) {
+    if (pointAtIndex(i).interest() == interest) {
       result++;
     }
   }
@@ -75,7 +73,7 @@ int PointsOfInterestCache::numberOfPoints(
 }
 
 PointOfInterest PointsOfInterestCache::firstPointInDirection(
-    double start, double end, bool stretch, Solver<double>::Interest interest,
+    double start, double end, Solver<double>::Interest interest,
     int subCurveIndex) {
   if (start == end) {
     return PointOfInterest();
@@ -91,30 +89,19 @@ PointOfInterest PointsOfInterestCache::firstPointInDirection(
   for (int i = firstIndex; direction * i <= direction * lastIndex;
        i += direction) {
     PointOfInterest p = pointAtIndex(i);
-    if (direction * p.abscissa < direction * start ||
-        (!stretch && p.abscissa == start)) {
+    if (direction * p.abscissa() <= direction * start) {
       continue;
     }
-    if (direction * p.abscissa > direction * end ||
-        (!stretch && p.abscissa == end)) {
+    if (direction * p.abscissa() >= direction * end) {
       break;
     }
-    if (PointFitInterest(p, interest) && p.subCurveIndex == subCurveIndex) {
-      /* Select in priority the reached discontinuity point: if the point is an
-       * unreached discontinuity, check if there is a reached discontinuity at
-       * the same abscissa. */
-      if (p.interest == Solver<double>::Interest::UnreachedDiscontinuity &&
-          direction * (i + direction) <= direction * lastIndex) {
-        PointOfInterest nextP = pointAtIndex(i + direction);
-        if (nextP.interest == Solver<double>::Interest::ReachedDiscontinuity &&
-            nextP.x() == p.x()) {
-          return nextP;
-        }
-      }
+    if ((interest == Solver<double>::Interest::None ||
+         interest == p.interest()) &&
+        p.subCurveIndex() == subCurveIndex) {
       return p;
     }
   }
-  return PointOfInterest{};
+  return PointOfInterest();
 }
 
 bool PointsOfInterestCache::hasInterestAtCoordinates(
@@ -122,7 +109,9 @@ bool PointsOfInterestCache::hasInterestAtCoordinates(
   int n = numberOfPoints();
   for (int i = 0; i < n; i++) {
     PointOfInterest p = pointAtIndex(i);
-    if (p.x() == x && p.y() == y && PointFitInterest(p, interest)) {
+    if (p.x() == x && p.y() == y &&
+        (interest == Solver<double>::Interest::None ||
+         p.interest() == interest)) {
       return true;
     }
   }
@@ -138,236 +127,70 @@ bool PointsOfInterestCache::hasDisplayableInterestAtCoordinates(
     // Ignore interest point if it is not displayed.
     return false;
   }
-  return hasInterestAtCoordinates(x, y, interest);
-}
-
-bool PointsOfInterestCache::hasDisplayableUnreachedInterestAtCoordinates(
-    double x, double y) const {
-  using Interest = Poincare::Solver<double>::Interest;
-  for (Interest interest :
-       {Interest::UnreachedDiscontinuity, Interest::UnreachedIntersection}) {
-    if (canDisplayPoints(interest) &&
-        hasInterestAtCoordinates(x, y, interest)) {
-      return true;
-    }
-  }
-  return false;
+  return PointsOfInterestCache::hasInterestAtCoordinates(x, y, interest);
 }
 
 float PointsOfInterestCache::step() const {
   /* If the bounds are large enough, there might be less than k_numberOfSteps
    * floats between them. */
   float result = (m_end - m_start) / k_numberOfSteps;
-  float minimalStep = std::max(std::fabs(m_end), std::fabs(m_start)) *
-                      OMG::Float::Epsilon<float>();
+  float minimalStep =
+      std::max(std::fabs(m_end), std::fabs(m_start)) * Float<float>::Epsilon();
   return std::max(result, minimalStep);
 }
 
 void PointsOfInterestCache::stripOutOfBounds() {
   assert(!m_list.isUninitialized());
-  m_list.filterOutOfBounds(m_start, m_end);
+
+  int initialNumberOfPoints = numberOfPoints();
+  for (int i = initialNumberOfPoints - 1; i >= 0; i--) {
+    float x = static_cast<float>(pointAtIndex(i).abscissa());
+    if (x < m_start || m_end < x) {
+      m_list.list().removeChildAtIndexInPlace(i);
+      m_interestingPointsOverflowPool = false;
+    }
+  }
 }
 
 bool PointsOfInterestCache::computeNextStep(bool allowUserInterruptions) {
-  Expression newPoints;
+  // Clone the cache to prevent modifying the pool before the checkpoint
+  PointsOfInterestCache cacheClone;
   {
-    CircuitBreakerCheckpoint cbcp(Ion::CircuitBreaker::CheckpointType::AnyKey);
-    if (!allowUserInterruptions || CircuitBreakerRun(cbcp)) {
-      if (m_computedEnd < m_end) {
-        newPoints = computeBetween(
-            m_computedEnd, std::clamp(m_computedEnd + step(), m_start, m_end));
-      } else if (m_computedStart > m_start) {
-        newPoints =
-            computeBetween(std::clamp(m_computedStart - step(), m_start, m_end),
-                           m_computedStart);
+    /* Always use an ExceptionCheckpoint in case cloning or computing interest
+     * points overflows the pool. */
+    ExceptionCheckpoint ecp;
+    if (ExceptionRun(ecp)) {
+      /* If allowed, use a CircuitBreakerCheckpoint so that computation can be
+       * interrupted to allow plot navigation in parallel of computation. */
+      CircuitBreakerCheckpoint checkpoint(
+          Ion::CircuitBreaker::CheckpointType::AnyKey);
+      if (!allowUserInterruptions || CircuitBreakerRun(checkpoint)) {
+        cacheClone = clone();
+        if (m_computedEnd < m_end) {
+          cacheClone.computeBetween(
+              m_computedEnd,
+              std::clamp(m_computedEnd + step(), m_start, m_end));
+        } else if (m_computedStart > m_start) {
+          cacheClone.computeBetween(
+              std::clamp(m_computedStart - step(), m_start, m_end),
+              m_computedStart);
+        }
+      } else {
+        tidyDownstreamPoolFrom(checkpoint.endOfPoolBeforeCheckpoint());
+        return false;
       }
     } else {
-      tidyDownstreamPoolFrom(cbcp.endOfPoolBeforeCheckpoint());
+      // TODO : Notify the user that the pool is full
+      m_interestingPointsOverflowPool = true;
+      tidyDownstreamPoolFrom(ecp.endOfPoolBeforeCheckpoint());
       return false;
     }
   }
-  if (newPoints.isUninitialized() || !m_list.merge(newPoints)) {
-    m_interestingPointsOverflowPool = true;
-    return false;
-  }
+  *this = cacheClone;
   return true;
 }
 
-namespace {
-
-struct PointSearchContext {
-  const float start, end;
-  Context* const context;
-  ContinuousFunctionStore* const store;
-  const float searchStep;
-  Solver<double> solver;
-  Ion::Storage::Record record;
-
-  size_t currentProvider = 0;
-  int counter = 0;
-  Ion::Storage::Record otherRecord;
-
-  void reinitSolver() {
-    solver = {start, end, context};
-    solver.setSearchStep(searchStep);
-    solver.stretch();
-  }
-  ExpiringPointer<ContinuousFunction> model() const {
-    return store->modelForRecord(record);
-  }
-};
-
-PointOfInterest findYIntercept(void* searchContext) {
-  PointSearchContext* ctx = static_cast<PointSearchContext*>(searchContext);
-  if (ctx->start < 0.f && 0.f < ctx->end) {
-    ExpiringPointer<ContinuousFunction> f = ctx->model();
-    int n = f->numberOfSubCurves();
-    while (ctx->counter < n) {
-      uint8_t subCurve = ctx->counter++;
-      Coordinate2D<double> xy =
-          f->evaluateXYAtParameter(0., ctx->context, subCurve);
-      if (std::isfinite(xy.x()) && std::isfinite(xy.y())) {
-        if (f->isAlongY()) {
-          xy = Coordinate2D<double>(xy.y(), xy.x());
-        }
-        return {xy.x(),
-                xy.y(),
-                0,
-                Solver<double>::Interest::YIntercept,
-                f->isAlongY(),
-                static_cast<uint8_t>(subCurve)};
-      }
-    }
-  }
-  return PointOfInterest{};
-}
-
-PointOfInterest findRootOrExtremum(void* searchContext) {
-  PointSearchContext* ctx = static_cast<PointSearchContext*>(searchContext);
-
-  ExpiringPointer<ContinuousFunction> f = ctx->model();
-  if (f->numberOfSubCurves() != 1) {
-    // Only y-intercept
-    return PointOfInterest{};
-  }
-
-  using NextSolution =
-      Solver<double>::Solution (Solver<double>::*)(const Internal::Tree*);
-  NextSolution methodsNext[] = {
-      &Solver<double>::nextRoot, &Solver<double>::nextMinimum,
-      &Solver<double>::nextMaximum, &Solver<double>::nextDiscontinuity};
-  while (ctx->counter < static_cast<int>(std::size(methodsNext))) {
-    NextSolution next = methodsNext[ctx->counter];
-    if (next != static_cast<NextSolution>(&Solver<double>::nextRoot) &&
-        f->isAlongY()) {
-      // Do not compute min and max since they would appear left/rightmost
-      ++ctx->counter;
-      continue;
-    }
-    ctx->solver.setGrowthSpeed(Solver<double>::GrowthSpeed::Fast);
-    Solver<double>::Solution solution;
-    while (
-        std::isfinite((solution = (ctx->solver.*next)(f->expressionApproximated(
-                           ctx->context)) /* assignment in expression */)
-                          .x())) {
-      /* Loop over finite solutions to exhaust solutions out of the interval
-       * without returning NAN. */
-      if (solution.xy().xIsIn(ctx->start, ctx->end, true, false)) {
-        return {
-            solution.x(),        solution.y(),  0,
-            solution.interest(), f->isAlongY(), 0,
-        };
-      }
-    }
-    ++ctx->counter;
-    ctx->reinitSolver();
-  }
-  return PointOfInterest{};
-}
-
-PointOfInterest findIntersections(void* searchContext) {
-  PointSearchContext* ctx = static_cast<PointSearchContext*>(searchContext);
-  /* Do not compute intersections if store is full because re-creating a
-   * ContinuousFunction object each time a new function is intersected
-   * is very slow. */
-  ExpiringPointer<ContinuousFunction> f = ctx->model();
-  if ((ctx->store->memoizationOverflows() ||
-       !f->shouldDisplayIntersections())) {
-    return PointOfInterest{};
-  }
-  SystemFunction memoizedOtherFunction;
-  int n = ctx->store->numberOfModels();
-  SystemFunction e = f->expressionApproximated(ctx->context);
-  bool alongY = f->isAlongY();
-  bool fIsStrict = f->properties().isStrictInequality();
-  while (ctx->counter < n) {
-    int otherFunctionIndex = ctx->counter;
-    if (memoizedOtherFunction.isUninitialized()) {
-      ctx->otherRecord = ctx->store->recordAtIndex(otherFunctionIndex);
-      if (ctx->record == ctx->otherRecord) {
-        ++ctx->counter;
-        continue;
-      }
-      ExpiringPointer<ContinuousFunction> g =
-          ctx->store->modelForRecord(ctx->otherRecord);
-      if (!g->shouldDisplayIntersections()) {
-        ++ctx->counter;
-        continue;
-      }
-      memoizedOtherFunction = g->expressionApproximated(ctx->context);
-    }
-    ctx->solver.setGrowthSpeed(Solver<double>::GrowthSpeed::Precise);
-    Solver<double>::Solution solution;
-    while (std::isfinite(
-        (solution = ctx->solver.nextIntersection(e, memoizedOtherFunction))
-            .x())) {
-      /* Loop over finite solutions to exhaust solutions out of the interval
-       * without returning NAN. */
-      if (solution.xy().xIsIn(ctx->start, ctx->end, true, false)) {
-        ExpiringPointer<ContinuousFunction> g =
-            ctx->store->modelForRecord(ctx->otherRecord);
-        bool gIsStrict = g->properties().isStrictInequality();
-        assert(solution.interest() == Solver<double>::Interest::Intersection);
-        return {
-            solution.x(),
-            solution.y(),
-            static_cast<uint32_t>(ctx->otherRecord),
-            fIsStrict || gIsStrict
-                ? Solver<double>::Interest::UnreachedIntersection
-                : Solver<double>::Interest::Intersection,
-            alongY,
-            0,
-        };
-      }
-    }
-    ++ctx->counter;
-    memoizedOtherFunction = SystemFunction{};
-    ctx->reinitSolver();
-  }
-
-  return PointOfInterest{};
-}
-
-PointOfInterest findPoints(void* searchContext) {
-  PointSearchContext* ctx = static_cast<PointSearchContext*>(searchContext);
-
-  constexpr PointsOfInterestList::Provider providers[] = {
-      findYIntercept, findRootOrExtremum, findIntersections};
-
-  for (; ctx->currentProvider < std::size(providers); ctx->currentProvider++) {
-    PointOfInterest p = providers[ctx->currentProvider](ctx);
-    if (!p.isUninitialized()) {
-      return p;
-    }
-    ctx->counter = 0;
-  }
-
-  return PointOfInterest{};
-}
-
-}  // namespace
-
-Expression PointsOfInterestCache::computeBetween(float start, float end) {
+void PointsOfInterestCache::computeBetween(float start, float end) {
   assert(!m_record.isNull());
   assert(m_checksum == Ion::Storage::FileSystem::sharedFileSystem->checksum());
   assert(!m_list.isUninitialized());
@@ -381,33 +204,113 @@ Expression PointsOfInterestCache::computeBetween(float start, float end) {
     m_computedEnd = end;
   }
 
-  ContinuousFunctionStore* store = App::app()->functionStore();
-  Context* context = App::app()->localContext();
+  float searchStep = Solver<double>::MaximalStep(m_start - m_end);
 
-  PointSearchContext searchContext{
-      .start = start,
-      .end = end,
-      .context = context,
-      .store = store,
-      .searchStep = static_cast<float>(
-          Solver<double>::DefaultSearchStepForAmplitude(m_start - m_end)),
-      .solver = {start, end, context},
-      .record = m_record,
-  };
-  searchContext.reinitSolver();
+  ContinuousFunctionStore *store = App::app()->functionStore();
+  Context *context = App::app()->localContext();
+  ExpiringPointer<ContinuousFunction> f = store->modelForRecord(m_record);
+  Expression e = f->expressionApproximated(context);
 
-  return PointsOfInterestList::BuildStash(findPoints, &searchContext);
+  if (start < 0.f && 0.f < end) {
+    for (int curveIndex = 0; curveIndex < f->numberOfSubCurves();
+         curveIndex++) {
+      Coordinate2D<double> xy =
+          f->evaluateXYAtParameter(0., context, curveIndex);
+      if (std::isfinite(xy.x()) && std::isfinite(xy.y())) {
+        if (f->isAlongY()) {
+          xy = Coordinate2D<double>(xy.y(), xy.x());
+        }
+        append(xy.x(), xy.y(), Solver<double>::Interest::YIntercept, 0,
+               curveIndex);
+      }
+    }
+  }
+
+  typedef Coordinate2D<double> (Solver<double>::*NextSolution)(
+      const Expression &e);
+  NextSolution methodsNext[] = {&Solver<double>::nextRoot,
+                                &Solver<double>::nextMinimum,
+                                &Solver<double>::nextMaximum};
+  for (NextSolution next : methodsNext) {
+    if (next != static_cast<NextSolution>(&Solver<double>::nextRoot) &&
+        f->isAlongY()) {
+      // Do not compute min and max since they would appear left/rightmost
+      continue;
+    }
+    Solver<double> solver = PoincareHelpers::Solver<double>(
+        start, end, ContinuousFunction::k_unknownName, context);
+    solver.setSearchStep(searchStep);
+    solver.stretch();
+    solver.setGrowthSpeed(Solver<double>::GrowthSpeed::Fast);
+    Coordinate2D<double> solution;
+    while (std::isfinite(
+        (solution = (solver.*next)(e)).x())) {  // assignment in condition
+      /* Ensure that the solution is in [start, end), even if the interval was
+       * stretched. */
+      if (!solution.xIsIn(start, end, true, false)) {
+        continue;
+      }
+      append(solution.x(), solution.y(), solver.lastInterest());
+    }
+  }
+
+  /* Do not compute intersections if store is full because re-creating a
+   * ContinuousFunction object each time a new function is intersected
+   * is very slow. */
+  if (store->memoizationOverflows() || !f->shouldDisplayIntersections()) {
+    return;
+  }
+
+  int n = store->numberOfActiveFunctions();
+  for (int i = 0; i < n; i++) {
+    Ion::Storage::Record record = store->activeRecordAtIndex(i);
+    if (record == m_record) {
+      continue;
+    }
+    ExpiringPointer<ContinuousFunction> g = store->modelForRecord(record);
+    if (!g->shouldDisplayIntersections()) {
+      continue;
+    }
+    Expression e2 = g->expressionApproximated(context);
+    Solver<double> solver = PoincareHelpers::Solver<double>(
+        start, end, ContinuousFunction::k_unknownName, context);
+    solver.setSearchStep(searchStep);
+    solver.stretch();
+    Expression diff;
+    Coordinate2D<double> intersection;
+    while (std::isfinite((intersection = solver.nextIntersection(e, e2, &diff))
+                             .x())) {  // assignment in condition
+      assert(sizeof(record) == sizeof(uint32_t));
+      /* Ensure that the intersection is in [start, end), even if the interval
+       * was stretched. */
+      if (!intersection.xIsIn(start, end, true, false)) {
+        continue;
+      }
+      append(intersection.x(), intersection.y(),
+             Solver<double>::Interest::Intersection,
+             *reinterpret_cast<uint32_t *>(&record));
+    }
+  }
+}
+
+void PointsOfInterestCache::append(double x, double y,
+                                   Solver<double>::Interest interest,
+                                   uint32_t data, int subCurveIndex) {
+  assert(std::isfinite(x) && std::isfinite(y));
+  ExpiringPointer<ContinuousFunction> f =
+      App::app()->functionStore()->modelForRecord(m_record);
+  m_list.append(x, y, data, interest, f->isAlongY(), subCurveIndex);
 }
 
 void PointsOfInterestCache::tidyDownstreamPoolFrom(
-    const PoolObject* treePoolCursor) const {
-  ContinuousFunctionStore* store = App::app()->functionStore();
+    TreeNode *treePoolCursor) const {
+  ContinuousFunctionStore *store = App::app()->functionStore();
   int n = store->numberOfActiveFunctions();
   for (int i = 0; i < n; i++) {
     store->modelForRecord(store->activeRecordAtIndex(i))
         ->tidyDownstreamPoolFrom(treePoolCursor);
   }
-  GlobalContext::s_sequenceStore->tidyDownstreamPoolFrom(treePoolCursor);
+  App::app()->localContext()->tidyDownstreamPoolFrom(treePoolCursor);
 }
 
 }  // namespace Graph

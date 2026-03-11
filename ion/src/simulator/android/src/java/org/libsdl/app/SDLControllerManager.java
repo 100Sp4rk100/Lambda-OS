@@ -370,7 +370,7 @@ class SDLJoystickHandler_API19 extends SDLJoystickHandler_API16 {
             (1 << 12),  // DPAD_DOWN -> DPAD_DOWN
             (1 << 13),  // DPAD_LEFT -> DPAD_LEFT
             (1 << 14),  // DPAD_RIGHT -> DPAD_RIGHT
-            (1 << 4),   // SELECT -> BACK
+            (1 << 4),   // LAMDA_gray_light_palette -> BACK
             (1 << 0),   // DPAD_CENTER -> A
             (1 << 15),  // L2 -> ??
             (1 << 16),  // R2 -> ??

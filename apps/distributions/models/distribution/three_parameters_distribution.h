@@ -7,12 +7,13 @@ namespace Distributions {
 
 class ThreeParametersDistribution : public Distribution {
  public:
-  ThreeParametersDistribution(Poincare::Distribution::Type type)
+  ThreeParametersDistribution(Poincare::Distribution::Type type,
+                              double parameterValue1, double parameterValue2,
+                              double parameterValue3)
       : Distribution(type),
-        m_parameters{Poincare::Distribution::DefaultParameterAtIndex(type, 0),
-                     Poincare::Distribution::DefaultParameterAtIndex(type, 1),
-                     Poincare::Distribution::DefaultParameterAtIndex(type, 2)} {
-  }
+        m_parameters{parameterValue1, parameterValue2, parameterValue3} {}
+  int numberOfParameters() override { return 3; }
+  const double* constParametersArray() const override { return m_parameters; }
 
  protected:
   double* parametersArray() override { return m_parameters; }

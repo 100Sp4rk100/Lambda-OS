@@ -23,12 +23,12 @@ class CurveSelectionCellWithAccessory
   CurveSelectionCellWithAccessory()
       : Escher::MenuCell<Escher::LayoutView, Escher::EmptyCellWidget,
                          Accessory>(),
-        m_color(KDColorBlack) {}
-  void drawRect(KDContext* ctx, KDRect rect) const override {
+        m_color(Theme::ThemeGestion::getColor("KDColorBlack")) {}
+  void drawRect(KDContext *ctx, KDRect rect) const override {
     Escher::MenuCell<Escher::LayoutView, Escher::EmptyCellWidget,
                      Accessory>::drawRect(ctx, rect);
     // Draw the color indicator
-    assert(m_color != KDColorBlack);  // Check that the color was set
+    assert(m_color != Theme::ThemeGestion::getColor("KDColorBlack"));  // Check that the color was set
     ctx->fillRect(
         KDRect(0, 0, k_colorIndicatorThickness, this->bounds().height()),
         m_color);
@@ -51,16 +51,16 @@ class InteractiveCurveViewController;
 class CurveSelectionController
     : public Escher::SelectableListViewController<Escher::ListViewDataSource> {
  public:
-  CurveSelectionController(InteractiveCurveViewController* graphController);
+  CurveSelectionController(InteractiveCurveViewController *graphController);
 
   void viewWillAppear() override { m_selectableListView.reloadData(); }
   bool handleEvent(Ion::Events::Event event) override;
   int typeAtRow(int row) const override { return k_curveSelectionCellType; }
-  CurveSelectionCellWithChevron* reusableCell(int index, int type) override = 0;
+  CurveSelectionCellWithChevron *reusableCell(int index, int type) override = 0;
 
  protected:
   constexpr static int k_curveSelectionCellType = 0;
-  InteractiveCurveViewController* m_graphController;
+  InteractiveCurveViewController *m_graphController;
 };
 
 }  // namespace Shared

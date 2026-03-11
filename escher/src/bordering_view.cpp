@@ -1,10 +1,12 @@
 #include <escher/bordering_view.h>
 #include <escher/palette.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 void BorderingView::drawRect(KDContext* ctx, KDRect rect) const {
-  drawBorderOfRect(ctx, bounds(), Palette::Select);
+  drawBorderOfRect(ctx, bounds(), Theme::ThemeGestion::getColor("Select"));
 }
 
 KDSize BorderingView::minimalSizeForOptimalDisplay() const {

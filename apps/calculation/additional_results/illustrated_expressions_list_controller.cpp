@@ -1,7 +1,11 @@
 #include "illustrated_expressions_list_controller.h"
 
 #include <apps/shared/poincare_helpers.h>
-#include <poincare/src/expression/projection.h>
+#include <poincare/exception_checkpoint.h>
+#include <poincare/multiplication.h>
+#include <poincare/rational.h>
+#include <poincare/symbol.h>
+#include <poincare/trigonometry.h>
 
 #include "../app.h"
 #include "additional_result_cell.h"
@@ -12,12 +16,9 @@ using namespace Escher;
 
 namespace Calculation {
 
-void IllustratedExpressionsListController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    selectRow(1);
-  }
-  ChainedExpressionsListController::handleResponderChainEvent(event);
+void IllustratedExpressionsListController::didBecomeFirstResponder() {
+  selectRow(1);
+  ExpressionsListController::didBecomeFirstResponder();
 }
 
 void IllustratedExpressionsListController::viewWillAppear() {
@@ -73,24 +74,28 @@ void IllustratedExpressionsListController::setShowIllustration(
   m_listController.selectableListView()->resetSizeAndOffsetMemoization();
 }
 
-Layout IllustratedExpressionsListController::layoutAtIndex(HighlightCell* cell,
-                                                           int index) {
+size_t IllustratedExpressionsListController::textAtIndex(char* buffer,
+                                                         size_t bufferSize,
+                                                         HighlightCell* cell,
+                                                         int index) {
   if (index == 0) {
     // Illustration cell does not have a text
-    return Layout();
+    buffer[0] = 0;
+    return 0;
   }
-  return ChainedExpressionsListController::layoutAtIndex(cell, index - 1);
+  return ChainedExpressionsListController::textAtIndex(buffer, bufferSize, cell,
+                                                       index - 1);
 }
 
-// Create layout for formula, simplified expression and approximated expression.
 void IllustratedExpressionsListController::setLineAtIndex(
-    int index, const UserExpression formula, const UserExpression expression,
-    const Internal::ProjectionContext* ctx) {
-  m_layouts[index] =
-      Shared::PoincareHelpers::CreateLayout(formula, ctx->m_context);
-  m_exactLayouts[index] = GetExactLayoutFromExpression(
-      expression, ctx, &(m_approximatedLayouts[index]),
-      &(m_isStrictlyEqual[index]));
-}
+    int index, Expression formula, Expression expression,
+    const ComputationContext& computationContext) {
+  m_layouts[index] = Shared::PoincareHelpers::CreateLayout(
+      formula, computationContext.context());
+  Layout approximated;
+  m_exactLayouts[index] = getExactLayoutFromExpression(
+      expression, computationContext, &approximated);
+  m_approximatedLayouts[index] = approximated;
+};
 
 }  // namespace Calculation

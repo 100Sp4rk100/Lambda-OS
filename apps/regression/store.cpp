@@ -2,9 +2,9 @@
 
 #include <assert.h>
 #include <float.h>
-#include <ion/storage/file_system.h>
-#include <omg/print.h>
 #include <poincare/preferences.h>
+#include <poincare/print_int.h>
+#include <poincare/symbol.h>
 #include <string.h>
 
 #include <algorithm>
@@ -18,18 +18,31 @@ using namespace Shared;
 
 namespace Regression {
 
-const char* Store::SeriesTitle(int series) {
+static_assert(Store::k_numberOfSeries == 3,
+              "Number of series changed, Regression::Store() needs to adapt "
+              "(m_seriesChecksum)");
+
+const char *Store::SeriesTitle(int series) {
   /* Controller titles for menus targetting a specific series. These cannot
    * live on the stack and must be const char *. */
-  assert(series >= 0 && series < static_cast<int>(k_seriesTitles.size()));
-  return k_seriesTitles[static_cast<size_t>(series)];
+  switch (series) {
+    case 0:
+      return "X1/Y1";
+    case 1:
+      return "X2/Y2";
+    default:
+      assert(series == 2);
+      return "X3/Y3";
+  }
 }
 
-Store::Store(Shared::GlobalContext* context,
-             DoublePairStorePreferences* preferences,
-             Model::Type* regressionTypes)
+Store::Store(Shared::GlobalContext *context,
+             DoublePairStorePreferences *preferences,
+             Model::Type *regressionTypes)
     : LinearRegressionStore(context, preferences),
       m_regressionTypes(regressionTypes),
+      m_exponentialAbxModel(true),
+      m_linearApbxModel(true),
       m_recomputeCoefficients{true, true, true} {
   initListsFromStorage();
 }
@@ -52,7 +65,7 @@ void Store::setSeriesRegressionType(int series, Model::Type type) {
 
 int Store::closestVerticalDot(OMG::VerticalDirection direction, double x,
                               double y, int currentSeries, int currentDot,
-                              int* nextSeries, Context* globalContext) {
+                              int *nextSeries, Context *globalContext) {
   double nextX = INFINITY;
   double nextY = INFINITY;
   int nextDot = -1;
@@ -105,7 +118,7 @@ int Store::nextDot(int series, OMG::HorizontalDirection direction, int dot,
     x = get(series, 0, dot);
   }
   /* We have to scan the Store in opposite ways for the 2 directions to ensure
-   * to select all dots (even with equal abscissa) */
+   * to LAMDA_gray_light_palette all dots (even with equal abscissa) */
   if (direction.isRight()) {
     for (int index = 0; index < numberOfPairsOfSeries(series); index++) {
       double data = get(series, 0, index);
@@ -172,19 +185,17 @@ bool Store::updateSeries(int series, bool delayUpdate) {
 
 /* Calculations */
 
-void Store::updateCoefficients(int series, Context* globalContext) {
+void Store::updateCoefficients(int series, Context *globalContext) {
   assert(series >= 0 && series <= k_numberOfSeries);
   assert(seriesIsActive(series));
   if (!m_recomputeCoefficients[series]) {
     return;
   }
 
-  Model* seriesModel = modelForSeries(series);
+  Model *seriesModel = modelForSeries(series);
   seriesModel->fit(this, series, m_regressionCoefficients[series],
                    globalContext);
   m_recomputeCoefficients[series] = false;
-  /* TODO_PCJ: coefficients used to be Decimals and are now Doubles. Maybe this
-   * will be an issue ? */
   storeRegressionFunction(
       series, seriesModel->expression(m_regressionCoefficients[series]));
 
@@ -205,14 +216,14 @@ void Store::updateCoefficients(int series, Context* globalContext) {
       computeResidualStandardDeviation(series, globalContext);
 }
 
-double* Store::coefficientsForSeries(int series, Context* globalContext) {
+double *Store::coefficientsForSeries(int series, Context *globalContext) {
   updateCoefficients(series, globalContext);
   return m_regressionCoefficients[series];
 }
 
-bool Store::coefficientsAreDefined(int series, Context* globalContext,
+bool Store::coefficientsAreDefined(int series, Context *globalContext,
                                    bool finite) {
-  double* coefficients = coefficientsForSeries(series, globalContext);
+  double *coefficients = coefficientsForSeries(series, globalContext);
   int numberOfCoefficients = modelForSeries(series)->numberOfCoefficients();
   for (int i = 0; i < numberOfCoefficients; i++) {
     if (std::isnan(coefficients[i]) ||
@@ -224,18 +235,46 @@ bool Store::coefficientsAreDefined(int series, Context* globalContext,
 }
 
 double Store::correlationCoefficient(int series) const {
-  return modelForSeries(series)->correlationCoefficient(this, series);
+  /* Returns the correlation coefficient (R) between the series X and Y
+   * (transformed if series is a TransformedModel). In non-linear and
+   * non-transformed regressions, its square is different from the
+   * determinationCoefficient R2. it is then hidden to avoid confusion */
+  if (!seriesSatisfies(series, DisplayR)) {
+    return NAN;
+  }
+  bool applyLn = seriesSatisfies(series, FitsLnY);
+  bool applyOpposite = applyLn && get(series, 1, 0) < 0.0;
+  Shared::DoublePairStore::CalculationOptions options(
+      seriesSatisfies(series, FitsLnX), applyLn, applyOpposite);
+  double v0 = varianceOfColumn(series, 0, options);
+  double v1 = varianceOfColumn(series, 1, options);
+  if (std::isnan(v0) || std::isnan(v1)) {
+    // Can happen if applyLn on negative/null values
+    return NAN;
+  }
+  /* Compare v0 and v1 to EpsilonLax to check if they are equal to zero (since
+   * approximation errors could give them > 0 while they are not.)*/
+  double result = (std::abs(v0) < Float<double>::EpsilonLax() ||
+                   std::abs(v1) < Float<double>::EpsilonLax())
+                      ? 1.0
+                      : covariance(series, options) / std::sqrt(v0 * v1);
+  /* Due to errors, coefficient could slightly exceed 1.0. It needs to be
+   * fixed here to prevent r^2 from being bigger than 1. */
+  if (std::abs(result) <= 1.0 + Float<double>::SqrtEpsilonLax()) {
+    return std::clamp(result, -1.0, 1.0);
+  }
+  return NAN;
 }
 
 double Store::determinationCoefficientForSeries(int series,
-                                                Context* globalContext) {
+                                                Context *globalContext) {
   /* Returns the Determination coefficient (R2).
    * It will be updated if the regression has been updated */
   updateCoefficients(series, globalContext);
   return m_determinationCoefficient[series];
 }
 
-double Store::residualStandardDeviation(int series, Context* globalContext) {
+double Store::residualStandardDeviation(int series, Context *globalContext) {
   updateCoefficients(series, globalContext);
   return m_residualStandardDeviation[series];
 }
@@ -263,24 +302,45 @@ float Store::minValueOfColumn(int series, int i) const {
   return minColumn;
 }
 
-double Store::yValueForXValue(int series, double x, Context* globalContext) {
-  double* coefficients = coefficientsForSeries(series, globalContext);
-  return modelForSeries(series)->evaluate(coefficients, x);
+double Store::yValueForXValue(int series, double x, Context *globalContext) {
+  Model *model = regressionModel(m_regressionTypes[series]);
+  double *coefficients = coefficientsForSeries(series, globalContext);
+  return model->evaluate(coefficients, x);
 }
 
-double Store::xValueForYValue(int series, double y, Context* globalContext) {
-  double* coefficients = coefficientsForSeries(series, globalContext);
-  return modelForSeries(series)->levelSet(
-      coefficients, App::app()->graphRange()->xMin(),
-      App::app()->graphRange()->xMax(), y, globalContext);
+double Store::xValueForYValue(int series, double y, Context *globalContext) {
+  Model *model = regressionModel(m_regressionTypes[series]);
+  double *coefficients = coefficientsForSeries(series, globalContext);
+  return model->levelSet(coefficients, App::app()->graphRange()->xMin(),
+                         App::app()->graphRange()->xMax(), y, globalContext);
 }
 
 double Store::residualAtIndexForSeries(int series, int index,
-                                       Context* globalContext) {
-  const double* modelCoefficients =
-      coefficientsForSeries(series, globalContext);
-  return modelForSeries(series)->residualAtIndex(this, series,
-                                                 modelCoefficients, index);
+                                       Context *globalContext) {
+  double x = get(series, 0, index);
+  return get(series, 1, index) - yValueForXValue(series, x, globalContext);
+}
+
+bool Store::seriesNumberOfAbscissaeGreaterOrEqualTo(int series, int i) const {
+  assert(series >= 0 && series < k_numberOfSeries);
+  int count = 0;
+  for (int j = 0; j < numberOfPairsOfSeries(series); j++) {
+    if (count >= i) {
+      return true;
+    }
+    double currentAbscissa = get(series, 0, j);
+    bool firstOccurrence = true;
+    for (int k = 0; k < j; k++) {
+      if (get(series, 0, k) == currentAbscissa) {
+        firstOccurrence = false;
+        break;
+      }
+    }
+    if (firstOccurrence) {
+      count++;
+    }
+  }
+  return count >= i;
 }
 
 bool Store::AnyActiveSeriesSatisfies(TypeProperty property) const {
@@ -294,37 +354,94 @@ bool Store::AnyActiveSeriesSatisfies(TypeProperty property) const {
 }
 
 double Store::computeDeterminationCoefficient(int series,
-                                              Context* globalContext) {
-  const double* modelCoefficients =
-      coefficientsForSeries(series, globalContext);
-  return modelForSeries(series)->determinationCoefficient(this, series,
-                                                          modelCoefficients);
+                                              Context *globalContext) {
+  // Computes and returns the determination coefficient of the regression.
+  if (seriesSatisfies(series, DisplayRSquared)) {
+    /* With linear regressions and transformed models (Exponential, Logarithm
+     * and Power), we use r^2, the square of the correlation coefficient between
+     * the series Y (transformed) and the evaluated values.*/
+    double r = correlationCoefficient(series);
+    return r * r;
+  }
+  if (!seriesSatisfies(series, DisplayR2)) {
+    /* R2 does not need to be computed if model is median-median, so we avoid
+     * computation. If needed, it could be computed though. */
+    return NAN;
+  }
+  assert(!seriesSatisfies(series, FitsLnY) &&
+         !seriesSatisfies(series, FitsLnX));
+  /* With proportional regression or badly fitted models, R2 can technically be
+   * negative. R2<0 means that the regression is less effective than a
+   * constant set to the series average. It should not happen with regression
+   * models that can fit a constant observation. */
+  // Residual sum of squares
+  double ssr = 0;
+  // Total sum of squares
+  double sst = 0;
+  const int numberOfPairs = numberOfPairsOfSeries(series);
+  assert(numberOfPairs > 0);
+  double mean = meanOfColumn(series, 1);
+  for (int k = 0; k < numberOfPairs; k++) {
+    // Difference between the observation and the estimated value of the model
+    double estimation =
+        yValueForXValue(series, get(series, 0, k), globalContext);
+    double observation = get(series, 1, k);
+    if (std::isnan(estimation) || std::isinf(estimation)) {
+      // Data Not Suitable for estimation
+      return NAN;
+    }
+    double residual = observation - estimation;
+    ssr += residual * residual;
+    // Difference between the observation and the overall observations mean
+    double difference = observation - mean;
+    sst += difference * difference;
+  }
+  if (sst == 0.0) {
+    /* Observation was constant, r2 is undefined. Return 1 if estimations
+     * exactly matched observations. 0 is usually returned otherwise. */
+    return (ssr <= DBL_EPSILON) ? 1.0 : 0.0;
+  }
+  double r2 = 1.0 - ssr / sst;
+  /* Check if regression fit was optimal.
+   * TODO : Optimize regression fitting so that r2 cannot be negative.
+   * assert(r2 >= 0 || seriesRegressionType(series) ==
+   * Model::Type::Proportional); */
+  return r2;
 }
 
 double Store::computeResidualStandardDeviation(int series,
-                                               Context* globalContext) {
-  const double* modelCoefficients =
-      coefficientsForSeries(series, globalContext);
-  return modelForSeries(series)->residualStandardDeviation(this, series,
-                                                           modelCoefficients);
+                                               Context *globalContext) {
+  int nCoeff =
+      regressionModel(m_regressionTypes[series])->numberOfCoefficients();
+  int n = numberOfPairsOfSeries(series);
+  if (n <= nCoeff) {
+    return NAN;
+  }
+  double sum = 0.;
+  for (int i = 0; i < n; i++) {
+    double res = residualAtIndexForSeries(series, i, globalContext);
+    sum += res * res;
+  }
+  return std::sqrt(sum / (n - nCoeff));
 }
 
-Model* Store::regressionModel(Model::Type type) const {
-  /* Most of regression app still expects a Model * with ->name and (Store, int)
-   * API. We therefore cannot use directly a const Regression * pointer and need
-   * the Model object to live somewhere. This static instance is the only Model
-   * object and is reinitialized to point of the correct regression type
-   * on-the-fly. */
-  static Model s_model(Model::Type::None);
-  new (&s_model) Model(type);
-  return &s_model;
+Model *Store::regressionModel(int index) {
+  Model *models[Model::k_numberOfModels] = {
+      &m_noneModel,        &m_linearAxpbModel,      &m_proportionalModel,
+      &m_quadraticModel,   &m_cubicModel,           &m_quarticModel,
+      &m_logarithmicModel, &m_exponentialAebxModel, &m_exponentialAbxModel,
+      &m_powerModel,       &m_trigonometricModel,   &m_logisticModel,
+      &m_medianModel,      &m_linearApbxModel};
+  static_assert(std::size(models) == Model::k_numberOfModels,
+                "Inconsistency between the number of models in the store and "
+                "the real number.");
+  return models[index];
 }
 
-int Store::BuildFunctionName(int series, char* buffer, int bufferSize) {
+int Store::BuildFunctionName(int series, char *buffer, int bufferSize) {
   assert(bufferSize >= k_functionNameSize);
   size_t length = strlcpy(buffer, k_functionName, bufferSize);
-  length +=
-      OMG::Print::IntLeft(1 + series, buffer + length, bufferSize - length);
+  length += PrintInt::Left(1 + series, buffer + length, bufferSize - length);
   assert(length == k_functionNameSize - 1);
   buffer[length] = 0;
   return length;
@@ -337,18 +454,15 @@ Ion::Storage::Record Store::functionRecord(int series) const {
       ->recordBaseNamedWithExtension(name, Ion::Storage::regressionExtension);
 }
 
-void Store::storeRegressionFunction(int series,
-                                    UserExpression expression) const {
+void Store::storeRegressionFunction(int series, Expression expression) const {
   if (expression.isUninitialized()) {
     return deleteRegressionFunction(series);
   }
   char name[k_functionNameSize];
   BuildFunctionName(series, name, k_functionNameSize);
-  expression.replaceSymbolWithUnknown(
-      SymbolHelper::BuildSymbol(Model::k_xSymbol));
-  Ion::Storage::FileSystem::sharedFileSystem->createRecordWithExtension(
-      name, Ion::Storage::regressionExtension, expression.addressInPool(),
-      expression.size(), true);
+  expression = expression.replaceSymbolWithExpression(
+      Symbol::Builder(Model::k_xSymbol), Symbol::SystemSymbol());
+  expression.storeWithNameAndExtension(name, Ion::Storage::regressionExtension);
 }
 
 void Store::deleteRegressionFunction(int series) const {

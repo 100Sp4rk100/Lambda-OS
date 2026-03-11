@@ -10,18 +10,19 @@
 namespace Graph {
 
 class DomainParameterController
-    : public Shared::SingleRangeControllerFloatPrecision,
+    : public Shared::SingleRangeController<float>,
       public Shared::MathToolboxExtraCellsDataSource {
  public:
   DomainParameterController(Escher::Responder* parentResponder);
 
   // ViewController
-  const char* title() const override {
+  const char* title() override {
     return I18n::translate(I18n::Message::FunctionDomain);
   }
-  TitlesDisplay titlesDisplay() const override {
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayLastThreeTitles;
   }
+  TELEMETRY_ID("DomainParameter");
 
   // TextFieldDelegate
   bool textFieldDidReceiveEvent(Escher::AbstractTextField* textField,

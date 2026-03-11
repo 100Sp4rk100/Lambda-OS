@@ -6,9 +6,8 @@
 #include <escher/layout_view.h>
 #include <escher/text_field.h>
 #include <kandinsky/point.h>
-#include <poincare/context.h>
-
-#include "layout_preferences.h"
+#include <poincare/layout_cursor.h>
+#include <poincare/preferences.h>
 
 namespace Escher {
 
@@ -36,9 +35,6 @@ class LayoutField : public EditableField {
   void setLayout(Poincare::Layout newLayout);
   size_t dumpContent(char* buffer, size_t bufferSize, int* cursorOffset,
                      int* position);
-  void insertLayoutAtCursor(Poincare::Layout layout,
-                            bool forceCursorRightOfLayout = false,
-                            bool forceCursorLeftOfLayout = false);
 
   // ScrollableView
   void setBackgroundColor(KDColor c) override;
@@ -50,10 +46,9 @@ class LayoutField : public EditableField {
   /* Responder */
   bool handleEventWithText(const char* text, bool indentation = false,
                            bool forceCursorRightOfText = false) override;
-  bool handleEventWithLayout(Poincare::Layout layout,
-                             bool forceCursorRightOfText = false) override;
   bool handleEvent(Ion::Events::Event event) override;
   bool handleStoreEvent() override;
+  void didBecomeFirstResponder() override;
 
   /* View */
   KDSize minimalSizeForOptimalDisplay() const override;
@@ -79,13 +74,12 @@ class LayoutField : public EditableField {
 
  protected:
   bool linearMode() const {
-    return LayoutPreferences::SharedPreferences()->editionMode() ==
+    return Poincare::Preferences::SharedPreferences()->editionMode() ==
            Poincare::Preferences::EditionMode::Edition1D;
   }
   bool insertText(const char* text, bool indentation = false,
                   bool forceCursorRightOfText = false);
   void reload(KDSize previousSize);
-  void handleResponderChainEvent(Responder::ResponderChainEvent event) override;
 
  private:
   constexpr static int k_maxNumberOfLayouts = 220;
@@ -97,11 +91,14 @@ class LayoutField : public EditableField {
   bool privateHandleEvent(Ion::Events::Event event, bool* layoutDidChange,
                           bool* shouldUpdateCursor);
   size_t getTextFromEvent(Ion::Events::Event event, char* buffer,
-                          size_t bufferSize) override;
+                          size_t bufferSize);
   bool handleMoveEvent(Ion::Events::Event event, bool* layoutDidChange);
   bool didHandleEvent(bool didHandleEvent, bool layoutDidChange,
                       bool shouldUpdateCursor, KDSize previousSize);
   void scrollToBaselinedRect(KDRect rect, KDCoordinate baseline);
+  void insertLayoutAtCursor(Poincare::Layout layoutR,
+                            bool forceCursorRightOfLayout = false,
+                            bool forceCursorLeftOfLayout = false);
   TextCursorView::CursorFieldView* cursorCursorFieldView() override {
     return &m_contentView;
   }
@@ -137,7 +134,7 @@ class LayoutField : public EditableField {
     }
     View* subviewAtIndex(int index) override;
     void layoutSubviews(bool force = false) override;
-    Poincare::LayoutCursor m_cursor;
+    mutable Poincare::LayoutCursor m_cursor;
     LayoutViewWithCursor m_layoutView;
     bool m_isEditing;
   };

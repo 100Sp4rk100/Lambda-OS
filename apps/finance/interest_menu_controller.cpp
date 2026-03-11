@@ -8,7 +8,7 @@ InterestMenuController::InterestMenuController(
     Escher::StackViewController* parentResponder,
     ParametersController* interestController)
     : Escher::ListWithTopAndBottomController(parentResponder, &m_messageView),
-      m_messageView(I18n::Message::ParameterChoose, k_messageFormat),
+      m_messageView(I18n::Message::ParameterChoose, k_messageFormat()),
       m_parametersController(interestController) {
   selectRow(0);
 }
@@ -35,7 +35,7 @@ bool InterestMenuController::handleEvent(Ion::Events::Event event) {
   return popFromStackViewControllerOnLeftEvent(event);
 }
 
-const char* InterestMenuController::title() const {
+const char* InterestMenuController::title() {
   return I18n::translate(App::GetInterestData()->menuTitle());
 }
 

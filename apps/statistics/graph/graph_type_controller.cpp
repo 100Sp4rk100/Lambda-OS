@@ -33,15 +33,10 @@ Escher::Responder* GraphTypeController::responderWhenEmpty() {
   return m_tabController;
 }
 
-void GraphTypeController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    selectRow(GraphViewModel::IndexOfGraphView(
-        m_graphViewModel->selectedGraphView()));
-    m_selectableListView.reloadData();
-  } else {
-    UniformSelectableListController::handleResponderChainEvent(event);
-  }
+void GraphTypeController::didBecomeFirstResponder() {
+  selectRow(
+      GraphViewModel::IndexOfGraphView(m_graphViewModel->selectedGraphView()));
+  m_selectableListView.reloadData();
 }
 
 bool GraphTypeController::handleEvent(Ion::Events::Event event) {

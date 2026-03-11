@@ -4,7 +4,9 @@
 #include "apps_container.h"
 #include "global_preferences.h"
 #include "init.h"
-#include "preferences_default_checker.h"
+
+#include "clock_timer.h"
+#include "theme_gestion/themeGestion.h"
 
 #define DUMMY_MAIN 0
 #if DUMMY_MAIN
@@ -14,13 +16,11 @@
 char digit_to_char(int n) { return '0' + (n % 10); }
 
 void ion_main(int argc, const char* const argv[]) {
-  Ion::LED::setColor(KDColorBlack);
-  Ion::Display::pushRectUniform(Ion::Display::Rect, KDColorWhite);
+  Ion::LED::setColor(Theme::ThemeGestion::getColor("KDColorBlack"));
+  Ion::Display::pushRectUniform(KDRectScreen, Theme::ThemeGestion::getColor("Theme::ThemeGestion::getColor("KDColorWhite")"));
 
   constexpr int bufsiz = 32;
   char txtbuf[bufsiz];
-
-  Escher::Init();
 
   while (1) {
     float volt = Ion::Battery::voltage();
@@ -28,12 +28,7 @@ void ion_main(int argc, const char* const argv[]) {
     txtbuf[1] = '.';
     txtbuf[2] = digit_to_char(static_cast<int>(volt * 10));
     txtbuf[3] = digit_to_char(static_cast<int>(volt * 100));
-    txtbuf[4] = digit_to_char(static_cast<int>(volt * 1000));
-    txtbuf[5] = digit_to_char(static_cast<int>(volt * 10000));
-    txtbuf[6] = digit_to_char(static_cast<int>(volt * 100000));
-    txtbuf[7] = digit_to_char(static_cast<int>(volt * 1000000));
-    txtbuf[8] = '\0';
-    // On device, Ion::Console::writeLine only works with consoledisplay flavor.
+    txtbuf[4] = '\0';
     Ion::Console::writeLine(txtbuf);
 
     Ion::Timing::msleep(1000);
@@ -42,8 +37,8 @@ void ion_main(int argc, const char* const argv[]) {
 
 #else
 
-void ion_main(int argc, const char* const argv[]) {
-  // Initialize TreePool::sharedPool and TreeStack::SharedTreeStack
+void ion_main(int argc, const char *const argv[]) {
+  // Initialize Poincare::TreePool::sharedPool
   Poincare::Init();
   Escher::Init();
   Apps::Init();
@@ -56,7 +51,7 @@ void ion_main(int argc, const char* const argv[]) {
     /* Option should be given at run-time:
      * $ ./epsilon.elf --language fr */
     if (strcmp(argv[i], "--language") == 0 && argc > i + 1) {
-      const char* requestedLanguageId = argv[i + 1];
+      const char *requestedLanguageId = argv[i + 1];
       for (int j = 0; j < I18n::NumberOfLanguages; j++) {
         if (strcmp(requestedLanguageId, I18n::LanguageISO6391Codes[j]) == 0) {
           GlobalPreferences::SharedGlobalPreferences()->setLanguage(
@@ -69,17 +64,17 @@ void ion_main(int argc, const char* const argv[]) {
       continue;
     }
 
-    const char* appNames[] = {"home", EPSILON_APPS_NAMES};
+    const char *appNames[] = {"home", EPSILON_APPS_NAMES};
 
     /* Option to open a given app at run-time:
      * $ ./epsilon.elf --open-app code */
     if (strcmp(argv[i], "--open-app") == 0 && argc > i + 1) {
-      const char* requestedAppName = argv[i + 1];
+      const char *requestedAppName = argv[i + 1];
       for (int j = 0;
            j < AppsContainer::sharedAppsContainer()->numberOfBuiltinApps();
            j++) {
         if (strcmp(requestedAppName, appNames[j]) == 0) {
-          Escher::App::Snapshot* snapshot =
+          Escher::App::Snapshot *snapshot =
               AppsContainer::sharedAppsContainer()->appSnapshotAtIndex(j);
           AppsContainer::sharedAppsContainer()->setInitialAppSnapshot(snapshot);
           break;
@@ -99,7 +94,7 @@ void ion_main(int argc, const char* const argv[]) {
          j < AppsContainer::sharedAppsContainer()->numberOfBuiltinApps(); j++) {
       int cmp = strcmp(argv[i] + 2, appNames[j]);
       if (cmp == '-') {
-        Escher::App::Snapshot* snapshot =
+        Escher::App::Snapshot *snapshot =
             AppsContainer::sharedAppsContainer()->appSnapshotAtIndex(j);
         snapshot->setOpt(argv[i] + 2 + strlen(appNames[j]) + 1, argv[i + 1]);
         break;
@@ -113,11 +108,14 @@ void ion_main(int argc, const char* const argv[]) {
    * example, stack pointer could go backward after initialization and allocated
    * memory pointers could be overlooked during mark procedure. */
   volatile int stackTop;
-  Ion::setStackStart((void*)(&stackTop));
+  Ion::setStackStart((void *)(&stackTop));
+
+  ClockTimer::ClockTimer::init();
+  Theme::ThemeGestion::setup();
+  
+  AppsContainer::sharedAppsContainer()->reloadTitleBarView();
 
   AppsContainer::sharedAppsContainer()->run();
-
-  Poincare::Shutdown();
 }
 
 #endif

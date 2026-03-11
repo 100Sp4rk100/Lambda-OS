@@ -1,13 +1,14 @@
 #include "function_cell.h"
 
-#include <apps/math_preferences.h>
 #include <escher/palette.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Escher;
 
 namespace Graph {
 
-/* Function cell has the following layout :
+/* Function cell has the folowing layout :
  *  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
  * |####|  _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _                   |              |
  * |####|  |                             |                   |              |
@@ -29,12 +30,12 @@ namespace Graph {
 AbstractFunctionCell::AbstractFunctionCell()
     : EvenOddCell(),
       m_messageTextView((I18n::Message)0,
-                        {.style = {.glyphColor = Palette::GrayDark,
+                        {.style = {.glyphColor = Theme::ThemeGestion::getColor("GrayDark"),
                                    .font = KDFont::Size::Small},
                          .verticalAlignment = KDGlyph::k_alignTop}),
-      m_functionColor(KDColorBlack),
-      m_expressionBackground(KDColorWhite),
-      m_ellipsisBackground(KDColorWhite),
+      m_functionColor(Theme::ThemeGestion::getColor("KDColorBlack")),
+      m_expressionBackground(Theme::ThemeGestion::getColor("KDColorWhite")),
+      m_ellipsisBackground(Theme::ThemeGestion::getColor("KDColorWhite")),
       m_hideMessage(false) {}
 
 void AbstractFunctionCell::drawRect(KDContext* ctx, KDRect rect) const {
@@ -65,7 +66,9 @@ KDSize AbstractFunctionCell::minimalSizeForOptimalDisplay() const {
 }
 
 bool AbstractFunctionCell::displayFunctionType() const {
-  return !MathPreferences::SharedPreferences()->examMode().forbidGraphDetails();
+  return !Poincare::Preferences::SharedPreferences()
+              ->examMode()
+              .forbidGraphDetails();
 }
 
 View* AbstractFunctionCell::subviewAtIndex(int index) {
@@ -120,7 +123,7 @@ KDCoordinate AbstractFunctionCell::messageTextHeight() const {
 }
 
 void FunctionCell::updateSubviewsBackgroundAfterChangingState() {
-  KDColor defaultColor = m_even ? KDColorWhite : Palette::WallScreen;
+  KDColor defaultColor = m_even ? Theme::ThemeGestion::getColor("KDColorWhite") : Theme::ThemeGestion::getColor("WallScreen");
   // If not highlighted, selectedColor is defaultColor
   KDColor selectedColor = backgroundColor();
   m_ellipsisBackground = m_parameterSelected ? selectedColor : defaultColor;

@@ -2,6 +2,7 @@
 #define ESCHER_VIEW_CONTROLLER_H
 
 #include <escher/i18n.h>
+#include <escher/telemetry.h>
 #include <ion/events.h>
 extern "C" {
 #include <stdint.h>
@@ -12,15 +13,15 @@ extern "C" {
  *  - Handling user input
  *
  * The methods viewWillAppear is called in the following order relatively to
- * Responder's method handleResponderChainEvent:
+ * Responder's methods -didBecomeFirstResponder and didEnterResponderChain:
  * - viewWillAppear
- * - handleResponderChainEvent(HasEntered)
- * - handleResponderChainEvent(HasBecomeFirst)
+ * - didEnterResponderChain
+ * - didBecomeFirstResponder
  * The methods viewWillDisappear is called in the following order relatively to
- * Responder's method handleResponderChainEvent:
+ * Responder's methods -willResignFirstResponder and willExitResponderChain:
  * - viewWillDisappear
- * - handleResponderChainEvent(willExit)
- * - handleResponderChainEvent(willResignFirst)
+ * - willExitResponderChain
+ * - willResignFirstResponder
  *
  * Both methods are always called after setting a view and laying its subwiews
  * out.
@@ -52,19 +53,16 @@ class ViewController : public Responder {
     DisplayLastTwoTitles = StackView::Mask(0b11),
     DisplaySecondToLast = StackView::Mask(0b10),
     DisplayLastTitle = StackView::Mask(0b1),
-    DisplayNoTitle = StackView::Mask(0),
-    /* Special value to display the same titles as the previous page on the
-     * stack. */
-    SameAsPreviousPage = StackView::Mask(0b10000000)
+    DisplayNoTitle = StackView::Mask(0)
   };
 
   ViewController(Responder* parentResponder) : Responder(parentResponder) {}
-  virtual const char* title() const { return nullptr; }
+  virtual const char* title() { return nullptr; }
   virtual View* view() = 0;
   virtual void initView() {}
-  virtual void viewWillAppear() {}
+  virtual void viewWillAppear();
   virtual void viewDidDisappear() {}
-  virtual TitlesDisplay titlesDisplay() const {
+  virtual TitlesDisplay titlesDisplay() {
     return TitlesDisplay::DisplayAllTitles;
   }
   /* Use these two functions only if the controller is in a stack hierarchy */
@@ -72,6 +70,14 @@ class ViewController : public Responder {
   virtual void stackOpenPage(ViewController* nextPage);
   // Pop the parent StackViewController responder on a Left event
   bool popFromStackViewControllerOnLeftEvent(Ion::Events::Event event);
+
+ protected:
+#if EPSILON_TELEMETRY
+  virtual const char* telemetryId() const { return nullptr; }
+  void telemetryReportEvent(const char* action, const char* label) const;
+#else
+  void telemetryReportEvent(const char* action, const char* label) const {}
+#endif
 };
 
 }  // namespace Escher

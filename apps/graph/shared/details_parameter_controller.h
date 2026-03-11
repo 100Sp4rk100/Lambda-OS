@@ -10,7 +10,7 @@
 #include <escher/stack_view_controller.h>
 #include <escher/view_controller.h>
 #include <ion/storage/file_system.h>
-#include <poincare/function_properties/conic.h>
+#include <poincare/conic.h>
 
 namespace Graph {
 
@@ -28,11 +28,12 @@ class DetailsParameterController
   bool handleEvent(Ion::Events::Event event) override;
 
   // ViewController
-  const char* title() const override;
-  TitlesDisplay titlesDisplay() const override {
+  const char* title() override;
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayLastThreeTitles;
   }
   void viewWillAppear() override;
+  TELEMETRY_ID("TypeParameter");
 
   // MemoizedListViewDataSource
   int numberOfRows() const override { return 1 + detailsNumberOfSections(); }

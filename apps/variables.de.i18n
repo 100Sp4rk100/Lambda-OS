@@ -1,7 +1,0 @@
-Variables = "Variablen"
-Expressions = "Ausdrücke"
-Functions = "Funktionen"
-Sequences = "Folgen"
-DefineVariable = "Eine Variable definieren"
-InvalidInputWarning = "Ihre Eingabe ist ungültig.\nDie Variable wird nicht gespeichert."
-VariableCantBeEdited = "Diese Variable kann hier\nnicht bearbeitet werden."

@@ -13,8 +13,8 @@ using namespace Escher;
 
 namespace Code {
 
-ConsoleEditCell::ConsoleEditCell(Responder* parentResponder,
-                                 TextFieldDelegate* delegate)
+ConsoleEditCell::ConsoleEditCell(Responder *parentResponder,
+                                 TextFieldDelegate *delegate)
     : HighlightCell(),
       Responder(parentResponder),
       m_promptView(
@@ -29,7 +29,7 @@ ConsoleEditCell::ConsoleEditCell(Responder* parentResponder,
 
 int ConsoleEditCell::numberOfSubviews() const { return 2; }
 
-View* ConsoleEditCell::subviewAtIndex(int index) {
+View *ConsoleEditCell::subviewAtIndex(int index) {
   assert(index == 0 || index == 1);
   if (index == 0) {
     return &m_promptView;
@@ -50,28 +50,23 @@ void ConsoleEditCell::layoutSubviews(bool force) {
       force);
 }
 
-void ConsoleEditCell::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(&m_textField);
-    setEditing(true);
-  } else {
-    Responder::handleResponderChainEvent(event);
-  }
+void ConsoleEditCell::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(&m_textField);
+  setEditing(true);
 }
 
 void ConsoleEditCell::setEditing(bool isEditing) {
   m_textField.setEditing(isEditing);
 }
 
-void ConsoleEditCell::setText(const char* text) { m_textField.setText(text); }
+void ConsoleEditCell::setText(const char *text) { m_textField.setText(text); }
 
-void ConsoleEditCell::setPrompt(const char* prompt) {
+void ConsoleEditCell::setPrompt(const char *prompt) {
   m_promptView.setText(prompt);
   layoutSubviews();
 }
 
-bool ConsoleEditCell::insertText(const char* text) {
+bool ConsoleEditCell::insertText(const char *text) {
   return m_textField.handleEventWithText(text);
 }
 

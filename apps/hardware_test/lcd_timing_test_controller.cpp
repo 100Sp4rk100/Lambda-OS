@@ -3,7 +3,7 @@
 #include <ion/backlight.h>
 #include <ion/display.h>
 #include <ion/post_and_hardware_tests.h>
-#include <omg/print.h>
+#include <poincare/print_int.h>
 
 using namespace Poincare;
 
@@ -28,7 +28,7 @@ bool LCDTimingTestController::handleEvent(Ion::Events::Event event) {
 }
 
 void LCDTimingTestController::viewWillAppear() {
-  Ion::Display::pushRectUniform(Ion::Display::Rect, KDColorWhite);
+  Ion::Display::pushRectUniform(KDRectScreen, KDColorWhite);
   Ion::Backlight::setBrightness(0);
   runTest();
   Ion::Backlight::setBrightness(Ion::Backlight::MaxBrightness);
@@ -50,12 +50,12 @@ void LCDTimingTestController::ContentView::setStatus(bool success,
                                        : k_lcdTimingFailTest);
   constexpr int bufferSize = 20;
   char buffer[bufferSize] = {0};
-  OMG::Print::IntLeft(numberOfErrors, buffer, bufferSize);
+  Poincare::PrintInt::Left(numberOfErrors, buffer, bufferSize);
   m_lcdNumberGlyphFailuresView.setText(buffer);
 }
 
 void LCDTimingTestController::ContentView::layoutSubviews(bool force) {
-  setChildFrame(&m_lcdTimingStateView, Ion::Display::Rect, force);
+  setChildFrame(&m_lcdTimingStateView, KDRectScreen, force);
   setChildFrame(&m_lcdNumberGlyphFailuresView,
                 KDRect(10, 10, Ion::Display::Width, 20), force);
 }

@@ -2,8 +2,12 @@
 
 #include <apps/constant.h>
 #include <apps/global_preferences.h>
+#include <apps/shared/expression_display_permissions.h>
 #include <apps/shared/poincare_helpers.h>
-#include <omg/utf8_helper.h>
+#include <poincare/matrix.h>
+#include <poincare/polynomial.h>
+#include <poincare/serialization_helper.h>
+#include <poincare/symbol.h>
 
 #include "app.h"
 
@@ -17,7 +21,7 @@ Ion::Storage::Record::ErrorStatus EquationStore::addEmptyModel() {
   char name[bufferSize];
   static_assert(k_maxNumberOfEquations < 9,
                 "Equation name record might not fit");
-  size_t length = UTF8Helper::WriteCodePoint(name, bufferSize, 'e');
+  size_t length = SerializationHelper::CodePoint(name, bufferSize, 'e');
   Ion::Storage::FileSystem::sharedFileSystem->firstAvailableNameFromPrefix(
       name, length, bufferSize, Ion::Storage::equationExtension,
       k_maxNumberOfEquations);
@@ -25,14 +29,14 @@ Ion::Storage::Record::ErrorStatus EquationStore::addEmptyModel() {
       name, Ion::Storage::equationExtension, nullptr, 0);
 }
 
-Shared::ExpressionModelHandle* EquationStore::setMemoizedModelAtIndex(
+Shared::ExpressionModelHandle *EquationStore::setMemoizedModelAtIndex(
     int cacheIndex, Ion::Storage::Record record) const {
   assert(cacheIndex >= 0 && cacheIndex < maxNumberOfMemoizedModels());
   m_equations[cacheIndex] = Equation(record);
   return &m_equations[cacheIndex];
 }
 
-ExpressionModelHandle* EquationStore::memoizedModelAtIndex(
+ExpressionModelHandle *EquationStore::memoizedModelAtIndex(
     int cacheIndex) const {
   assert(cacheIndex >= 0 && cacheIndex < maxNumberOfMemoizedModels());
   return &m_equations[cacheIndex];

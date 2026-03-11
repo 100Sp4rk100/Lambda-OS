@@ -9,9 +9,7 @@ namespace POSTAndHardwareTests {
 
 constexpr static int k_stampSize = 8;
 
-/* 3.78V correspond to the minimum voltage to be in the old `THREE_QUARTERS`
- * battery level */
-bool BatteryOK() { return (Ion::Battery::voltage() >= 3.78f); }
+bool BatteryOK() { return Ion::Battery::level() == Ion::Battery::Charge::FULL; }
 
 bool VBlankOK() {
   bool result = true;
@@ -31,16 +29,16 @@ int LCDDataGlyphFailures() {
   constexpr int stampSize = 10;
   constexpr int numberOfStamps = 3;
   static_assert(Ion::Display::Width % stampSize == 0,
-                "Stamps must tessellate the display");
+                "Stamps must tesselate the display");
   static_assert(Ion::Display::Height % stampSize == 0,
-                "Stamps must tessellate the display");
+                "Stamps must tesselate the display");
 
   KDColor stamps[numberOfStamps][stampSize * stampSize];
   constexpr KDColor colorForStamp[numberOfStamps] = {KDColorRed, KDColorBlue,
                                                      KDColorGreen};
   for (int i = 0; i < numberOfStamps; i++) {
     KDColor c = colorForStamp[i];
-    KDColor* stamp = stamps[i];
+    KDColor *stamp = stamps[i];
     for (int j = 0; j < stampSize * stampSize; j++) {
       stamp[j] = c;
     }
@@ -60,8 +58,8 @@ int LCDDataGlyphFailures() {
     // Push a checker pattern on the screen
     int firstColorIndex = p % numberOfStamps;
     int secondColorIndex = (p + 1) % numberOfStamps;
-    KDColor* firstStamp = stamps[firstColorIndex];
-    KDColor* secondStamp = stamps[secondColorIndex];
+    KDColor *firstStamp = stamps[firstColorIndex];
+    KDColor *secondStamp = stamps[secondColorIndex];
     // Draw the pattern
     for (int j = 0; j < numberOfVerticalTiles; j++) {
       for (int i = 0; i < numberOfHorizontalTiles; i++) {
@@ -226,7 +224,7 @@ bool pushOrPullAs(bool push) {
         // Push the character on the screen
         Ion::Display::pushRect(
             KDRect(position, size),
-            reinterpret_cast<const KDColor*>(k_smallABuffer));
+            reinterpret_cast<const KDColor *>(k_smallABuffer));
       } else {
         // Pull and compare the character from the screen
         KDColor workingBuffer[k_smallAHeight][k_smallAWidth];
@@ -238,7 +236,7 @@ bool pushOrPullAs(bool push) {
         /* Caution: Unlike fillRectWithPixels, pullRect accesses outside (0, 0,
          * Ion::Display::Width, Ion::Display::Height) might give weird data. */
         Ion::Display::pullRect(KDRect(position, size),
-                               reinterpret_cast<KDColor*>(workingBuffer));
+                               reinterpret_cast<KDColor *>(workingBuffer));
         for (int i = 0; i < k_smallAHeight; i++) {
           for (int j = 0; j < k_smallAWidth; j++) {
             if (k_smallABuffer[i][j] != workingBuffer[i][j]) {

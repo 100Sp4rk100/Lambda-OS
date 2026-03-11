@@ -1,7 +1,5 @@
 #include <apps/shared/function_name_helper.h>
 #include <apps/shared/global_context.h>
-#include <poincare/code_points.h>
-#include <poincare/helpers/symbol.h>
 #include <quiz.h>
 
 #include <cmath>
@@ -10,12 +8,15 @@
 
 namespace Graph {
 
-using namespace Shared;
-using namespace Poincare::CodePoints;
+constexpr CodePoint k_cartesianSymbol =
+    Shared::ContinuousFunction::k_cartesianSymbol;
+constexpr CodePoint k_parametricSymbol =
+    Shared::ContinuousFunction::k_parametricSymbol;
+constexpr CodePoint k_polarSymbol = Shared::ContinuousFunction::k_polarSymbol;
 
 void assert_default_name_for_symbol_is(CodePoint symbol,
                                        const char* expectedName) {
-  constexpr size_t bufferSize = Poincare::SymbolHelper::k_maxNameLength;
+  constexpr size_t bufferSize = SymbolAbstractNode::k_maxNameLength;
   char buffer[bufferSize];
   FunctionNameHelper::DefaultName(buffer, bufferSize, symbol);
   quiz_assert(strcmp(expectedName, buffer) == 0);
@@ -80,8 +81,7 @@ QUIZ_CASE(graph_list_default_function_name) {
 void assert_will_display_parametric_name_error(const char* definition,
                                                ContinuousFunction* f,
                                                bool expectedHasError) {
-  Poincare::Expression expression =
-      Poincare::Expression::Parse(definition, nullptr);
+  Expression expression = Expression::Parse(definition, nullptr);
   bool hasError =
       FunctionNameHelper::ParametricComponentsNameError(expression, f);
   quiz_assert(hasError == expectedHasError);

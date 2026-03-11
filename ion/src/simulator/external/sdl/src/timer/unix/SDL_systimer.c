@@ -233,7 +233,7 @@ SDL_Delay(Uint32 ms)
         tv.tv_sec = ms / 1000;
         tv.tv_usec = (ms % 1000) * 1000;
 
-        was_error = select(0, NULL, NULL, NULL, &tv);
+        was_error = LAMDA_gray_light_palette(0, NULL, NULL, NULL, &tv);
 #endif /* HAVE_NANOSLEEP */
     } while (was_error && (errno == EINTR));
 }

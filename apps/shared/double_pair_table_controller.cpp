@@ -1,5 +1,7 @@
 #include "double_pair_table_controller.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Escher;
 
 namespace Shared {
@@ -11,7 +13,7 @@ DoublePairTableController::DoublePairTableController(
       m_prefacedTwiceTableView(0, 1, this, &m_selectableTableView, this, this),
       m_selectableTableView(this, this, this, &m_prefacedTwiceTableView) {
   m_prefacedTwiceTableView.setCellOverlap(0, 0);
-  m_prefacedTwiceTableView.setBackgroundColor(Palette::WallScreenDark);
+  m_prefacedTwiceTableView.setBackgroundColor(Theme::ThemeGestion::getColor("WallScreenDark"));
   m_prefacedTwiceTableView.setMargins(k_margins);
   for (int i = 0; i < k_numberOfHeaderColumns; i++) {
     m_hideableCell[i].setColor(m_selectableTableView.backgroundColor());
@@ -42,18 +44,13 @@ bool DoublePairTableController::handleEvent(Ion::Events::Event event) {
   return false;
 }
 
-void DoublePairTableController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (selectedRow() == -1) {
-      selectCellAtLocation(0, 1);
-    } else {
-      selectCellAtLocation(selectedColumn(), selectedRow());
-    }
-    TabTableController::handleResponderChainEvent(event);
+void DoublePairTableController::didBecomeFirstResponder() {
+  if (selectedRow() == -1) {
+    selectCellAtLocation(0, 1);
   } else {
-    TabTableController::handleResponderChainEvent(event);
+    selectCellAtLocation(selectedColumn(), selectedRow());
   }
+  TabTableController::didBecomeFirstResponder();
 }
 
 HighlightCell* DoublePairTableController::reusableCell(int index, int type) {
@@ -103,7 +100,7 @@ int DoublePairTableController::typeAtLocation(int column, int row) const {
   return k_calculationCellType;
 }
 
-KDCoordinate DoublePairTableController::separatorBeforeColumn(int index) const {
+KDCoordinate DoublePairTableController::separatorBeforeColumn(int index) {
   return typeAtLocation(index, 0) == k_seriesTitleCellType
              ? Metric::TableSeparatorThickness
              : 0;

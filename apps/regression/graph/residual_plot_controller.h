@@ -34,17 +34,19 @@ class ResidualPlotController : public Escher::ViewController {
   }
 
   // Escher::ViewController
-  const char* title() const override {
+  const char* title() override {
     return I18n::translate(I18n::Message::ResidualPlot);
   }
   Escher::View* view() override { return &m_curveView; }
   void viewWillAppear() override;
-  Escher::ViewController::TitlesDisplay titlesDisplay() const override {
+  Escher::ViewController::TitlesDisplay titlesDisplay() override {
     return Escher::ViewController::TitlesDisplay::DisplayLastTitle;
   }
 
   // Escher::Responder
   bool handleEvent(Ion::Events::Event event) override;
+
+  TELEMETRY_ID("ResidualPlotGraph");
 
  private:
   // Move cursor to selected and updates the banner

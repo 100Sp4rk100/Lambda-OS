@@ -1,18 +1,20 @@
 #include "cobweb_controller.h"
 
-#include <apps/shared/continuous_function.h>
-#include <apps/shared/sequence_context.h>
-#include <apps/shared/sequence_store.h>
-#include <ion/events.h>
-#include <omg/code_point.h>
-#include <poincare/layout.h>
-#include <poincare/preferences.h>
-#include <poincare/print.h>
-#include <poincare/solver/zoom.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/horizontal_layout.h>
+#include <poincare/vertical_offset_layout.h>
 
 #include "../app.h"
-#include "cobweb_graph_view.h"
-#include "graph_controller.h"
+#include "apps/sequence/graph/cobweb_graph_view.h"
+#include "apps/sequence/graph/graph_controller.h"
+#include "apps/shared/continuous_function.h"
+#include "apps/shared/sequence_context.h"
+#include "apps/shared/sequence_store.h"
+#include "ion/events.h"
+#include "ion/unicode/code_point.h"
+#include "poincare/preferences.h"
+#include "poincare/print.h"
+#include "poincare/sequence.h"
 
 using namespace Shared;
 using namespace Poincare;
@@ -34,7 +36,7 @@ CobwebController::CobwebController(Responder* parentResponder,
       m_step(-1),
       m_sequenceStore(sequenceStore) {}
 
-const char* CobwebController::title() const {
+const char* CobwebController::title() {
   return I18n::translate(I18n::Message::CobwebPlot);
 }
 
@@ -60,7 +62,7 @@ void CobwebController::setupRange() {
    * draw such that we never need to move the view. */
   SequenceContext* sequenceContext = App::app()->localContext();
   Zoom zoom(0.f, INFINITY, InteractiveCurveViewRange::NormalYXRatio(),
-            InteractiveCurveViewRange::k_maxFloat);
+            sequenceContext, InteractiveCurveViewRange::k_maxFloat);
   for (int step = 0; step < CobwebGraphView::k_maximumNumberOfSteps; step++) {
     float value = sequence()
                       ->evaluateXYAtParameter(
@@ -152,8 +154,8 @@ bool CobwebController::updateStep(int delta) {
 void CobwebController::privateModalViewAltersFirstResponder(
     FirstResponderAlteration alteration) {
   if (alteration == FirstResponderAlteration::DidRestore) {
-    /* This avoids that previous gray dotted line is saved in a buffer when the
-     * same gray dotted line is drawn over it.*/
+    /* This avoids that previous grey dotted line is saved in a buffer when the
+     * same grey dotted line is drawn over it.*/
     m_graphView.resetCachedStep();
     m_graphView.reload(false, true);
   }

@@ -2,7 +2,7 @@
 #define CALCULATION_UNIT_COMPARISON_HELPER_H
 
 #include <apps/i18n.h>
-#include <poincare/expression.h>
+#include <poincare/unit.h>
 
 namespace Calculation {
 
@@ -13,8 +13,14 @@ namespace UnitComparison {
  */
 
 constexpr static int k_sizeOfUnitComparisonBuffer = 5;
+constexpr static int k_sizeOfUnitBuffer = 30;
 constexpr static int k_numberOfSignicativeDigits = 2;
 constexpr static float k_maxPercentageRatioDisplay = 1.05;
+
+struct ReferenceUnit {
+  const char* SIUnit;
+  const char* displayedUnit;
+};
 
 struct ReferenceValue {
   I18n::Message title1;
@@ -24,15 +30,12 @@ struct ReferenceValue {
 };
 
 int FindUpperAndLowerReferenceValues(
-    double inputValue, Poincare::UserExpression approximatedSIExpression,
-    Poincare::Context* context, const ReferenceValue** returnReferenceValues,
+    double inputValue, Poincare::Expression orderedSIUnit,
+    const ReferenceValue** returnReferenceValues,
     int* returnReferenceTableIndex);
-#if 0
-bool ShouldDisplayUnitComparison(double inputValue,
-                                 Poincare::UserExpression unit);
-#endif
+bool ShouldDisplayUnitComparison(double inputValue, Poincare::Expression unit);
 void FillRatioBuffer(double ratio, char* textBuffer, int bufferSize);
-Poincare::UserExpression BuildComparisonExpression(
+Poincare::Expression BuildComparisonExpression(
     double value, const ReferenceValue* referenceValue, int tableIndex);
 }  // namespace UnitComparison
 

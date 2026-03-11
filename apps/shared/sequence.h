@@ -2,12 +2,8 @@
 #define APPS_SHARED_SEQUENCE_H
 
 #include <assert.h>
-#include <ion/storage/file_system.h>
-#include <poincare/code_points.h>
-#include <poincare/helpers/sequence.h>
 
 #include "function.h"
-#include "sequence_cache.h"
 
 #if __EMSCRIPTEN__
 #include <emscripten.h>
@@ -27,12 +23,16 @@ class Sequence : public Function {
 
  public:
   constexpr static CodePoint k_sequenceSymbol =
-      Poincare::CodePoints::k_sequenceSymbol;
-  using Type = Poincare::SequenceHelper::Type;
+      Poincare::Symbol::k_sequenceSymbol;
+  enum class Type : uint8_t {
+    Explicit = 0,
+    SingleRecurrence = 1,
+    DoubleRecurrence = 2
+  };
   Sequence(Ion::Storage::Record record = Record()) : Function(record) {}
-
+  I18n::Message parameterMessageName() const override;
   CodePoint symbol() const override { return k_sequenceSymbol; }
-  size_t nameWithArgumentAndType(char* buffer, size_t bufferSize);
+  size_t nameWithArgumentAndType(char *buffer, size_t bufferSize);
 
   // MetaData getters
   Type type() const { return recordData()->type(); }
@@ -44,57 +44,52 @@ class Sequence : public Function {
   void setInitialRank(int rank);
   void setDisplaySum(bool display) { recordData()->setDisplaySum(display); }
 
-  // Aggregated layout
-  Poincare::Layout aggregatedLayout();
-  Ion::Storage::Record::ErrorStatus setLayoutsForAggregated(
-      Poincare::Layout l, Poincare::Context* ctx);
-
   // Definition
   Poincare::Layout definitionName() { return m_definition.name(this); }
   // First initial condition
   Poincare::Layout firstInitialConditionName() {
     return m_firstInitialCondition.name(this);
   }
-  void firstInitialConditionText(char* buffer, size_t bufferSize) const {
+  void firstInitialConditionText(char *buffer, size_t bufferSize) const {
     return m_firstInitialCondition.text(this, buffer, bufferSize);
   }
-  Poincare::SystemExpression firstInitialConditionExpressionReduced(
-      Poincare::Context* context) const {
+  Poincare::Expression firstInitialConditionExpressionReduced(
+      Poincare::Context *context) const {
     return m_firstInitialCondition.expressionReduced(this, context);
   }
-  Poincare::UserExpression firstInitialConditionExpressionClone() const {
+  Poincare::Expression firstInitialConditionExpressionClone() const {
     return m_firstInitialCondition.expressionClone(this);
   }
   Poincare::Layout firstInitialConditionLayout() {
     return m_firstInitialCondition.layout(this);
   }
   Ion::Storage::Record::ErrorStatus setFirstInitialConditionContent(
-      Poincare::Layout l, Poincare::Context* context) {
-    return m_firstInitialCondition.setContent(this, l, context);
+      const char *c, Poincare::Context *context) {
+    return m_firstInitialCondition.setContent(this, c, context);
   }
   // Second initial condition
   Poincare::Layout secondInitialConditionName() {
     return m_secondInitialCondition.name(this);
   }
-  void secondInitialConditionText(char* buffer, size_t bufferSize) const {
+  void secondInitialConditionText(char *buffer, size_t bufferSize) const {
     return m_secondInitialCondition.text(this, buffer, bufferSize);
   }
-  Poincare::SystemExpression secondInitialConditionExpressionReduced(
-      Poincare::Context* context) const {
+  Poincare::Expression secondInitialConditionExpressionReduced(
+      Poincare::Context *context) const {
     return m_secondInitialCondition.expressionReduced(this, context);
   }
-  Poincare::UserExpression secondInitialConditionExpressionClone() const {
+  Poincare::Expression secondInitialConditionExpressionClone() const {
     return m_secondInitialCondition.expressionClone(this);
   }
   Poincare::Layout secondInitialConditionLayout() {
     return m_secondInitialCondition.layout(this);
   }
   Ion::Storage::Record::ErrorStatus setSecondInitialConditionContent(
-      Poincare::Layout l, Poincare::Context* context) {
-    return m_secondInitialCondition.setContent(this, l, context);
+      const char *c, Poincare::Context *context) {
+    return m_secondInitialCondition.setContent(this, c, context);
   }
   void tidyDownstreamPoolFrom(
-      const Poincare::PoolObject* treePoolCursor = nullptr) const override;
+      Poincare::TreeNode *treePoolCursor = nullptr) const override;
 
   // Sequence properties
   int numberOfElements() { return order() + 1; }
@@ -106,13 +101,13 @@ class Sequence : public Function {
    * - u(n+1) depends only on u(n) or u(i) and not on n, on another sequence or
    *   on another rank of u
    * - u(i) has a non NAN value */
-  bool isSuitableForCobweb(Poincare::Context* context) const;
+  bool isSuitableForCobweb(Poincare::Context *context) const;
   /* Sequence u (with initial rank i) can be handled as explicit if main
    * expression does not contains forbidden terms:
    * - explicit: any term of u
    * - simple recurrence: any term of u other than u(i)
    * - double recurrence: any term of u other than u(i+1), u(i) */
-  bool canBeHandledAsExplicit(Poincare::Context* context) const {
+  bool canBeHandledAsExplicit(Poincare::Context *context) const {
     return !mainExpressionContainsForbiddenTerms(context, false, true, false);
   }
   /* Sequence u (with initial rank i) is not computable if main expression
@@ -120,7 +115,7 @@ class Sequence : public Function {
    * - explicit: any term of u
    * - simple recurrence: any term of u other than u(n), u(i)
    * - double recurrence: any term of u other than u(n+1), u(n), u(i+1), u(i) */
-  bool mainExpressionIsNotComputable(Poincare::Context* context) const {
+  bool mainExpressionIsNotComputable(Poincare::Context *context) const {
     return mainExpressionContainsForbiddenTerms(context, true, true, true);
   }
   int order() const { return static_cast<int>(type()); }
@@ -128,25 +123,21 @@ class Sequence : public Function {
 
   // Approximation
   Poincare::Coordinate2D<float> evaluateXYAtParameter(
-      float x, Poincare::Context* context,
+      float x, Poincare::Context *context,
       int subCurveIndex = 0) const override {
     return Poincare::Coordinate2D<float>(x, privateEvaluateYAtX(x, context));
   }
   Poincare::Coordinate2D<double> evaluateXYAtParameter(
-      double x, Poincare::Context* context,
+      double x, Poincare::Context *context,
       int subCurveIndex = 0) const override {
     return Poincare::Coordinate2D<double>(x, privateEvaluateYAtX(x, context));
   }
-  double approximateAtContextRank(Poincare::Context* ctx, int rank,
+  double approximateAtContextRank(SequenceContext *sqctx,
                                   bool intermediateComputation) const;
-  double approximateAtRank(int rank, SequenceCache* sqctx,
-                           Poincare::Context* ctx) const;
+  double approximateAtRank(int rank, SequenceContext *sqctx) const;
 
-  double sumBetweenBoundsValue(double start, double end,
-                               Poincare::Context* context) const;
-  Poincare::SystemExpression sumBetweenBounds(
-      double start, double end, Poincare::Context* context) const override;
-
+  Poincare::Expression sumBetweenBounds(
+      double start, double end, Poincare::Context *context) const override;
   // m_initialRank is capped by 255
   constexpr static int k_maxInitialRank = 255;
   // 255 + 1 (to take into account a double recursive sequence) fits in 3 digits
@@ -154,7 +145,6 @@ class Sequence : public Function {
 
  private:
   constexpr static KDFont::Size k_layoutFont = KDFont::Size::Large;
-  constexpr static int k_maxNumberOfSteps = 10000;
 
   /* RecordDataBuffer is the layout of the data buffer of Record
    * representing a Sequence. See comment in
@@ -188,7 +178,7 @@ class Sequence : public Function {
 
    private:
     static_assert((1 << 8 * sizeof(uint16_t)) >=
-                      Ion::Storage::FileSystem::k_totalSize,
+                      Ion::Storage::FileSystem::k_storageSize,
                   "Potential overflows of Sequence initial condition sizes");
     Type m_type;
     uint8_t m_initialRank;
@@ -207,22 +197,21 @@ class Sequence : public Function {
   class SequenceModel : public ExpressionModel {
    public:
     using ExpressionModel::ExpressionModel;
-    Poincare::Layout name(Sequence* sequence);
+    Poincare::Layout name(Sequence *sequence);
     void tidyDownstreamPoolFrom(
-        const Poincare::PoolObject* treePoolCursor) const override;
-    void tidyName(const Poincare::PoolObject* treePoolCursor = nullptr) const;
+        Poincare::TreeNode *treePoolCursor) const override;
+    void tidyName(Poincare::TreeNode *treePoolCursor = nullptr) const;
 
    protected:
-    virtual void buildName(Sequence* sequence) = 0;
+    virtual void buildName(Sequence *sequence) = 0;
     mutable Poincare::Layout m_name;
 
    private:
     void updateNewDataWithExpression(
-        Ion::Storage::Record* record,
-        const Poincare::UserExpression& expressionToStore,
-        void* expressionAddress, size_t newExpressionSize,
-        size_t previousExpressionSize) override;
-    virtual void updateMetaData(const Ion::Storage::Record* record,
+        Ion::Storage::Record *record,
+        const Poincare::Expression &expressionToStore, void *expressionAddress,
+        size_t newExpressionSize, size_t previousExpressionSize) override;
+    virtual void updateMetaData(const Ion::Storage::Record *record,
                                 size_t newSize) {}
 
    private:
@@ -231,18 +220,18 @@ class Sequence : public Function {
 
   class DefinitionModel : public SequenceModel {
    private:
-    void* expressionAddress(const Ion::Storage::Record* record) const override;
-    size_t expressionSize(const Ion::Storage::Record* record) const override;
-    void buildName(Sequence* sequence) override;
+    void *expressionAddress(const Ion::Storage::Record *record) const override;
+    size_t expressionSize(const Ion::Storage::Record *record) const override;
+    void buildName(Sequence *sequence) override;
   };
 
   class InitialConditionModel : public SequenceModel {
    private:
-    void updateMetaData(const Ion::Storage::Record* record,
+    void updateMetaData(const Ion::Storage::Record *record,
                         size_t newSize) override;
-    void* expressionAddress(const Ion::Storage::Record* record) const override;
-    size_t expressionSize(const Ion::Storage::Record* record) const override;
-    void buildName(Sequence* sequence) override;
+    void *expressionAddress(const Ion::Storage::Record *record) const override;
+    size_t expressionSize(const Ion::Storage::Record *record) const override;
+    void buildName(Sequence *sequence) override;
     virtual int conditionIndex() const = 0;
   };
 
@@ -257,13 +246,13 @@ class Sequence : public Function {
   };
 
   template <typename T>
-  T privateEvaluateYAtX(T x, Poincare::Context* context) const;
+  T privateEvaluateYAtX(T x, Poincare::Context *context) const;
   size_t metaDataSize() const override { return sizeof(RecordDataBuffer); }
-  const ExpressionModel* model() const override { return &m_definition; }
-  RecordDataBuffer* recordData() const;
+  const ExpressionModel *model() const override { return &m_definition; }
+  RecordDataBuffer *recordData() const;
 
   bool mainExpressionContainsForbiddenTerms(
-      Poincare::Context* context, bool recursionIsAllowed,
+      Poincare::Context *context, bool recursionIsAllowed,
       bool systemSymbolIsAllowed, bool otherSequencesAreAllowed) const;
 
   DefinitionModel m_definition;

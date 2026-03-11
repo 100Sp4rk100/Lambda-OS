@@ -20,6 +20,7 @@ class PythonVariableBoxController
 
   /* Responder */
   bool handleEvent(Ion::Events::Event event) override;
+  void didEnterResponderChain(Responder* previousFirstResponder) override;
 
   /* MemoizedListViewDataSource */
   KDCoordinate nonMemoizedRowHeight(int row) override;
@@ -49,10 +50,6 @@ class PythonVariableBoxController
   void loadVariablesImportedFromScripts();
   void empty();
   void insertAutocompletionResultAtIndex(int index);
-
- protected:
-  void handleResponderChainEvent(
-      Escher::Responder::ResponderChainEvent event) override;
 
  private:
   constexpr static size_t k_maxNumberOfDisplayedItems =
@@ -150,7 +147,7 @@ class PythonVariableBoxController
   const char* importationSourceNameFromNode(mp_parse_node_t& node);
   bool importationSourceIsModule(
       const char* sourceName,
-      const Escher::ToolboxMessage** moduleChildren = nullptr,
+      const Escher::ToolboxMessageTree** moduleChildren = nullptr,
       int* numberOfModuleChildren = nullptr);
   bool importationSourceIsScript(const char* sourceName,
                                  const char** scriptFullName,

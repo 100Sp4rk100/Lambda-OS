@@ -3,7 +3,7 @@
 #include <apps/apps_container.h>
 #include <apps/i18n.h>
 
-#include "graph_icon.h"
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Poincare;
 using namespace Shared;
@@ -19,7 +19,7 @@ I18n::Message App::Descriptor::upperName() const {
   return I18n::Message::FunctionAppCapital;
 }
 
-const Image* App::Descriptor::icon() const { return ImageStore::GraphIcon; }
+const Image* App::Descriptor::icon() const { return Theme::ThemeGestion::getIconImage("GraphIcon"); }
 
 App* App::Snapshot::unpack(Container* container) {
   return new (container->currentAppBuffer()) App(this);

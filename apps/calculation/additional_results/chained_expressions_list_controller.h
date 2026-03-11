@@ -2,7 +2,7 @@
 #define CALCULATION_CHAINED_EXPRESSIONS_LIST_CONTROLLER_H
 
 #include <apps/i18n.h>
-#include <poincare/layout.h>
+#include <poincare/expression.h>
 
 #include "chainable_expressions_list_controller.h"
 
@@ -24,6 +24,7 @@ class ChainedExpressionsListController : public ExpressionsListController {
 
   // Responder
   void viewDidDisappear() override;
+  void didBecomeFirstResponder() override;
 
   // ListViewDataSource
   int typeAtRow(int row) const override;
@@ -37,9 +38,8 @@ class ChainedExpressionsListController : public ExpressionsListController {
   int numberOfRows() const override;
 
  protected:
-  Poincare::Layout layoutAtIndex(Escher::HighlightCell* cell,
-                                 int index) override;
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  size_t textAtIndex(char* buffer, size_t bufferSize,
+                     Escher::HighlightCell* cell, int index) override;
 
  private:
   ChainableExpressionsListController* m_tail;

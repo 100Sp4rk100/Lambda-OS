@@ -25,16 +25,15 @@ class ScriptParameterController
   void dismissScriptParameterController();
 
   /* ViewController */
-  const char* title() const override;
+  const char* title() override;
   bool handleEvent(Ion::Events::Event event) override;
   void viewWillAppear() override;
+  void didBecomeFirstResponder() override;
+  TELEMETRY_ID("ScriptParameter");
 
   /* MemoizedListViewDataSource */
   Escher::AbstractMenuCell* cell(int row) override;
   int numberOfRows() const override { return k_totalNumberOfCell; }
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   constexpr static int k_totalNumberOfCell = 4;

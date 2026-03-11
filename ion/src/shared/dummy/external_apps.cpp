@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <ion/external_apps.h>
 
 namespace Ion {
@@ -22,15 +21,11 @@ AppIterator& AppIterator::operator++() { return *this; }
 
 AppIterator Apps::begin() const { return AppIterator(nullptr); }
 
-int numberOfApps(bool isExamModeActive) { return 0; }
+int numberOfApps() { return 0; }
 
-void deleteApps(bool isExamModeActive) {}
+void deleteApps() {}
 
 bool allowThirdParty() { return false; }
-
-void updateClearanceLevel(bool isExamModeActive) {
-  assert(numberOfApps(isExamModeActive) == 0);
-}
 
 }  // namespace ExternalApps
 }  // namespace Ion

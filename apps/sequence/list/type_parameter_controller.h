@@ -19,13 +19,12 @@ class TypeParameterController
  public:
   TypeParameterController(Escher::Responder* parentResponder,
                           ListController* list, KDMargins margins = {});
-  const char* title() const override;
+  const char* title() override;
   void viewWillAppear() override;
   void viewDidDisappear() override;
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  void setRecord(Ion::Storage::Record record) { m_record = record; }
 
  private:
   constexpr static int k_indexOfExplicit =
@@ -38,8 +37,14 @@ class TypeParameterController
   Escher::StackViewController* stackController() const {
     return static_cast<Escher::StackViewController*>(parentResponder());
   }
+  Shared::Sequence* sequence() {
+    assert(!isNewModel());
+    return sequenceStore()->modelForRecord(m_record);
+  }
   Shared::SequenceStore* sequenceStore();
+  bool isNewModel() const { return m_record.isNull(); }
 
+  Ion::Storage::Record m_record;
   ListController* m_listController;
 };
 

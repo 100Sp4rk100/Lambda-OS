@@ -7,11 +7,6 @@ namespace Code {
 
 class App;
 
-class StorageEditorDelegate {
- public:
-  virtual bool freeSpaceFor(int size) = 0;
-};
-
 class PythonTextArea : public Escher::TextArea {
  public:
   enum class AutocompletionType : uint8_t {
@@ -20,13 +15,14 @@ class PythonTextArea : public Escher::TextArea {
     NoIdentifier
   };
   PythonTextArea(Escher::Responder* parentResponder, App* pythonDelegate,
-                 KDFont::Size font, StorageEditorDelegate* storageDelegate)
+                 KDFont::Size font)
       : Escher::TextArea(parentResponder, &m_contentView),
-        m_contentView(pythonDelegate, font, storageDelegate),
+        m_contentView(pythonDelegate, font),
         m_autocompletionResultIndex(0),
         m_wasAutocompleting(false) {}
   void loadSyntaxHighlighter() { m_contentView.loadSyntaxHighlighter(); }
   void unloadSyntaxHighlighter() { m_contentView.unloadSyntaxHighlighter(); }
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
   bool handleSpecialEvent(Ion::Events::Event event);
   bool handleEventWithText(const char* text, bool indentation = false,
@@ -51,10 +47,8 @@ class PythonTextArea : public Escher::TextArea {
  protected:
   class ContentView : public Escher::TextArea::ContentView {
    public:
-    ContentView(App* pythonDelegate, KDFont::Size font,
-                StorageEditorDelegate* storageDelegate)
+    ContentView(App* pythonDelegate, KDFont::Size font)
         : Escher::TextArea::ContentView(font),
-          m_storageDelegate(storageDelegate),
           m_pythonDelegate(pythonDelegate),
           m_autocomplete(false),
           m_autocompletionEnd(nullptr) {}
@@ -75,15 +69,12 @@ class PythonTextArea : public Escher::TextArea {
                   const char* selectionEnd) const override;
     KDRect dirtyRectFromPosition(const char* position,
                                  bool includeFollowingLines) const override;
-    bool freeSpaceForTextLen(int textLen) override;
 
    private:
-    StorageEditorDelegate* m_storageDelegate;
     App* m_pythonDelegate;
     bool m_autocomplete;
     const char* m_autocompletionEnd;
   };
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   void prepareVariableBoxBeforeOpening();

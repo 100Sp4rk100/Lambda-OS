@@ -13,7 +13,7 @@ namespace Finance {
 
 ResultController::ResultController(Escher::StackViewController* parentResponder)
     : Escher::ListWithTopAndBottomController(parentResponder, &m_messageView),
-      m_messageView(I18n::Message::CalculatedValues, k_messageFormat) {}
+      m_messageView(I18n::Message::CalculatedValues, k_messageFormat()) {}
 
 void ResultController::viewWillAppear() {
   /* Build the result cell here because it only needs to be updated once this
@@ -26,7 +26,7 @@ void ResultController::viewWillAppear() {
   constexpr int bufferSize = Escher::FloatBufferTextView<>::MaxTextSize();
   char buffer[bufferSize];
   int precision =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+      Poincare::Preferences::SharedPreferences()->numberOfSignificantDigits();
   Shared::PoincareHelpers::ConvertFloatToTextWithDisplayMode<double>(
       value, buffer, bufferSize, precision,
       Poincare::Preferences::PrintFloatMode::Decimal);
@@ -38,18 +38,17 @@ void ResultController::viewWillAppear() {
 
 bool ResultController::handleEvent(Ion::Events::Event event) {
   if (event == Ion::Events::Copy || event == Ion::Events::Cut) {
-    Escher::Clipboard::SharedClipboard()->storeText(m_cell.text());
+    Escher::Clipboard::SharedClipboard()->store(m_cell.text());
     return true;
   }
   if (event == Ion::Events::Sto || event == Ion::Events::Var) {
-    assert(App::app()->canStoreLayout());
-    App::app()->storeLayout(Poincare::Layout::String(m_cell.text()));
+    App::app()->storeValue(m_cell.text());
     return true;
   }
   return popFromStackViewControllerOnLeftEvent(event);
 }
 
-const char* ResultController::title() const {
+const char* ResultController::title() {
   /* Try fitting the known parameters values in the title using a minimal
    * precision. Use "..." at the end if not all parameters fit. */
   constexpr int precision =
@@ -99,14 +98,6 @@ const char* ResultController::title() const {
   assert(length < k_titleBufferSize);
   m_titleBuffer[length] = 0;
   return m_titleBuffer;
-}
-
-void ResultController::handleResponderChainEvent(ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    // nothing
-  } else {
-    Escher::ListWithTopAndBottomController::handleResponderChainEvent(event);
-  }
 }
 
 }  // namespace Finance

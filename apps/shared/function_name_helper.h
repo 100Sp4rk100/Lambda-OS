@@ -2,7 +2,7 @@
 #define SHARED_FUNCTION_MODELS_NAMES_H
 
 #include <apps/shared/continuous_function.h>
-#include <omg/code_point.h>
+#include <ion/unicode/code_point.h>
 
 #include <array>
 
@@ -18,7 +18,7 @@ size_t ParametricComponentNameWithArgument(Shared::ContinuousFunction* f,
 bool ParametricComponentsNamesAreFree(char* baseName, size_t baseNameLength,
                                       size_t bufferSize);
 int DefaultName(char* buffer, size_t bufferSize, CodePoint symbol);
-bool ParametricComponentsNameError(Poincare::UserExpression expression,
+bool ParametricComponentsNameError(Poincare::Expression expression,
                                    Shared::ContinuousFunction* function);
 
 }  // namespace FunctionNameHelper

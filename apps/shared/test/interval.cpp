@@ -1,6 +1,5 @@
 #include "../interval.h"
 
-#include <poincare/test/float_helper.h>
 #include <quiz.h>
 
 #include <array>
@@ -16,12 +15,11 @@ void testInterval(double start, double end, double step, double* elements,
   params->setStep(step);
   quiz_assert(testInterval.numberOfElements() == elementCount);
   for (int i = 0; i < elementCount; ++i) {
-    // ValueOfFloatAsDisplayed can be used to set each interval element.
-    assert_roughly_equal<double>(testInterval.element(i), elements[i]);
+    quiz_assert(elements[i] == testInterval.element(i));
   }
 }
 
-QUIZ_CASE(shared_interval_values) {
+QUIZ_CASE(interval_values) {
   {
     double elements[12] = {-1.2, -1.0, -0.8, -0.6, -0.4, -0.2,
                            0.0,  0.2,  0.4,  0.6,  0.8,  1.0};

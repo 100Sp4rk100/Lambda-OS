@@ -9,10 +9,9 @@ bool ScriptStore::ScriptNameIsFree(const char* baseName) {
 }
 
 void ScriptStore::InitTemplates() {
-  AddScriptFromTemplate(ScriptTemplate::Squares());
-  AddScriptFromTemplate(ScriptTemplate::Parabola());
-  AddScriptFromTemplate(ScriptTemplate::Mandelbrot());
-  AddScriptFromTemplate(ScriptTemplate::Polynomial());
+  AddScriptFromTemplate(ScriptTemplate::Get());
+  AddScriptFromTemplate(ScriptTemplate::Set());
+  AddScriptFromTemplate(ScriptTemplate::Reset());
 }
 
 void ScriptStore::DeleteAllScripts() {
@@ -22,8 +21,8 @@ void ScriptStore::DeleteAllScripts() {
 }
 
 bool ScriptStore::IsFull() {
-  return !Ion::Storage::FileSystem::sharedFileSystem->freeSpaceFor(
-      k_fullFreeSpaceSizeLimit);
+  return Ion::Storage::FileSystem::sharedFileSystem->availableSize() <
+         k_fullFreeSpaceSizeLimit;
 }
 
 const char* ScriptStore::contentOfScript(const char* name,

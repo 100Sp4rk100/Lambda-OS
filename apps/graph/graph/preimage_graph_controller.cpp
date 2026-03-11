@@ -1,7 +1,8 @@
 #include "preimage_graph_controller.h"
 
-#include <omg/utf8_helper.h>
-#include <poincare/expression.h>
+#include <apps/shared/poincare_helpers.h>
+#include <poincare/float.h>
+#include <poincare/serialization_helper.h>
 
 using namespace Poincare;
 using namespace Shared;
@@ -18,17 +19,13 @@ PreimageGraphController::PreimageGraphController(
       m_image(NAN) {}
 
 Coordinate2D<double> PreimageGraphController::computeNewPointOfInterest(
-    double start, double max, Context* context, bool stretch) {
-  Solver<double> solver = Poincare::Solver(start, max, context);
-  if (stretch) {
-    solver.stretch();
-  }
-  SystemFunction f =
+    double start, double max, Context* context) {
+  Solver<double> solver = PoincareHelpers::Solver(
+      start, max, ContinuousFunction::k_unknownName, context);
+  Expression f =
       functionStore()->modelForRecord(m_record)->expressionApproximated(
           context);
-  return solver
-      .nextIntersection(Expression::Builder<double>(m_image).tree(), f.tree())
-      .xy();
+  return solver.nextIntersection(Float<double>::Builder(m_image), f);
 }
 
 }  // namespace Graph

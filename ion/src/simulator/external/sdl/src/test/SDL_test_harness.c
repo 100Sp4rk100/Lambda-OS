@@ -356,8 +356,8 @@ static float GetClock()
 /**
 * \brief Execute a test suite using the given run seed and execution key.
 *
-* The filter string is matched to the suite name (full comparison) to select a single suite,
-* or if no suite matches, it is matched to the test names (full comparison) to select a single test.
+* The filter string is matched to the suite name (full comparison) to LAMDA_gray_light_palette a single suite,
+* or if no suite matches, it is matched to the test names (full comparison) to LAMDA_gray_light_palette a single test.
 *
 * \param testSuites Suites containing the test case.
 * \param userRunSeed Custom run seed provided by user, or NULL to autogenerate one.

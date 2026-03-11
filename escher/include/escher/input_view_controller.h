@@ -15,11 +15,11 @@ class InputViewController : public ModalViewController, LayoutFieldDelegate {
  public:
   InputViewController(Responder* parentResponder, ViewController* child,
                       LayoutFieldDelegate* layoutFieldDelegate);
-  const Poincare::Layout layout() {
-    return m_expressionInputBarController.layoutField()->layout();
+  const char* textBody() {
+    return m_expressionInputBarController.layoutField()->text();
   }
-  void setLayout(const Poincare::Layout& layout) {
-    m_expressionInputBarController.layoutField()->setLayout(layout);
+  void setTextBody(const char* text) {
+    m_expressionInputBarController.layoutField()->setText(text);
   }
   void edit(Ion::Events::Event event, void* context,
             Invocation::Action successAction, Invocation::Action failureAction);
@@ -47,11 +47,9 @@ class InputViewController : public ModalViewController, LayoutFieldDelegate {
         const ExpressionInputBarController& other) = delete;
     ExpressionInputBarController& operator=(
         ExpressionInputBarController&& other) = delete;
+    void didBecomeFirstResponder() override;
     View* view() override { return &m_expressionInputBar; }
     LayoutField* layoutField() { return m_expressionInputBar.layoutField(); }
-
-   protected:
-    void handleResponderChainEvent(ResponderChainEvent event) override;
 
    private:
     ExpressionInputBar m_expressionInputBar;

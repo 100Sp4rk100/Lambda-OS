@@ -3,7 +3,6 @@
 
 #include <apps/shared/curve_view_range.h>
 #include <escher/metric.h>
-#include <omg/float.h>
 
 namespace Calculation {
 
@@ -35,7 +34,8 @@ class TrigonometryModel : public Shared::CurveViewRange {
   float angle() const { return m_angle; }
   void setAngle(float angle) {
     assert(std::isfinite(angle));
-    assert(0 <= angle && angle < 2 * M_PI + OMG::Float::EpsilonLax<float>());
+    assert(0 <= angle &&
+           angle < 2 * M_PI + Poincare::Float<float>::EpsilonLax());
     m_angle = angle;
   }
 

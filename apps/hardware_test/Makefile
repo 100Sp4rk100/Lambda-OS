@@ -1,4 +1,4 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/hardware_test/,$(addsuffix :-test, \
+app_hardware_test_src = $(addprefix apps/hardware_test/,\
   app.cpp \
   arrow_view.cpp \
   battery_test_controller.cpp \
@@ -13,4 +13,6 @@ SOURCES_apps += $(addprefix $(PATH_apps)/hardware_test/,$(addsuffix :-test, \
   led_test_controller.cpp \
   serial_number_controller.cpp \
   vblank_test_controller.cpp \
-))
+)
+
+apps_src += $(app_hardware_test_src)

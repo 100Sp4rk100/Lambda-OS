@@ -1,7 +1,9 @@
 #ifndef SHARED_FUNCTION_H
 #define SHARED_FUNCTION_H
 
-#include <poincare/helpers/symbol.h>
+#include <escher/i18n.h>
+#include <poincare/function.h>
+#include <poincare/symbol.h>
 
 #include "expression_model_handle.h"
 
@@ -19,7 +21,7 @@ class Function : public ExpressionModelHandle {
   constexpr static int k_parenthesedThetaArgumentByteLength = 4;
   constexpr static int k_parenthesedXNTArgumentByteLength = 3;
   constexpr static int k_maxNameWithArgumentSize =
-      Poincare::SymbolHelper::k_maxNameSize +
+      Poincare::SymbolAbstractNode::k_maxNameSize +
       k_parenthesedThetaArgumentByteLength; /* Function name and
                                                null-terminating char + "(θ)" */
   ;
@@ -39,7 +41,7 @@ class Function : public ExpressionModelHandle {
   KDColor color(int derivationOrder = 0) const;
   void setColor(KDColor color, int derivationOrder = 0);
   void setActive(bool active);
-  virtual int numberOfSubCurves(bool includeDerivatives = false) const {
+  virtual int numberOfSubCurves(int includeDerivatives = false) const {
     return 1;
   }
   virtual bool isAlongY() const { return false; }
@@ -62,13 +64,14 @@ class Function : public ExpressionModelHandle {
                                     double cursorY, char* buffer,
                                     size_t bufferSize, int precision,
                                     Poincare::Context* context);
+  virtual I18n::Message parameterMessageName() const = 0;
 
   // Evaluation
   virtual Poincare::Coordinate2D<float> evaluateXYAtParameter(
       float t, Poincare::Context* context, int subCurveIndex = 0) const = 0;
   virtual Poincare::Coordinate2D<double> evaluateXYAtParameter(
       double t, Poincare::Context* context, int subCurveIndex = 0) const = 0;
-  virtual Poincare::SystemExpression sumBetweenBounds(
+  virtual Poincare::Expression sumBetweenBounds(
       double start, double end, Poincare::Context* context) const = 0;
 
   virtual int derivationOrderFromSubCurveIndex(int subCurveIndex) const {

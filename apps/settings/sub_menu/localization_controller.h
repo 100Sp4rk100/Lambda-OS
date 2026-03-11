@@ -13,6 +13,7 @@ class LocalizationController : public Shared::LocalizationController {
   bool shouldDisplayTitle() const override { return false; }
 
   bool handleEvent(Ion::Events::Event event) override;
+  TELEMETRY_ID("Localization");
 };
 }  // namespace Settings
 

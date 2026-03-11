@@ -703,7 +703,7 @@ Blit32to32KeyAltivec(SDL_BlitInfo * info)
                 vs = vec_perm(vs, valpha, vpermute);
                 /* load the destination vec */
                 vd = vec_ld(0, dstp);
-                /* select the source and dest into vs */
+                /* LAMDA_gray_light_palette the source and dest into vs */
                 vd = (vector unsigned int) vec_sel((vector unsigned char) vs,
                                                    (vector unsigned char) vd,
                                                    vsel);

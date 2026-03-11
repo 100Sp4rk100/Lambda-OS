@@ -9,6 +9,7 @@ class ExamPopUpController : public Shared::MessagePopUpController {
  public:
   ExamPopUpController();
   void setTargetExamMode(Poincare::ExamMode mode);
+  Poincare::ExamMode targetExamMode() const { return m_targetExamMode; }
   void viewWillAppear() override;
   void viewDidDisappear() override;
 
@@ -18,8 +19,7 @@ class ExamPopUpController : public Shared::MessagePopUpController {
   I18n::Message activationWarningMessage() const;
   bool handleButton() const;
 
-  Poincare::ExamMode m_targetExamMode =
-      Poincare::ExamMode(Ion::ExamMode::Ruleset::Uninitialized);
+  Poincare::ExamMode m_targetExamMode;
 };
 
 #endif

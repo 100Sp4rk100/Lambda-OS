@@ -2,20 +2,22 @@
 #include <escher/toggleable_dot_view.h>
 #include <kandinsky/dot.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
-constexpr static KDCoordinate Size = ToggleableDotView::k_dotSize;
+static constexpr KDCoordinate Size = ToggleableDotView::k_dotSize;
 
-constexpr static const KDMask<Size> mediumDot =
+static constexpr const KDMask<Size> mediumDot =
     KDMakeDot<Size>(ToggleableDotView::k_dotRadius);
 const uint8_t (&MediumDotMask)[Size][Size] = mediumDot.m_mask;
 
-constexpr static const KDMask<Size> mediumShallowDot = KDMakeRing<Size>(
+static constexpr const KDMask<Size> mediumShallowDot = KDMakeRing<Size>(
     ToggleableDotView::k_dotRadius - ToggleableDotView::k_shallowDotThickness,
     ToggleableDotView::k_dotRadius);
 const uint8_t (&MediumShallowDotMask)[Size][Size] = mediumShallowDot.m_mask;
 
-void ToggleableDotView::drawRect(KDContext* ctx, KDRect rect) const {
+void ToggleableDotView::drawRect(KDContext *ctx, KDRect rect) const {
   /* Draw the view aligned on the right of the view and vertically centered
    * The heightCenter is the coordinate of the vertical middle of the view. That
    * way, (heightCenter-halfHeight) indicates the top of the StateView. */
@@ -27,9 +29,9 @@ void ToggleableDotView::drawRect(KDContext* ctx, KDRect rect) const {
   KDRect frame(width - k_dotSize, heightCenter - halfHeight, k_dotSize,
                k_dotSize);
   ctx->blendRectWithMask(
-      frame, m_state ? Palette::YellowDark : Palette::GrayDark,
-      m_state ? reinterpret_cast<const uint8_t*>(MediumDotMask)
-              : reinterpret_cast<const uint8_t*>(MediumShallowDotMask),
+      frame, m_state ? Theme::ThemeGestion::getColor("YellowDark") : Theme::ThemeGestion::getColor("GrayDark"),
+      m_state ? reinterpret_cast<const uint8_t *>(MediumDotMask)
+              : reinterpret_cast<const uint8_t *>(MediumShallowDotMask),
       workingBuffer);
 }
 

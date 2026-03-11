@@ -3,14 +3,15 @@
 #include "execution_environment.h"
 
 QUIZ_CASE(python_numpy) {
-  TestExecutionEnvironment env = init_environment();
+#ifndef PLATFORM_WINDOWS
+  TestExecutionEnvironment env = init_environement();
   // Test "from matplotlib.pyplot import *"
   assert_command_execution_fails(env, "np.array([1,3,4])");
   assert_command_execution_succeeds(env, "from numpy import *");
   assert_command_execution_succeeds(env, "ones(3)", "array([1.0, 1.0, 1.0])\n");
 
   deinit_environment();
-  env = init_environment();
+  env = init_environement();
   assert_command_execution_succeeds(env, "import numpy as np");
   assert_command_execution_succeeds(env, "arr1 = np.array([1,3,5,4])");
   /* TODO: We cannot test floating results due to precision disparity in
@@ -64,21 +65,5 @@ QUIZ_CASE(python_numpy) {
   assert_command_execution_succeeds(env, "np.arange(0,0)", "array([])\n");
   assert_command_execution_fails(env, "np.arange(0,3,0)");
   assert_command_execution_fails(env, "np.concatenate((0,0))");
-  // Numpy reverse methods
-  assert_command_execution_succeeds(env, "c = np.array([1, 2])");
-  assert_command_execution_succeeds(env, "c*5", "array([5.0, 10.0])\n");
-  assert_command_execution_succeeds(env, "5*c", "array([5.0, 10.0])\n");
-  assert_command_execution_succeeds(env, "c**2", "array([1.0, 4.0])\n");
-  assert_command_execution_succeeds(env, "2**c", "array([2.0, 4.0])\n");
-  // Multi-dimensional array construction from a list or a tuple
-  assert_command_execution_fails(env, "np.array([[1,2,3],[4,5]])");
-  assert_command_execution_fails(env, "np.array(([1,2,3],[4,5]))");
-  assert_command_execution_fails(env, "np.array([[1,2],[3,4,5]])");
-  assert_command_execution_fails(env, "np.array(([1,2],[3,4,5]))");
-  assert_command_execution_succeeds(
-      env, "np.array([[1,2,3],[4,5,6]])\n",
-      "array([[1.0, 2.0, 3.0],\n       [4.0, 5.0, 6.0]])\n");
-  assert_command_execution_succeeds(
-      env, "np.array(([1,2,3],[4,5,6]))\n",
-      "array([[1.0, 2.0, 3.0],\n       [4.0, 5.0, 6.0]])\n");
+#endif
 }

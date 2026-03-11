@@ -11,7 +11,8 @@ class RootGraphController : public CalculationGraphController {
                       BannerView* bannerView,
                       Shared::InteractiveCurveViewRange* curveViewRange,
                       Shared::CurveViewCursor* cursor);
-  const char* title() const override;
+  const char* title() override;
+  TELEMETRY_ID("Root");
 
  private:
   Poincare::Solver<double>::Interest specialInterest() const override {

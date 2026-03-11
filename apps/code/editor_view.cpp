@@ -2,7 +2,9 @@
 
 #include <apps/global_preferences.h>
 #include <escher/palette.h>
-#include <omg/print.h>
+#include <poincare/integer.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 #include "app.h"
 
@@ -12,13 +14,11 @@ namespace Code {
 
 /* EditorView */
 
-EditorView::EditorView(Responder* parentResponder, App* pythonDelegate,
-                       StorageEditorDelegate* storageDelegate)
+EditorView::EditorView(Responder* parentResponder, App* pythonDelegate)
     : Responder(parentResponder),
       View(),
       m_textArea(parentResponder, pythonDelegate,
-                 GlobalPreferences::SharedGlobalPreferences()->font(),
-                 storageDelegate),
+                 GlobalPreferences::SharedGlobalPreferences()->font()),
       m_gutterView(GlobalPreferences::SharedGlobalPreferences()->font()) {
   m_textArea.setScrollViewDataSourceDelegate(this);
 }
@@ -48,13 +48,8 @@ View* EditorView::subviewAtIndex(int index) {
   return &m_gutterView;
 }
 
-void EditorView::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(&m_textArea);
-  } else {
-    Responder::handleResponderChainEvent(event);
-  }
+void EditorView::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(&m_textArea);
 }
 
 void EditorView::layoutSubviews(bool force) {
@@ -73,7 +68,7 @@ void EditorView::layoutSubviews(bool force) {
 /* EditorView::GutterView */
 
 void EditorView::GutterView::drawRect(KDContext* ctx, KDRect rect) const {
-  KDColor textColor = Palette::BlueishGray;
+  KDColor textColor = Theme::ThemeGestion::getColor("BlueishGray");
   KDColor backgroundColor = KDColor::RGB24(0xE4E6E7);
 
   ctx->fillRect(rect, backgroundColor);
@@ -83,17 +78,21 @@ void EditorView::GutterView::drawRect(KDContext* ctx, KDRect rect) const {
   KDCoordinate firstLine = m_offset / glyphSize.height();
   KDCoordinate firstLinePixelOffset = m_offset - firstLine * glyphSize.height();
 
-  char buffer[k_lineNumberCharLength + 1];
+  char lineNumber[k_lineNumberCharLength];
   int numberOfLines = bounds().height() / glyphSize.height() + 1;
   for (int i = 0; i < numberOfLines; i++) {
     // Only the first two digits are displayed
     int lineNumberValue = (i + firstLine + 1) % 100;
-    int length = (firstLine < 10 ? OMG::Print::IntLeft : OMG::Print::IntRight)(
-        lineNumberValue, buffer, k_lineNumberCharLength);
-    assert(length <= k_lineNumberCharLength);
-    buffer[length] = 0;
-    KDCoordinate leftPadding = (2 - strlen(buffer)) * glyphSize.width();
-    ctx->drawString(buffer,
+    Poincare::Integer line(lineNumberValue);
+    if (firstLine < 10 || lineNumberValue >= 10) {
+      line.serialize(lineNumber, k_lineNumberCharLength);
+    } else {
+      // Add a leading "0"
+      lineNumber[0] = '0';
+      line.serialize(lineNumber + 1, k_lineNumberCharLength - 1);
+    }
+    KDCoordinate leftPadding = (2 - strlen(lineNumber)) * glyphSize.width();
+    ctx->drawString(lineNumber,
                     KDPoint(k_margin + leftPadding,
                             i * glyphSize.height() - firstLinePixelOffset),
                     {.glyphColor = textColor,

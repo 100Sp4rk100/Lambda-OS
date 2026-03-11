@@ -30,14 +30,8 @@ class LayoutView : public GlyphsView {
   KDSize minimalSizeForOptimalDisplay() const override;
   KDPoint drawingOrigin() const;
   bool layoutHasNode() const {
-    return Poincare::PoolObject::IsValidIdentifier(m_layout.identifier()) &&
+    return Poincare::TreeNode::IsValidIdentifier(m_layout.identifier()) &&
            !m_layout.wasErasedByException();
-  }
-
-  static Poincare::LayoutStyle DefaultLayoutStyle(
-      const KDGlyph::Style& glyphStyle) {
-    return {glyphStyle, Escher::Palette::Select, Escher::Palette::YellowDark,
-            Escher::Palette::GrayBright, Escher::Palette::GrayDark};
   }
 
  protected:
@@ -46,11 +40,13 @@ class LayoutView : public GlyphsView {
    * controller which only gives a pointer to the layout view (without cloning
    * it). The named controller is then responsible for freeing the layout when
    * required. */
-  // TODO find better way to have draw const
+  // TODO find better way to have minimalSizeForOptimalDisplay const
   mutable Poincare::Layout m_layout;
 
  private:
-  virtual Poincare::Internal::LayoutCursor* cursor() const { return nullptr; }
+  virtual Poincare::LayoutSelection selection() const {
+    return Poincare::LayoutSelection();
+  }
   KDCoordinate m_horizontalMargin;
 };
 
@@ -58,21 +54,15 @@ class LayoutViewWithCursor : public LayoutView {
  public:
   LayoutViewWithCursor(Poincare::LayoutCursor* cursor,
                        KDGlyph::Format format = {})
-      : LayoutView(format), m_cursor(cursor), m_editing(true) {
+      : LayoutView(format), m_cursor(cursor) {
     assert(cursor);
-  }
-  void setEditing(bool isEditing) {
-    m_editing = isEditing;
-    markWholeFrameAsDirty();
   }
 
  private:
-  Poincare::Layout layout() const override { return m_cursor->rootLayout(); }
-  Poincare::Internal::LayoutCursor* cursor() const override {
-    return m_editing ? m_cursor : nullptr;
+  Poincare::LayoutSelection selection() const override {
+    return m_cursor->selection();
   }
   Poincare::LayoutCursor* m_cursor;
-  bool m_editing;
 };
 
 }  // namespace Escher

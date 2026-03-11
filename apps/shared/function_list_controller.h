@@ -19,6 +19,8 @@ class FunctionListController : public ExpressionModelListController,
                          Escher::ButtonRowController* footer,
                          I18n::Message text);
 
+  TELEMETRY_ID("List");
+
   /* ButtonRowDelegate */
   int numberOfButtons(
       Escher::ButtonRowController::Position position) const override;
@@ -26,11 +28,14 @@ class FunctionListController : public ExpressionModelListController,
       int index, Escher::ButtonRowController::Position position) const override;
 
   /* Responder */
+  void didEnterResponderChain(Escher::Responder* nextFirstResponder) override;
+  void willExitResponderChain(Escher::Responder* nextFirstResponder) override;
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
 
   /* ViewController */
   Escher::View* view() override { return &m_selectableListView; }
-  ViewController::TitlesDisplay titlesDisplay() const override {
+  ViewController::TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::NeverDisplayOwnTitle;
   }
 
@@ -45,9 +50,6 @@ class FunctionListController : public ExpressionModelListController,
   Escher::TabViewController* tabController() const;
 
   bool m_parameterColumnSelected;
-
-  void handleResponderChainEvent(
-      Escher::Responder::ResponderChainEvent event) override;
 
  private:
   virtual ListParameterController* parameterController() = 0;

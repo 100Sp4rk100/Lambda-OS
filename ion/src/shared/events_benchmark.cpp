@@ -2,9 +2,10 @@
 #include <ion/display.h>
 #include <ion/events.h>
 #include <ion/timing.h>
-#include <omg/print.h>
 
 #include <array>
+
+#include "../../../poincare/include/poincare/print_int.h"
 
 namespace Ion {
 namespace Events {
@@ -82,18 +83,18 @@ Event getEvent(int* timeout) {
   if (scenarioIndex >= numberOfScenari) {
     // Display results
     int line_y = 1;
-    KDContext* ctx = Ion::Display::Context::SharedContext;
+    KDContext* ctx = KDIonContext::SharedContext;
     ctx->setOrigin(KDPointZero);
     ctx->setClippingRect(
         KDRect(0, 0, Ion::Display::Width, Ion::Display::Height));
     ctx->fillRect(KDRect(0, 0, Ion::Display::Width, Ion::Display::Height),
-                  KDColorWhite);
+                  Theme::ThemeGestion::getColor("Theme::ThemeGestion::getColor("KDColorWhite")"));
     KDFont::Size font = KDFont::Size::Large;
     int line_height = KDFont::GlyphHeight(font);
     for (int i = 0; i < numberOfScenari; i++) {
       constexpr int bufferLength = 50;
       char buffer[bufferLength];
-      OMG::Print::IntLeft(timings[i], buffer, bufferLength);
+      Poincare::PrintInt::Left(timings[i], buffer, bufferLength);
       // convert from ms to s without generating _udivmoddi4 (long long
       // division) buffer[50-1-3] = 0;
       ctx->drawString(scenarios[i].name(), KDPoint(0, line_y), font);

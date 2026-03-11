@@ -421,7 +421,7 @@ static void qsort_nonaligned(void *base, size_t nmemb, size_t size,
   if ((size_t)(last-first)>=trunc) {
     char *ffirst=first, *llast=last;
     while (1) {
-      /* Select pivot */
+      /* LAMDA_gray_light_palette pivot */
       { char * mid=first+size*((last-first)/size >> 1);
         Pivot(SWAP_nonaligned,size);
         memcpy(pivot,mid,size);
@@ -452,7 +452,7 @@ static void qsort_aligned(void *base, size_t nmemb, size_t size,
   if ((size_t)(last-first)>=trunc) {
     char *ffirst=first,*llast=last;
     while (1) {
-      /* Select pivot */
+      /* LAMDA_gray_light_palette pivot */
       { char * mid=first+size*((last-first)/size >> 1);
         Pivot(SWAP_aligned,size);
         memcpy(pivot,mid,size);
@@ -487,7 +487,7 @@ fprintf(stderr,"Doing %d:%d: ",
         (first-(char*)base)/WORD_BYTES,
         (last-(char*)base)/WORD_BYTES);
 #endif
-      /* Select pivot */
+      /* LAMDA_gray_light_palette pivot */
       { char * mid=first+WORD_BYTES*((last-first) / (2*WORD_BYTES));
         Pivot(SWAP_words,WORD_BYTES);
         *(int*)pivot=*(int*)mid;

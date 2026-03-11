@@ -6,7 +6,7 @@
 namespace Elements {
 
 ElementsView::ElementsView()
-    : m_singleElementView(KDColorWhite),
+    : m_singleElementView(Theme::ThemeGestion::getColor("KDColorWhite")),
       m_nameView(I18n::Message::Default,
                  {.style = {.font = KDFont::Size::Small},
                   .horizontalAlignment = KDGlyph::k_alignCenter}),
@@ -16,11 +16,11 @@ void ElementsView::drawRect(KDContext* ctx, KDRect rect) const {
   /* Only draw the whole background when the view appears. This prevents
    * blinking when moving the cursor around. */
   if (m_redrawBackground) {
-    ctx->fillRect(rect, k_backgroundColor);
+    ctx->fillRect(rect, Theme::ThemeGestion::getColor("KDColorWhite"));
     drawLigatures(ctx);
     m_redrawBackground = false;
   } else {
-    ctx->fillRect(SingleElementViewFrame(), k_backgroundColor);
+    ctx->fillRect(SingleElementViewFrame(), Theme::ThemeGestion::getColor("KDColorWhite"));
   }
 
   for (AtomicNumber z = 1; z <= ElementsDataBase::k_numberOfElements; z++) {
@@ -35,7 +35,7 @@ void ElementsView::drawRect(KDContext* ctx, KDRect rect) const {
   AtomicNumber previousSelection = dataSource->previousElement();
   if (ElementsDataBase::IsElement(previousSelection) &&
       previousSelection != selection) {
-    drawElementBorder(previousSelection, k_backgroundColor, ctx, rect);
+    drawElementBorder(previousSelection, Theme::ThemeGestion::getColor("KDColorWhite"), ctx, rect);
   }
   if (ElementsDataBase::IsElement(selection)) {
     drawElementBorder(selection, dataSource->field()->getColors(selection).fg(),
@@ -170,18 +170,18 @@ void ElementsView::drawLigatures(KDContext* ctx) const {
       k_lanthanideTopMargin + 2 * (k_cellMargin + k_cellSize);
   constexpr KDCoordinate yOffset = k_cellSize + k_cellMargin;
 
-  ctx->fillRect(KDRect(x, y, longArm, thickness), k_ligatureColor);
-  ctx->fillRect(KDRect(x + longArm, y, thickness, height), k_ligatureColor);
+  ctx->fillRect(KDRect(x, y, longArm, thickness), Theme::ThemeGestion::getColor("GrayMiddle"));
+  ctx->fillRect(KDRect(x + longArm, y, thickness, height), Theme::ThemeGestion::getColor("GrayMiddle"));
   ctx->fillRect(KDRect(x + longArm + thickness, y + height - thickness,
                        shortArm, thickness),
-                k_ligatureColor);
+                Theme::ThemeGestion::getColor("GrayMiddle"));
 
-  ctx->fillRect(KDRect(x, y + yOffset, shortArm, thickness), k_ligatureColor);
+  ctx->fillRect(KDRect(x, y + yOffset, shortArm, thickness), Theme::ThemeGestion::getColor("GrayMiddle"));
   ctx->fillRect(KDRect(x + shortArm, y + yOffset, thickness, height),
-                k_ligatureColor);
+                Theme::ThemeGestion::getColor("GrayMiddle"));
   ctx->fillRect(KDRect(x + shortArm + thickness,
                        y + yOffset + height - thickness, longArm, thickness),
-                k_ligatureColor);
+                Theme::ThemeGestion::getColor("GrayMiddle"));
 }
 
 void ElementsView::dirtyElement(AtomicNumber z) {

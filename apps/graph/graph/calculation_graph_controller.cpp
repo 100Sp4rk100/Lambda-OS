@@ -19,7 +19,7 @@ CalculationGraphController::CalculationGraphController(
       m_graphView(graphView),
       m_bannerView(bannerView),
       m_graphRange(curveViewRange),
-      m_defaultBannerView(defaultMessage, BannerView::k_bannerFieldFormat),
+      m_defaultBannerView(defaultMessage, BannerView::k_bannerFieldFormat()),
       m_isActive(false) {}
 
 bool CalculationGraphController::handleEvent(Ion::Events::Event event) {
@@ -29,14 +29,12 @@ bool CalculationGraphController::handleEvent(Ion::Events::Event event) {
     return true;
   }
   if (event == Ion::Events::Copy || event == Ion::Events::Cut) {
-    Escher::Clipboard::SharedClipboard()->storeText(
+    Escher::Clipboard::SharedClipboard()->store(
         m_bannerView->abscissaValue()->text());
     return true;
   }
   if (event == Ion::Events::Sto || event == Ion::Events::Var) {
-    assert(App::app()->canStoreLayout());
-    App::app()->storeLayout(
-        Layout::String(m_bannerView->abscissaValue()->text()));
+    App::app()->storeValue(m_bannerView->abscissaValue()->text());
     return true;
   }
   return SimpleInteractiveCurveViewController::handleEvent(event);
@@ -62,9 +60,8 @@ bool CalculationGraphController::handleEnter() {
 void CalculationGraphController::viewWillAppear() {
   curveView()->setFocus(true);
   assert(!m_record.isNull());
-  // Allow points of interest at m_graphRange->xMin()
   Coordinate2D<double> pointOfInterest = computeNewPointOfInterestFromAbscissa(
-      m_graphRange->xMin(), OMG::Direction::Right(), true);
+      m_graphRange->xMin(), OMG::Direction::Right());
   if (std::isnan(pointOfInterest.x())) {
     m_isActive = false;
     m_graphView->setCursorView(nullptr);
@@ -95,23 +92,22 @@ void CalculationGraphController::setRecord(Ion::Storage::Record record) {
 
 void CalculationGraphController::reloadBannerView() {
   reloadBannerViewForCursorOnFunction(
-      m_cursor->t(), m_cursor->x(), m_cursor->y(), m_record, functionStore(),
+      m_cursor, m_record, functionStore(),
       AppsContainerHelper::sharedAppsContainerGlobalContext());
 }
 
 Coordinate2D<double>
 CalculationGraphController::computeNewPointOfInterestFromAbscissa(
-    double start, OMG::HorizontalDirection direction, bool stretch) {
+    double start, OMG::HorizontalDirection direction) {
   double max =
       direction.isRight() ? m_graphRange->xMax() : m_graphRange->xMin();
   functionStore()->modelForRecord(m_record)->trimResolutionInterval(&start,
                                                                     &max);
-  return computeNewPointOfInterest(start, max, App::app()->localContext(),
-                                   stretch);
+  return computeNewPointOfInterest(start, max, App::app()->localContext());
 }
 
 PointOfInterest CalculationGraphController::computeAtLeastOnePointOfInterest(
-    double start, double max, Poincare::Context* context, bool stretch) {
+    double start, double max, Poincare::Context* context) {
   // Compute at least 1 point of interest before displaying the view
   PointsOfInterestCache* pointsOfInterest =
       App::app()->graphController()->pointsOfInterestForSelectedRecord();
@@ -120,12 +116,11 @@ PointOfInterest CalculationGraphController::computeAtLeastOnePointOfInterest(
     if (!pointsOfInterest->computeNextStep(false)) {
       /* Next step computation overflowed the pool. Returning an empty point of
        * interest will wrongfully display that nothing has been found in the
-       * window. TODO: Fix this behavior. */
+       * window. TODO : Fix this behavior. */
       break;
     }
   }
-  return pointsOfInterest->firstPointInDirection(start, max, stretch,
-                                                 specialInterest());
+  return pointsOfInterest->firstPointInDirection(start, max, specialInterest());
 }
 
 ContinuousFunctionStore* CalculationGraphController::functionStore() const {
@@ -138,7 +133,7 @@ bool CalculationGraphController::moveCursorHorizontally(
     return false;
   }
   Coordinate2D<double> newPointOfInterest =
-      computeNewPointOfInterestFromAbscissa(m_cursor->x(), direction, false);
+      computeNewPointOfInterestFromAbscissa(m_cursor->x(), direction);
   if (std::isnan(newPointOfInterest.x())) {
     return false;
   }

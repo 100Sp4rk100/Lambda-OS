@@ -2,6 +2,12 @@
 
 namespace Escher {
 
+KDGlyph::Format ListWithTopAndBottomController::k_messageFormat(){ return {
+      .style = {.glyphColor = Theme::ThemeGestion::getColor("GrayDark"),
+                .backgroundColor = Theme::ThemeGestion::getColor("WallScreen"),
+                .font = KDFont::Size::Small},
+      .horizontalAlignment = KDGlyph::k_alignCenter};}
+
 int ListWithTopAndBottomDataSource::numberOfRows() const {
   return m_innerDataSource->numberOfRows() + hasTopView() + hasBottomView();
 }
@@ -11,7 +17,7 @@ void ListWithTopAndBottomDataSource::initWidth(TableView* tableView) {
   StandardMemoizedListViewDataSource::initWidth(tableView);
 }
 
-KDCoordinate ListWithTopAndBottomDataSource::separatorBeforeRow(int row) const {
+KDCoordinate ListWithTopAndBottomDataSource::separatorBeforeRow(int row) {
   assert(0 <= row && row < numberOfRows());
   if (hasTopView() && row == 0) {
     return 0;
@@ -124,16 +130,11 @@ void ListWithTopAndBottomController::listViewDidChangeSelectionAndDidScroll(
   }
 }
 
-void ListWithTopAndBottomController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (selectedRow() < firstCellIndex()) {
-      selectFirstCell();
-    }
-    App::app()->setFirstResponder(&m_selectableListView);
-  } else {
-    SelectableViewController::handleResponderChainEvent(event);
+void ListWithTopAndBottomController::didBecomeFirstResponder() {
+  if (selectedRow() < firstCellIndex()) {
+    selectFirstCell();
   }
+  App::app()->setFirstResponder(&m_selectableListView);
 }
 
 void ListWithTopAndBottomController::viewWillAppear() {

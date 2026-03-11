@@ -2,6 +2,8 @@
 #include <escher/nested_menu_controller.h>
 #include <string.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 /* Breadcrumb Controller */
@@ -63,14 +65,9 @@ void NestedMenuController::BreadcrumbController::updateTitle() {
 
 /* List Controller */
 
-void NestedMenuController::ListController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    m_selectableListView->reloadData();
-    App::app()->setFirstResponder(m_selectableListView);
-  } else {
-    ViewController::handleResponderChainEvent(event);
-  }
+void NestedMenuController::ListController::didBecomeFirstResponder() {
+  m_selectableListView->reloadData();
+  App::app()->setFirstResponder(m_selectableListView);
 }
 
 /* NestedMenuController */
@@ -87,7 +84,7 @@ NestedMenuController::NestedMenuController(Responder* parentResponder,
   m_selectableListView.hideScrollBars();
   /* Title and breadcrumb headers should not overlap. Breadcrumb should.
    * Using default tableCell's border color. */
-  setupHeadersBorderOverlaping(false, true, Palette::GrayBright);
+  setupHeadersBorderOverlaping(false, true, Theme::ThemeGestion::getColor("GrayBright"));
 }
 
 void NestedMenuController::viewWillAppear() {
@@ -204,12 +201,4 @@ void NestedMenuController::open() {
                                          Metric::PopUpMarginsNoBottom);
 }
 
-void NestedMenuController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(&m_listController);
-  } else {
-    StackViewController::handleResponderChainEvent(event);
-  }
-}
 }  // namespace Escher

@@ -1,7 +1,7 @@
 #include "root_graph_controller.h"
 
 #include <apps/shared/poincare_helpers.h>
-#include <omg/utf8_helper.h>
+#include <poincare/serialization_helper.h>
 
 using namespace Shared;
 using namespace Poincare;
@@ -16,7 +16,7 @@ RootGraphController::RootGraphController(
                                  curveViewRange, cursor,
                                  I18n::Message::NoZeroFound) {}
 
-const char* RootGraphController::title() const {
+const char* RootGraphController::title() {
   return I18n::translate(I18n::Message::Zeros);
 }
 

@@ -1,7 +1,6 @@
 #include <assert.h>
+#include <drivers/svcall.h>
 #include <ion/circuit_breaker.h>
-
-#include "svcall.h"
 
 namespace Ion {
 namespace CircuitBreaker {

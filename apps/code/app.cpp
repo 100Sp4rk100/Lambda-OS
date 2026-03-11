@@ -1,11 +1,11 @@
 #include "app.h"
 
 #include <apps/i18n.h>
-#include <omg/utf8_helper.h>
-#include <poincare/pool.h>
+#include <ion/unicode/utf8_helper.h>
+#include <poincare/tree_pool.h>
 
 #include "clipboard.h"
-#include "code_icon.h"
+#include "apps/theme_gestion/themeGestion.h"
 #include "helpers.h"
 
 using namespace Escher;
@@ -18,7 +18,7 @@ I18n::Message App::Descriptor::upperName() const {
   return I18n::Message::CodeAppCapital;
 }
 
-const Image* App::Descriptor::icon() const { return ImageStore::CodeIcon; }
+const Image *App::Descriptor::icon() const { return Theme::ThemeGestion::getIconImage("CodeIcon"); }
 
 App::Snapshot::Snapshot()
 #if EPSILON_GETOPT
@@ -28,30 +28,30 @@ App::Snapshot::Snapshot()
   ScriptStore::InitTemplates();
 }
 
-App* App::Snapshot::unpack(Container* container) {
+App *App::Snapshot::unpack(Container *container) {
   return new (container->currentAppBuffer()) App(this);
 }
 
 constexpr static App::Descriptor sDescriptor;
 
-const App::Descriptor* App::Snapshot::descriptor() const {
+const App::Descriptor *App::Snapshot::descriptor() const {
   return &sDescriptor;
 }
 
 #if EPSILON_GETOPT
 bool App::Snapshot::lockOnConsole() const { return m_lockOnConsole; }
 
-void App::Snapshot::setOpt(const char* name, const char* value) {
+void App::Snapshot::setOpt(const char *name, const char *value) {
   if (strcmp(name, "script") == 0) {
     ScriptStore::DeleteAllScripts();
-    char* separator =
-        const_cast<char*>(UTF8Helper::CodePointSearch(value, ':'));
+    char *separator =
+        const_cast<char *>(UTF8Helper::CodePointSearch(value, ':'));
     if (*separator == 0) {
       return;
     }
     *separator = 0;
-    const char* scriptName = value;
-    const char* scriptContent = separator;
+    const char *scriptName = value;
+    const char *scriptContent = separator;
     Script::Create(scriptName, scriptContent + 1);
     return;
   }
@@ -62,7 +62,7 @@ void App::Snapshot::setOpt(const char* name, const char* value) {
 }
 #endif
 
-App::App(Snapshot* snapshot)
+App::App(Snapshot *snapshot)
     : Shared::SharedApp(snapshot, &m_codeStackViewController),
       m_pythonUser(nullptr),
       m_consoleController(nullptr, this
@@ -116,17 +116,13 @@ bool App::handleEvent(Ion::Events::Event event) {
   return false;
 }
 
-void App::handleResponderChainEvent(Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::WillExit) {
-    m_menuController.willExitApp();
-  } else {
-    Shared::SharedApp::handleResponderChainEvent(event);
-  }
+void App::willExitResponderChain(Responder *nextFirstResponder) {
+  m_menuController.willExitApp();
 }
 
-bool App::textInputDidReceiveEvent(EditableField* textInput,
+bool App::textInputDidReceiveEvent(EditableField *textInput,
                                    Ion::Events::Event event) {
-  const char* pythonText = Helpers::PythonTextForEvent(event);
+  const char *pythonText = Helpers::PythonTextForEvent(event);
   if (pythonText != nullptr) {
     textInput->handleEventWithText(pythonText);
     return true;
@@ -134,15 +130,13 @@ bool App::textInputDidReceiveEvent(EditableField* textInput,
   return false;
 }
 
-void App::initPythonWithUser(const void* pythonUser) {
+void App::initPythonWithUser(const void *pythonUser) {
   if (!m_pythonUser) {
-    /* The Poincare Pool and TreeStack are used as an extension of the heap. */
-    assert(Poincare::Pool::sharedPool->numberOfObjects() == 0);
-    Poincare::Pool::sharedPool.deinit();
-    assert(Poincare::Internal::TreeStack::SharedTreeStack->size() == 0);
-    Poincare::Internal::TreeStack::SharedTreeStack.deinit();
+    /* Tree pool will be used as an extension of the heap. */
+    assert(Poincare::TreePool::sharedPool->numberOfNodes() == 0);
+    Poincare::TreePool::sharedPool.deinit();
 
-    char* heap = pythonHeap();
+    char *heap = pythonHeap();
     MicroPython::init(heap, heap + k_pythonHeapSize);
   }
   m_pythonUser = pythonUser;
@@ -152,11 +146,9 @@ void App::deinitPython() {
   if (m_pythonUser) {
     MicroPython::deinit();
     m_pythonUser = nullptr;
-    /* Re-construct the pool and the tree stack, which might have been
-     * ovewritten by the heap.
+    /* Re-construct the tree pool, which might have been ovewritten by the heap.
      */
-    Poincare::Pool::sharedPool.init();
-    Poincare::Internal::TreeStack::SharedTreeStack.init();
+    Poincare::TreePool::sharedPool.init();
   }
 }
 

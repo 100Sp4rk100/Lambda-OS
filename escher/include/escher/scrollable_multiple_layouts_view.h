@@ -1,9 +1,10 @@
 #ifndef ESCHER_SCROLLABLE_MULTIPLE_LAYOUTS_VIEW_H
 #define ESCHER_SCROLLABLE_MULTIPLE_LAYOUTS_VIEW_H
 
-#include <escher/buffer_text_view.h>
+#include <apps/i18n.h>
 #include <escher/even_odd_cell.h>
 #include <escher/layout_view.h>
+#include <escher/message_text_view.h>
 #include <escher/metric.h>
 #include <escher/scrollable_view.h>
 
@@ -76,7 +77,7 @@ class AbstractScrollableMultipleLayoutsView
     virtual LayoutView* leftLayoutView() const { return nullptr; }
     LayoutView* rightLayoutView() { return &m_rightLayoutView; }
     LayoutView* centeredLayoutView() { return &m_centeredLayoutView; }
-    OneLineBufferTextView<>* approximateSign() { return &m_approximateSign; }
+    MessageTextView* approximateSign() { return &m_approximateSign; }
     SubviewPosition selectedSubviewPosition() const {
       return m_selectedSubviewPosition;
     }
@@ -111,11 +112,13 @@ class AbstractScrollableMultipleLayoutsView
                        KDRect* approximateSignFrame, KDRect* rightFrame);
 
    private:
+    const static I18n::Message k_defaultApproximateMessage =
+        I18n::Message::AlmostEqual;
     void updateSubviewsBackgroundAfterChangingState() override;
     KDSize privateMinimalSizeForOptimalDisplay(bool forceFullDisplay) const;
     View* subviewAtIndex(int index) override;
     LayoutView m_rightLayoutView;
-    OneLineBufferTextView<> m_approximateSign;
+    MessageTextView m_approximateSign;
     LayoutView m_centeredLayoutView;
     SubviewPosition m_selectedSubviewPosition;
     bool m_displayCenter;

@@ -28,18 +28,13 @@ bool TestModeController::handleEvent(Ion::Events::Event event) {
   return GenericSubController::handleEvent(event);
 }
 
-void TestModeController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    /* After activating an exam mode and going back, this controller shouldn't
-     * be available anymore. Skip it and go back to the main settings menu. */
-    if (!m_mainController->hasTestModeCell()) {
-      stackController()->pop();
-    } else {
-      GenericSubController::handleResponderChainEvent(event);
-    }
+void TestModeController::didBecomeFirstResponder() {
+  /* After activating an exam mode and going back, this controller shouldn't be
+   * available anymore. Skip it and go back to the main settings menu. */
+  if (!m_mainController->hasTestModeCell()) {
+    stackController()->pop();
   } else {
-    GenericSubController::handleResponderChainEvent(event);
+    GenericSubController::didBecomeFirstResponder();
   }
 }
 

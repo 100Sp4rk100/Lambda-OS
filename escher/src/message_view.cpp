@@ -19,7 +19,7 @@ MessageView::MessageView(const I18n::Message* messages, const KDColor* colors,
 }
 
 void MessageView::drawRect(KDContext* ctx, KDRect rect) const {
-  ctx->fillRect(bounds(), KDColorWhite);
+  ctx->fillRect(bounds(), Theme::ThemeGestion::getColor("KDColorWhite"));
 }
 
 View* MessageView::subviewAtIndex(int index) {
@@ -40,12 +40,10 @@ void MessageView::layoutSubviews(bool force) {
   KDCoordinate textHeight = KDFont::GlyphHeight(KDFont::Size::Small);
   setChildFrame(&m_messageTextViews[0],
                 KDRect(0, k_titleMargin, width, titleHeight), force);
-  const KDCoordinate paragraphHeight =
-      k_titleMargin + titleHeight + k_paragraphMargin;
   for (uint8_t i = 1; i < m_numberOfMessages; i++) {
     setChildFrame(
         &m_messageTextViews[i],
-        KDRect(0, paragraphHeight + (i - 1) * textHeight, width, textHeight),
+        KDRect(0, k_paragraphHeight + (i - 1) * textHeight, width, textHeight),
         force);
   }
 }

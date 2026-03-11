@@ -5,6 +5,8 @@
 #include <escher/view.h>
 #include <ion.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 class BatteryView : public Escher::View {
  public:
   BatteryView()
@@ -24,7 +26,7 @@ class BatteryView : public Escher::View {
 
  private:
   void drawInsideBatteryLevel(KDContext* ctx, KDCoordinate width,
-                              KDColor color = KDColorWhite) const;
+                              KDColor color = Theme::ThemeGestion::getColor("KDColorWhite")) const;
   constexpr static KDCoordinate k_batteryHeight = 8;
   constexpr static KDCoordinate k_batteryWidth = 15;
   constexpr static KDCoordinate k_elementWidth = 1;

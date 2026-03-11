@@ -3,18 +3,15 @@
 
 #include "private/macros.h"
 
-#if NDEBUG
-#define assert(e) ((void)0)
-#else
+#if ASSERTIONS
 #define assert(e) ((void)((e) ? ((void)0) : __assert(#e, __FILE__, __LINE__)))
+#else
+#define assert(e) ((void)0)
 #endif
 
 LIBA_BEGIN_DECLS
 
-/* Users of liba should provide the definition for the __assert function. */
-
-__attribute__((noreturn)) void __assert(const char* expression,
-                                        const char* file, int line);
+void __assert(const char* expression, const char* file, int line);
 
 LIBA_END_DECLS
 

@@ -3,7 +3,8 @@
 #include "execution_environment.h"
 
 QUIZ_CASE(python_math) {
-  TestExecutionEnvironment env = init_environment();
+#ifndef PLATFORM_WINDOWS
+  TestExecutionEnvironment env = init_environement();
   assert_command_execution_succeeds(env, "from math import *");
   assert_command_execution_succeeds(env, "e", "2.718281828459045\n");
   // clang-format off
@@ -59,10 +60,12 @@ QUIZ_CASE(python_math) {
       "9000000009000000009\n");
   assert_command_execution_succeeds(env, "gcd()", "0\n");
   deinit_environment();
+#endif
 }
 
 QUIZ_CASE(python_cmath) {
-  TestExecutionEnvironment env = init_environment();
+#ifndef PLATFORM_WINDOWS
+  TestExecutionEnvironment env = init_environement();
   assert_command_execution_succeeds(env, "from cmath import *");
   assert_command_execution_succeeds(env, "cos(0)", "(1+-0j)\n");
   // clang-format off
@@ -88,4 +91,5 @@ QUIZ_CASE(python_cmath) {
   */
   // clang-format on
   deinit_environment();
+#endif
 }

@@ -1,13 +1,21 @@
 #ifndef ION_EXAM_BYTES_H
 #define ION_EXAM_BYTES_H
 
-#include <omg/unaligned.h>
 #include <stdint.h>
+
+#if __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 namespace Ion {
 namespace ExamBytes {
 
-typedef OMG::unaligned_uint16_t Int;
+using Int =
+#if __EMSCRIPTEN__
+    emscripten_align1_short;
+#else
+    uint16_t;
+#endif
 
 constexpr ExamBytes::Int k_defaultValue = 0;
 

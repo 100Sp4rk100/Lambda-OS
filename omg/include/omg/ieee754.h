@@ -19,14 +19,6 @@ namespace OMG {
 template <typename T>
 class IEEE754 final {
  public:
-  /* The largest integer such that all smaller integers can be stored without
-   * any precision loss in IEEE754 double representation is 2^53 as the
-   * mantissa is stored on 52 bits (2^308 can be stored exactly in IEEE754
-   * representation but some smaller integers can't - like 2^308-1).
-   * With single representation, it's 2^24 */
-  constexpr static T NonExactIntegerLimit() {
-    return sizeof(T) == sizeof(float) ? 16777216.0 : 9007199254740992.0;
-  }
   constexpr static uint16_t exponentOffset() {
     return (1 << (k_exponentNbBits - 1)) - 1;
   }

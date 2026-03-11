@@ -21,6 +21,7 @@ class StoreController : public EditableCellTableViewController,
   StoreController(Escher::Responder* parentResponder, DoublePairStore* store,
                   Escher::ButtonRowController* header,
                   Poincare::Context* parentContext);
+  TELEMETRY_ID("Store");
 
   // TextFieldDelegate
   bool textFieldDidFinishEditing(Escher::AbstractTextField* textField,
@@ -33,7 +34,7 @@ class StoreController : public EditableCellTableViewController,
   int typeAtLocation(int column, int row) const override;
   void fillCellForLocation(Escher::HighlightCell* cell, int column,
                            int row) override;
-  KDCoordinate separatorBeforeColumn(int column) const override;
+  KDCoordinate separatorBeforeColumn(int column) override;
   bool canStoreCellAtLocation(int column, int row) override { return row > 0; }
 
   // ViewController
@@ -42,6 +43,7 @@ class StoreController : public EditableCellTableViewController,
 
   // Responder
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
 
   // ClearColumnHelper
   size_t fillColumnName(int column, char* buffer) override {
@@ -76,16 +78,13 @@ class StoreController : public EditableCellTableViewController,
   }
   void resetMemoizedFormulaOfColumn(int series, int column);
   void resetMemoizedFormulasOfEmptyColumns(int series);
-  void memoizeFormula(const Poincare::Layout& formula, int index) override;
+  void memoizeFormula(Poincare::Layout formula, int index) override;
 
   Escher::PrefacedTableView m_prefacedTableView;
   DoublePairStore* m_store;
   Poincare::Layout
       m_memoizedFormulas[DoublePairStore::k_numberOfSeries *
                          DoublePairStore::k_numberOfColumnsPerSeries];
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   bool cellAtLocationIsEditable(int column, int row) override;

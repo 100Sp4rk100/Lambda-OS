@@ -22,6 +22,9 @@ class MainController : public Escher::ViewController,
   void viewWillAppear() override { m_view.elementsView()->dirtyBackground(); }
 
   // Escher::Responder
+  void didBecomeFirstResponder() override {
+    Escher::App::app()->setFirstResponder(m_view.bannerView()->textField());
+  }
   bool handleEvent(Ion::Events::Event e) override;
 
   // ElementsViewDelegate
@@ -36,9 +39,6 @@ class MainController : public Escher::ViewController,
                                  Ion::Events::Event event) override;
   void textFieldDidAbortEditing(Escher::AbstractTextField* textField) override;
   void textFieldDidHandleEvent(Escher::AbstractTextField* textField) override;
-
- protected:
-  void handleResponderChainEvent(Responder::ResponderChainEvent event) override;
 
  private:
   class ContentView : public Escher::View {
@@ -59,9 +59,6 @@ class MainController : public Escher::ViewController,
   };
 
   void endElementSearch(AtomicNumber z);
-
-  void privateModalViewAltersFirstResponder(
-      FirstResponderAlteration alteration) override;
 
   DetailsListController m_detailsController;
   DisplayTypeController m_displayTypeController;

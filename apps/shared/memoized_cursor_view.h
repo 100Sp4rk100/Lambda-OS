@@ -5,6 +5,8 @@
 
 #include "cursor_view.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Shared {
 
 class MemoizedCursorView : public CursorView {
@@ -22,13 +24,13 @@ class MemoizedCursorView : public CursorView {
   virtual KDCoordinate size() const = 0;
   virtual KDColor* underneathPixelBuffer() const = 0;
   KDColor color() const {
-    return isHighlighted() ? Escher::Palette::GrayDarkest : m_color;
+    return isHighlighted() ? Theme::ThemeGestion::getColor("GrayWhite") : m_color;
   }
   mutable bool m_underneathPixelBufferLoaded;
-  bool eraseCursorIfPossible(const Escher::View* parent);
 
  private:
   KDColor m_color;
+  bool eraseCursorIfPossible(const Escher::View* parent);
 };
 
 }  // namespace Shared

@@ -2,9 +2,7 @@
 
 #include <apps/global_preferences.h>
 #include <apps/i18n.h>
-#include <apps/math_preferences.h>
 #include <assert.h>
-#include <ion/authentication.h>
 
 using namespace Poincare;
 using namespace Shared;
@@ -25,12 +23,6 @@ constexpr MessageTree s_modelFloatDisplayModeChildren[4] = {
 constexpr MessageTree s_modelComplexFormatChildren[3] = {
     MessageTree(I18n::Message::Real), MessageTree(I18n::Message::Algebraic),
     MessageTree(I18n::Message::Exponential)};
-constexpr MessageTree
-    s_modelScreenTimeoutChildren[ScreenTimeoutController::k_totalNumberOfCell] =
-        {MessageTree(I18n::Message::ThirtySeconds),
-         MessageTree(I18n::Message::OneMinute),
-         MessageTree(I18n::Message::TwoMinutes),
-         MessageTree(I18n::Message::FiveMinutes)};
 constexpr MessageTree s_modelFontChildren[2] = {
     MessageTree(I18n::Message::LargeFont),
     MessageTree(I18n::Message::SmallFont)};
@@ -48,18 +40,11 @@ constexpr MessageTree
 #endif
 };
 
-bool hideExamModes() {
-  /* Since this would only reset to the official firmware without selected exam
-   * mode, setting an exam mode is disabled in third-party firmwares. */
-  return Ion::Authentication::clearanceLevel() ==
-         Ion::Authentication::ClearanceLevel::ThirdParty;
-}
-
-MainController::MainController(Responder* parentResponder)
+MainController::MainController(Responder *parentResponder)
     : SelectableListViewController(parentResponder),
       m_resetButton(&m_selectableListView, I18n::Message::ResetCalculator,
                     Invocation::Builder<MainController>(
-                        [](MainController* controller, void* sender) {
+                        [](MainController *controller, void *sender) {
                           controller->m_resetController.presentModally();
                           return true;
                         },
@@ -67,14 +52,13 @@ MainController::MainController(Responder* parentResponder)
                     ButtonCell::Style::EmbossedLight),
       m_preferencesController(this),
       m_displayModeController(this),
-      m_screenTimeoutController(this),
       m_localizationController(this, LocalizationController::Mode::Language),
       m_examModeController(this),
       m_pressToTestController(this),
       m_testModeController(this, this),
       m_aboutController(this),
       m_resetController(Invocation::Builder<MainController>(
-                            [](MainController* controller, void* sender) {
+                            [](MainController *controller, void *sender) {
                               Ion::Reset::core();
                               return true;
                             },
@@ -88,7 +72,7 @@ MainController::MainController(Responder* parentResponder)
 }
 
 bool MainController::handleEvent(Ion::Events::Event event) {
-  GlobalPreferences* globalPreferences =
+  GlobalPreferences *globalPreferences =
       GlobalPreferences::SharedGlobalPreferences();
   int index = selectedRow();
   int type = typeAtRow(index);
@@ -97,8 +81,8 @@ bool MainController::handleEvent(Ion::Events::Event event) {
     return false;
   }
 
-  AbstractMenuCell* cell =
-      static_cast<AbstractMenuCell*>(m_selectableListView.cell(index));
+  AbstractMenuCell *cell =
+      static_cast<AbstractMenuCell *>(m_selectableListView.cell(index));
   if (!cell->canBeActivatedByEvent(event)) {
     return false;
   }
@@ -129,14 +113,14 @@ bool MainController::handleEvent(Ion::Events::Event event) {
   return true;
 }
 
-void MainController::pushModel(const Escher::MessageTree* messageTreeModel) {
-  ViewController* selectedSubController =
+void MainController::pushModel(const Escher::MessageTree *messageTreeModel) {
+  ViewController *selectedSubController =
       subControllerForCell(messageTreeModel->label());
   assert(selectedSubController);
   if (messageTreeModel->numberOfChildren() != 0) {
-    static_cast<GenericSubController*>(selectedSubController)
+    static_cast<GenericSubController *>(selectedSubController)
         ->setMessageTreeModel(messageTreeModel);
-    static_cast<GenericSubController*>(selectedSubController)
+    static_cast<GenericSubController *>(selectedSubController)
         ->selectableListView()
         ->resetSizeAndOffsetMemoization();
   }
@@ -144,8 +128,7 @@ void MainController::pushModel(const Escher::MessageTree* messageTreeModel) {
 }
 
 int MainController::numberOfRows() const {
-  assert(hideExamModes() ||
-         hasExamModeCell() + hasPressToTestCell() + hasTestModeCell() == 1);
+  assert(hasExamModeCell() + hasPressToTestCell() + hasTestModeCell() == 1);
   return model()->numberOfChildren() + hasExamModeCell() +
          hasPressToTestCell() + hasTestModeCell() - 3;
 };
@@ -164,7 +147,7 @@ KDCoordinate MainController::nonMemoizedRowHeight(int row) {
   }
 }
 
-HighlightCell* MainController::reusableCell(int index, int type) {
+HighlightCell *MainController::reusableCell(int index, int type) {
   assert(index >= 0);
   if (type == k_defaultCellType) {
     assert(index < k_numberOfSimpleChevronCells);
@@ -202,15 +185,10 @@ int MainController::typeAtRow(int row) const {
   };
 }
 
-void MainController::fillCellForRow(HighlightCell* cell, int row) {
-  /* TODO: each child controller (m_preferencesController,
-   * m_displayModeController...) should be responsible for getting the current
-   * value from GlobalPreferences or MathPreferences::SharedPreferences(). This
-   * would make the code more modular and thus clearer. */
-
-  const GlobalPreferences* globalPreferences =
+void MainController::fillCellForRow(HighlightCell *cell, int row) {
+  GlobalPreferences *globalPreferences =
       GlobalPreferences::SharedGlobalPreferences();
-  const MathPreferences* preferences = MathPreferences::SharedPreferences();
+  Preferences *preferences = Preferences::SharedPreferences();
   int modelIndex = getModelIndex(row);
   I18n::Message title = model()->childAtIndex(modelIndex)->label();
   int type = typeAtRow(row);
@@ -225,8 +203,8 @@ void MainController::fillCellForRow(HighlightCell* cell, int row) {
   if (type == k_resetCellType) {
     return;
   }
-  static_cast<MessageTextView*>(
-      static_cast<AbstractMenuCell*>(cell)->widget(CellWidget::Type::Label))
+  static_cast<MessageTextView *>(
+      static_cast<AbstractMenuCell *>(cell)->widget(CellWidget::Type::Label))
       ->setMessage(title);
   if (type == k_popUpCellType) {
     assert(cell == &m_popUpCell);
@@ -234,23 +212,20 @@ void MainController::fillCellForRow(HighlightCell* cell, int row) {
     return;
   }
   assert(type == k_defaultCellType);
-
-  /* TODO: the two following "if" blocks could be factorized into the switch /
-   * case that appears right after. */
   I18n::Message message = messageAtModelIndex(modelIndex);
   if (message == I18n::Message::Language) {
     int languageIndex = (int)(globalPreferences->language());
-    static_cast<SubMenuCell*>(cell)->subLabel()->setMessage(
+    static_cast<SubMenuCell *>(cell)->subLabel()->setMessage(
         I18n::LanguageNames[languageIndex]);
     return;
   }
   if (message == I18n::Message::Country) {
     int countryIndex = (int)(globalPreferences->country());
-    static_cast<SubMenuCell*>(cell)->subLabel()->setMessage(
+    static_cast<SubMenuCell *>(cell)->subLabel()->setMessage(
         I18n::CountryNames[countryIndex]);
     return;
   }
-  SubMenuCell* myTextCell = static_cast<SubMenuCell*>(cell);
+  SubMenuCell *myTextCell = static_cast<SubMenuCell *>(cell);
   int childIndex = -1;
   switch (message) {
     case I18n::Message::AngleUnit:
@@ -264,10 +239,6 @@ void MainController::fillCellForRow(HighlightCell* cell, int row) {
       break;
     case I18n::Message::ComplexFormat:
       childIndex = (int)preferences->complexFormat();
-      break;
-    case I18n::Message::ScreenTimeout:
-      childIndex = ScreenTimeoutController::toRowLabel(
-          GlobalPreferences::SharedGlobalPreferences()->dimmingTime());
       break;
     case I18n::Message::FontSizes:
       childIndex = GlobalPreferences::SharedGlobalPreferences()->font() ==
@@ -286,7 +257,7 @@ void MainController::fillCellForRow(HighlightCell* cell, int row) {
   myTextCell->subLabel()->setMessage(subtitle);
 }
 
-KDCoordinate MainController::separatorBeforeRow(int row) const {
+KDCoordinate MainController::separatorBeforeRow(int row) {
   return typeAtRow(row) == k_brightnessCellType ||
                  typeAtRow(row) == k_resetCellType
              ? k_defaultRowSeparator
@@ -302,13 +273,13 @@ I18n::Message MainController::messageAtModelIndex(int i) const {
   return model()->childAtIndex(i)->label();
 }
 
-const MessageTree* MainController::model() { return &s_model; }
+const MessageTree *MainController::model() { return &s_model; }
 
-StackViewController* MainController::stackController() const {
-  return (StackViewController*)parentResponder();
+StackViewController *MainController::stackController() const {
+  return (StackViewController *)parentResponder();
 }
 
-ViewController* MainController::subControllerForCell(
+ViewController *MainController::subControllerForCell(
     I18n::Message cellMessage) {
   switch (cellMessage) {
     case I18n::Message::AngleUnit:
@@ -318,8 +289,6 @@ ViewController* MainController::subControllerForCell(
       return &m_preferencesController;
     case I18n::Message::DisplayMode:
       return &m_displayModeController;
-    case I18n::Message::ScreenTimeout:
-      return &m_screenTimeoutController;
     case I18n::Message::Language:
     case I18n::Message::Country:
       return &m_localizationController;
@@ -338,23 +307,21 @@ ViewController* MainController::subControllerForCell(
 
 bool MainController::hasExamModeCell() const {
   // If only exam modes are available
-  return !hideExamModes() && !hasTestModeCell() &&
-         m_examModeController.numberOfRows() > 0;
+  return !hasTestModeCell() && m_examModeController.numberOfRows() > 0;
 }
 
 bool MainController::hasPressToTestCell() const {
   // If only press to test is available
-  return !hideExamModes() && m_examModeController.numberOfRows() == 0;
+  return m_examModeController.numberOfRows() == 0;
 }
 
 bool MainController::hasTestModeCell() const {
   // If both exam mode and press to test are available
   CountryPreferences::AvailableExamModes examMode =
       GlobalPreferences::SharedGlobalPreferences()->availableExamModes();
-  return !hideExamModes() &&
-         (examMode == CountryPreferences::AvailableExamModes::All ||
+  return (examMode == CountryPreferences::AvailableExamModes::All ||
           examMode == CountryPreferences::AvailableExamModes::AmericanAll) &&
-         MathPreferences::SharedPreferences()->examMode().ruleset() ==
+         Preferences::SharedPreferences()->examMode().ruleset() ==
              ExamMode::Ruleset::Off;
 }
 
@@ -364,17 +331,16 @@ int MainController::getModelIndex(int index) const {
    * Then, either the exam mode or the press-to-test cell is hidden. */
   assert(index >= 0 && index < numberOfRows());
   if (index > k_indexOfExamModeCell) {
-    index += 3 - hasExamModeCell() - hasPressToTestCell() - hasTestModeCell();
+    // 2 of the 3 exam mode cells are hidden.
+    index += 2;
   } else if (index == k_indexOfExamModeCell) {
     if (!hasExamModeCell()) {
       // Hidden exam mode cell
       index += 1;
       if (!hasPressToTestCell()) {
         // Hidden press-to-test cell
+        assert(hasTestModeCell());
         index += 1;
-        if (!hasTestModeCell()) {
-          index += 1;
-        }
       }
     }
   }

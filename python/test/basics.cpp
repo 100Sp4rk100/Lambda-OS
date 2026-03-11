@@ -3,7 +3,7 @@
 #include "execution_environment.h"
 
 QUIZ_CASE(python_basics) {
-  TestExecutionEnvironment env = init_environment();
+  TestExecutionEnvironment env = init_environement();
   assert_command_execution_succeeds(env, "5+3", "8\n");
   assert_command_execution_succeeds(env, "5*3", "15\n");
   assert_command_execution_succeeds(env, "5/3", "1.666666666666667\n");
@@ -15,7 +15,7 @@ QUIZ_CASE(python_basics) {
   deinit_environment();
 }
 QUIZ_CASE(python_built_in) {
-  TestExecutionEnvironment env = init_environment();
+  TestExecutionEnvironment env = init_environement();
   assert_command_execution_succeeds(env, "abs(-27)", "27\n");
   assert_command_execution_succeeds(env, "bin(27)", "\'0b11011\'\n");
   assert_command_execution_succeeds(env, "complex(3,4)", "(3+4j)\n");
@@ -54,8 +54,19 @@ QUIZ_CASE(python_built_in) {
   deinit_environment();
 }
 
+QUIZ_CASE(python_template) {
+  assert_script_execution_succeeds(Code::ScriptTemplate::Squares()->content());
+  assert_script_execution_succeeds(
+      Code::ScriptTemplate::Mandelbrot()->content());
+  assert_script_execution_succeeds(
+      Code::ScriptTemplate::Polynomial()->content());
+  assert_script_execution_succeeds(Code::ScriptTemplate::Parabola()->content());
+}
+
 QUIZ_CASE(python_fixes) {
-  TestExecutionEnvironment env = init_environment();
+#ifndef PLATFORM_WINDOWS
+  TestExecutionEnvironment env = init_environement();
   assert_command_execution_fails(env, "'abcd'*2**62");
   deinit_environment();
+#endif
 }

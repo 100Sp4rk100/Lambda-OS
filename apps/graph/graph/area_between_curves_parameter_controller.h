@@ -17,11 +17,11 @@ class AreaBetweenCurvesParameterController
       Escher::Responder* parentResponder,
       AreaBetweenCurvesGraphController* areaGraphController);
 
-  const char* title() const override;
+  const char* title() override;
   void setRecord(Ion::Storage::Record record) { m_mainRecord = record; }
 
   bool handleEvent(Ion::Events::Event event) override;
-  Escher::ViewController::TitlesDisplay titlesDisplay() const override {
+  Escher::ViewController::TitlesDisplay titlesDisplay() override {
     return Escher::ViewController::TitlesDisplay::DisplayLastThreeTitles;
   }
 

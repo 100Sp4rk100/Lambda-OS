@@ -1,6 +1,5 @@
 #include <config/board.h>
 #include <ion.h>
-#include <ion/exam_mode.h>
 #include <ion/src/shared/init.h>
 #include <shared/boot/rt0.h>
 #include <shared/drivers/usb.h>
@@ -25,7 +24,7 @@ void __attribute__((noinline)) start() {
   Ion::Init();
   // Initialize slotInfo to be accessible to Kernel
   Ion::Device::USB::slotInfo();
-  Ion::ExternalApps::deleteApps(Ion::ExamMode::get().isActive());
+  Ion::ExternalApps::deleteApps();
   ion_main(0, nullptr);
   abort();
 }

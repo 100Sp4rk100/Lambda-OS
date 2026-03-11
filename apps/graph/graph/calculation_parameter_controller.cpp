@@ -1,7 +1,6 @@
 #include "calculation_parameter_controller.h"
 
 #include <assert.h>
-#include <omg/utf8_helper.h>
 
 #include <cmath>
 
@@ -15,8 +14,8 @@ using namespace Escher;
 namespace Graph {
 
 CalculationParameterController::CalculationParameterController(
-    Responder* parentResponder, GraphView* graphView, BannerView* bannerView,
-    InteractiveCurveViewRange* range, CurveViewCursor* cursor)
+    Responder *parentResponder, GraphView *graphView, BannerView *bannerView,
+    InteractiveCurveViewRange *range, CurveViewCursor *cursor)
     : ExplicitSelectableListViewController(parentResponder),
       m_preimageParameterController(nullptr, range, cursor,
                                     &m_preimageGraphController),
@@ -30,7 +29,7 @@ CalculationParameterController::CalculationParameterController(
       m_rootGraphController(nullptr, graphView, bannerView, range, cursor),
       m_intersectionGraphController(nullptr, graphView, bannerView, range,
                                     cursor) {
-  m_intersectionCell.label()->setMessage(I18n::Message::PointOfIntersection);
+  m_intersectionCell.label()->setMessage(I18n::Message::Intersection);
   m_minimumCell.label()->setMessage(I18n::Message::Minimum);
   m_maximumCell.label()->setMessage(I18n::Message::Maximum);
   m_integralCell.label()->setMessage(I18n::Message::Integral);
@@ -41,15 +40,15 @@ CalculationParameterController::CalculationParameterController(
   m_preimageCell.label()->setMessage(I18n::Message::Preimage);
 }
 
-HighlightCell* CalculationParameterController::cell(int row) {
-  HighlightCell* cells[k_numberOfRows] = {
+HighlightCell *CalculationParameterController::cell(int row) {
+  HighlightCell *cells[k_numberOfRows] = {
       &m_preimageCell, &m_intersectionCell, &m_maximumCell,
       &m_minimumCell,  &m_rootCell,         &m_slopeCell,
       &m_tangentCell,  &m_integralCell,     &m_areaCell};
   return cells[row];
 }
 
-const char* CalculationParameterController::title() const {
+const char *CalculationParameterController::title() {
   return I18n::translate(I18n::Message::Find);
 }
 
@@ -62,9 +61,9 @@ void CalculationParameterController::viewWillAppear() {
 }
 
 template <class T>
-void CalculationParameterController::push(T* controller, bool pop) {
-  StackViewController* stack =
-      static_cast<StackViewController*>(parentResponder());
+void CalculationParameterController::push(T *controller, bool pop) {
+  StackViewController *stack =
+      static_cast<StackViewController *>(parentResponder());
   assert(function()->isActive());
   controller->setRecord(m_record);
   if (pop) {
@@ -77,12 +76,12 @@ void CalculationParameterController::push(T* controller, bool pop) {
 
 bool CalculationParameterController::handleEvent(Ion::Events::Event event) {
   if (event == Ion::Events::Left) {
-    StackViewController* stack =
-        static_cast<StackViewController*>(parentResponder());
+    StackViewController *stack =
+        static_cast<StackViewController *>(parentResponder());
     stack->pop();
     return true;
   }
-  AbstractMenuCell* cell = static_cast<AbstractMenuCell*>(selectedCell());
+  AbstractMenuCell *cell = static_cast<AbstractMenuCell *>(selectedCell());
   if (!cell->canBeActivatedByEvent(event)) {
     return false;
   }
@@ -142,8 +141,8 @@ void CalculationParameterController::fillAreaCell() {
   char secondPlaceHolder[bufferSize];
   if (!ShouldDisplayChevronInAreaCell()) {
     // If there are only 2 functions, display "Area between f(x) and g(x)"
-    size_t numberOfChars =
-        UTF8Helper::WriteCodePoint(secondPlaceHolder, bufferSize, ' ');
+    size_t numberOfChars = Poincare::SerializationHelper::CodePoint(
+        secondPlaceHolder, bufferSize, ' ');
     Ion::Storage::Record secondRecord =
         AreaBetweenCurvesParameterController::AreaCompatibleFunctionAtIndex(
             0, m_record);
@@ -175,38 +174,34 @@ void CalculationParameterController::fillAreaCell() {
 
 void CalculationParameterController::setRecord(Ion::Storage::Record record) {
   m_record = record;
-  ContinuousFunctionProperties properties = function()->properties();
-  bool isEquality = properties.isEquality();
-  assert(function()->canDisplayDerivative() ||
-         (!isEquality && shouldDisplayIntersectionCell()));
+  assert(function()->canDisplayDerivative());
   selectRow(0);
-  bool isCartesian = properties.isCartesian();
-  bool isCartesianEquality = isCartesian && isEquality;
-  assert(isCartesian || properties.isPolar() || properties.isParametric());
-  m_tangentCell.setVisible(isEquality);
-  m_preimageCell.setVisible(isCartesianEquality);
+  bool isCartesian = function()->properties().isCartesian();
+  assert(isCartesian || function()->properties().isPolar() ||
+         function()->properties().isParametric());
+  m_preimageCell.setVisible(isCartesian);
   m_intersectionCell.setVisible(shouldDisplayIntersectionCell());
-  m_maximumCell.setVisible(isCartesianEquality);
-  m_minimumCell.setVisible(isCartesianEquality);
-  m_rootCell.setVisible(isCartesianEquality);
-  m_slopeCell.setVisible(!isCartesian && isEquality);
-  m_integralCell.setVisible(isCartesianEquality);
-  m_areaCell.setVisible(shouldDisplayAreaCell() && isEquality);
+  m_maximumCell.setVisible(isCartesian);
+  m_minimumCell.setVisible(isCartesian);
+  m_rootCell.setVisible(isCartesian);
+  m_slopeCell.setVisible(!isCartesian);
+  m_integralCell.setVisible(isCartesian);
+  m_areaCell.setVisible(shouldDisplayAreaCell());
   m_selectableListView.resetSizeAndOffsetMemoization();
 }
 
 bool CalculationParameterController::shouldDisplayIntersectionCell() const {
   /* Intersection is handled between all active functions having one subcurve,
    * except Polar and Parametric. */
-  ContinuousFunctionStore* store = App::app()->functionStore();
+  ContinuousFunctionStore *store = App::app()->functionStore();
   /* Intersection row is displayed if there is at least two intersectable
    * functions. */
-  return function()->shouldDisplayIntersections() &&
+  return function()->properties().isCartesian() &&
          store->numberOfIntersectableFunctions() > 1;
 }
 
 bool CalculationParameterController::shouldDisplayAreaCell() const {
-  ContinuousFunctionStore* store = App::app()->functionStore();
+  ContinuousFunctionStore *store = App::app()->functionStore();
   /* Area between curves is displayed if there is at least two derivable
    * functions. */
   return function()->properties().isCartesian() &&

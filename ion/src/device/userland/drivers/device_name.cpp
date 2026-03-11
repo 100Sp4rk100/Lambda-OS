@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <ion/authentication.h>
 #include <ion/device_name.h>
 #include <string.h>
 
@@ -9,11 +8,6 @@ namespace Ion {
 namespace DeviceName {
 
 const char* read() {
-  if (Authentication::clearanceLevel() ==
-      Authentication::ClearanceLevel::ThirdParty) {
-    // Cannot access to device name from a third-party firmware
-    return "";
-  }
   const char* name = reinterpret_cast<const char*>(
       PersistingBytes::read(PersistingBytes::Entry::DeviceName));
   assert(strlen(name) <

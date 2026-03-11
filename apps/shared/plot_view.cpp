@@ -1,6 +1,5 @@
 #include "plot_view.h"
 
-#include <escher/layout_view.h>
 #include <float.h>
 
 #include <algorithm>
@@ -10,27 +9,21 @@ using namespace Escher;
 using namespace Poincare;
 
 namespace Shared {
-
-void AbstractPlotView::reload(bool resetInterruption, bool force,
-                              bool forceRedrawAxes) {
+void AbstractPlotView::reload(bool resetInterruption, bool force) {
   uint32_t rangeVersion = m_range->rangeChecksum();
-  bool isReloadNeeded = force || (m_drawnRangeVersion != rangeVersion);
-  if (isReloadNeeded) {
+  if (force || m_drawnRangeVersion != rangeVersion) {
     // FIXME: This should also be called if the *curve* changed
     m_drawnRangeVersion = rangeVersion;
-    const View* banner = bannerView();
+    View *banner = bannerView();
     KDCoordinate bannerHeight = banner ? banner->bounds().height() : 0;
     markRectAsDirty(
         KDRect(0, 0, bounds().width(), bounds().height() - bannerHeight));
   }
   layoutSubviews();
-  if (forceRedrawAxes || isReloadNeeded || m_bannerBoundsChanged) {
-    reloadAxes();
-    m_bannerBoundsChanged = false;
-  }
+  reloadAxes();
 }
 
-void AbstractPlotView::setCursorView(CursorView* cursorView) {
+void AbstractPlotView::setCursorView(CursorView *cursorView) {
   markRectAsDirty(cursorFrame());
   privateSetCursorView(cursorView);
   markRectAsDirty(cursorFrame());
@@ -44,32 +37,31 @@ void AbstractPlotView::setFocus(bool focus) {
   }
 }
 
-void AbstractPlotView::drawRect(KDContext* ctx, KDRect rect) const {
+void AbstractPlotView::drawRect(KDContext *ctx, KDRect rect) const {
   drawBackground(ctx, rect);
   drawAxesAndGrid(ctx, rect);
   drawPlot(ctx, rect);
 }
 
-float AbstractPlotView::floatToFloatPixel(OMG::Axis axis, float f) const {
-  float res = axis == OMG::Axis::Horizontal
-                  ? (f - m_range->xMin()) / pixelWidth()
-                  : (m_range->yMax() - f) / pixelHeight();
+float AbstractPlotView::floatToFloatPixel(Axis axis, float f) const {
+  float res = axis == Axis::Horizontal ? (f - m_range->xMin()) / pixelWidth()
+                                       : (m_range->yMax() - f) / pixelHeight();
   return std::clamp(res, static_cast<float>(KDCOORDINATE_MIN),
                     static_cast<float>(KDCOORDINATE_MAX));
 }
 
-KDCoordinate AbstractPlotView::floatToKDCoordinatePixel(OMG::Axis axis,
+KDCoordinate AbstractPlotView::floatToKDCoordinatePixel(Axis axis,
                                                         float f) const {
   return std::round(floatToFloatPixel(axis, f));
 }
 
-float AbstractPlotView::pixelToFloat(OMG::Axis axis, KDCoordinate p) const {
-  return (axis == OMG::Axis::Horizontal) ? m_range->xMin() + p * pixelWidth()
-                                         : m_range->yMax() - p * pixelHeight();
+float AbstractPlotView::pixelToFloat(Axis axis, KDCoordinate p) const {
+  return (axis == Axis::Horizontal) ? m_range->xMin() + p * pixelWidth()
+                                    : m_range->yMax() - p * pixelHeight();
 }
 
-void AbstractPlotView::drawStraightSegment(KDContext* ctx, KDRect rect,
-                                           OMG::Axis parallel, float position,
+void AbstractPlotView::drawStraightSegment(KDContext *ctx, KDRect rect,
+                                           Axis parallel, float position,
                                            float min, float max, KDColor color,
                                            KDCoordinate thickness,
                                            KDCoordinate dashSize) const {
@@ -79,7 +71,7 @@ void AbstractPlotView::drawStraightSegment(KDContext* ctx, KDRect rect,
   min = std::clamp(min, fmin, fmax);
   max = std::clamp(max, fmin, fmax);
 
-  KDCoordinate p = floatToKDCoordinatePixel(OMG::OtherAxis(parallel), position);
+  KDCoordinate p = floatToKDCoordinatePixel(OtherAxis(parallel), position);
   KDCoordinate a = floatToKDCoordinatePixel(parallel, min);
   KDCoordinate b = floatToKDCoordinatePixel(parallel, max);
   if (a > b) {
@@ -103,7 +95,7 @@ void AbstractPlotView::drawStraightSegment(KDContext* ctx, KDRect rect,
 #endif
   if (dashSize <= 0 || 2 * dashSize > b - a) {
     dashSize = b - a;
-    KDRect lineRect = (parallel == OMG::Axis::Horizontal)
+    KDRect lineRect = (parallel == Axis::Horizontal)
                           ? KDRect(a, p, dashSize, thickness)
                           : KDRect(p, a, thickness, dashSize);
     ctx->fillRect(lineRect, color);
@@ -117,14 +109,14 @@ void AbstractPlotView::drawStraightSegment(KDContext* ctx, KDRect rect,
                    static_cast<float>(numberOfDashes);
   for (int d = 0; d <= numberOfDashes; d++) {
     int i = std::round(interval * d) + a;
-    KDRect rectangle = parallel == OMG::Axis::Horizontal
+    KDRect rectangle = parallel == Axis::Horizontal
                            ? KDRect(i, p, dashSize, thickness)
                            : KDRect(p, i, thickness, dashSize);
     ctx->fillRect(rectangle.intersectedWith(rect), color);
   }
 }
 
-void AbstractPlotView::drawSegment(KDContext* ctx, KDRect rect,
+void AbstractPlotView::drawSegment(KDContext *ctx, KDRect rect,
                                    Coordinate2D<float> a, Coordinate2D<float> b,
                                    KDColor color, bool thick) const {
   setDashed(false);
@@ -160,7 +152,7 @@ static KDPoint computeOrigin(Coordinate2D<float> xy, KDSize size,
   return KDPoint(x, y);
 }
 
-KDRect AbstractPlotView::labelRect(const char* label, Coordinate2D<float> xy,
+KDRect AbstractPlotView::labelRect(const char *label, Coordinate2D<float> xy,
                                    RelativePosition xPosition,
                                    RelativePosition yPosition,
                                    bool ignoreMargin) const {
@@ -170,7 +162,7 @@ KDRect AbstractPlotView::labelRect(const char* label, Coordinate2D<float> xy,
   return KDRect(labelOrigin, labelSize);
 }
 
-void AbstractPlotView::drawLabel(KDContext* ctx, KDRect rect, const char* label,
+void AbstractPlotView::drawLabel(KDContext *ctx, KDRect rect, const char *label,
                                  const KDRect labelRect, KDColor color) const {
   if (labelRect.intersects(rect)) {
     ctx->drawString(label, labelRect.origin(),
@@ -180,7 +172,7 @@ void AbstractPlotView::drawLabel(KDContext* ctx, KDRect rect, const char* label,
   }
 }
 
-void AbstractPlotView::drawLabel(KDContext* ctx, KDRect rect, const char* label,
+void AbstractPlotView::drawLabel(KDContext *ctx, KDRect rect, const char *label,
                                  Coordinate2D<float> xy,
                                  RelativePosition xPosition,
                                  RelativePosition yPosition, KDColor color,
@@ -190,30 +182,43 @@ void AbstractPlotView::drawLabel(KDContext* ctx, KDRect rect, const char* label,
   drawLabel(ctx, rect, label, thisLabelRect, color);
 }
 
-void AbstractPlotView::drawLayout(KDContext* ctx, KDRect rect, Layout layout,
+void AbstractPlotView::drawLayout(KDContext *ctx, KDRect rect, Layout layout,
                                   Coordinate2D<float> xy,
                                   RelativePosition xPosition,
                                   RelativePosition yPosition, KDColor color,
                                   bool ignoreMargin) const {
-  KDSize layoutSize = layout->layoutSize(k_font);
+  KDSize layoutSize = layout.layoutSize(k_font);
   KDPoint layoutOrigin = computeOrigin(floatToPixel2D(xy), layoutSize,
                                        xPosition, yPosition, ignoreMargin);
   if (KDRect(layoutOrigin, layoutSize).intersects(rect)) {
-    ctx->fillRect(KDRect(layoutOrigin, layoutSize).intersectedWith(rect),
-                  backgroundColor());
     layout.draw(ctx, layoutOrigin,
-                Escher::LayoutView::DefaultLayoutStyle(
-                    {color, backgroundColor(), k_font}));
+                {.glyphColor = color,
+                 .backgroundColor = backgroundColor(),
+                 .font = k_font});
   }
 }
 
 KDRect AbstractPlotView::dotRect(Dots::Size size,
-                                 Poincare::Coordinate2D<float> xy,
-                                 bool ring) const {
+                                 Poincare::Coordinate2D<float> xy) const {
   if (!std::isfinite(xy.x()) || !std::isfinite(xy.y())) {
     return KDRectZero;
   }
-  KDCoordinate diameter = Dots::Diameter(size, ring);
+  KDCoordinate diameter = 0;
+  switch (size) {
+    case Dots::Size::Tiny:
+      diameter = Dots::TinyDotDiameter;
+      break;
+    case Dots::Size::Small:
+      diameter = Dots::SmallDotDiameter;
+      break;
+    case Dots::Size::Medium:
+      diameter = Dots::MediumDotDiameter;
+      break;
+    default:
+      assert(size == Dots::Size::Large);
+      diameter = Dots::LargeDotDiameter;
+  }
+  assert(diameter <= Dots::LargeDotDiameter);
   /* If circle has an even diameter, out of the four center pixels, the bottom
    * left one will be placed at (x, y) */
   Coordinate2D<float> pF = floatToPixel2D(xy);
@@ -222,35 +227,40 @@ KDRect AbstractPlotView::dotRect(Dots::Size size,
   return KDRect(p.x(), p.y(), diameter, diameter);
 }
 
-void AbstractPlotView::drawDotOrRing(KDContext* ctx, KDRect rect,
-                                     Dots::Size size,
-                                     Poincare::Coordinate2D<float> xy,
-                                     KDColor color, bool ring) const {
-  const uint8_t* mask = Dots::Mask(size, ring);
-  KDRect rectForDot = dotRect(size, xy, ring);
+void AbstractPlotView::drawDot(KDContext *ctx, KDRect rect, Dots::Size size,
+                               Poincare::Coordinate2D<float> xy,
+                               KDColor color) const {
+  const uint8_t *mask = nullptr;
+  switch (size) {
+    case Dots::Size::Tiny:
+      mask = (const uint8_t *)Dots::TinyDotMask;
+      break;
+    case Dots::Size::Small:
+      mask = (const uint8_t *)Dots::SmallDotMask;
+      break;
+    case Dots::Size::Medium:
+      mask = (const uint8_t *)Dots::MediumDotMask;
+      break;
+    default:
+      assert(size == Dots::Size::Large);
+      mask = (const uint8_t *)Dots::LargeDotMask;
+  }
+
+  KDRect rectForDot = dotRect(size, xy);
   if (rect.intersects(rectForDot)) {
     KDColor workingBuffer[Dots::LargeDotDiameter * Dots::LargeDotDiameter];
     ctx->blendRectWithMask(rectForDot, color, mask, workingBuffer);
   }
 }
 
-void AbstractPlotView::drawRing(KDContext* ctx, KDRect rect, Dots::Size size,
-                                Poincare::Coordinate2D<float> xy, KDColor color,
-                                bool transparent) const {
-  if (!transparent) {
-    drawDotOrRing(ctx, rect, size, xy, KDColorWhite, false);
-  }
-  drawDotOrRing(ctx, rect, size, xy, color, true);
-}
-
 double AbstractPlotView::angleFromPoint(KDPoint point) const {
-  double x = pixelToFloat(OMG::Axis::Horizontal, point.x());
-  double y = pixelToFloat(OMG::Axis::Vertical, point.y());
+  double x = pixelToFloat(Axis::Horizontal, point.x());
+  double y = pixelToFloat(Axis::Vertical, point.y());
   double angle = std::atan2(y, x);
   return angle < 0 ? angle + 2 * M_PI : angle;
 }
 
-void AbstractPlotView::drawArc(KDContext* ctx, KDRect rect,
+void AbstractPlotView::drawArc(KDContext *ctx, KDRect rect,
                                Poincare::Coordinate2D<float> center,
                                float radius, float angleStart, float angleEnd,
                                KDColor color) const {
@@ -265,9 +275,8 @@ void AbstractPlotView::drawArc(KDContext* ctx, KDRect rect,
   bool isLastSegment = false;
   double tMin = 0;
   double tMax = 2 * M_PI;
-  if (!rect.contains(
-          KDPoint(floatToKDCoordinatePixel(OMG::Axis::Horizontal, 0.f),
-                  floatToKDCoordinatePixel(OMG::Axis::Vertical, 0.f)))) {
+  if (!rect.contains(KDPoint(floatToKDCoordinatePixel(Axis::Horizontal, 0.f),
+                             floatToKDCoordinatePixel(Axis::Vertical, 0.f)))) {
     // TODO: factorise with Graph::GraphView::drawPolar
     double t1 = angleFromPoint(rect.bottomRight());
     double t2 = angleFromPoint(rect.topRight());
@@ -329,35 +338,34 @@ void AbstractPlotView::drawArc(KDContext* ctx, KDRect rect,
     }
     previousX = x;
     previousY = y;
-    x = floatToFloatPixel(OMG::Axis::Horizontal, std::cos(t) * radius);
-    y = floatToFloatPixel(OMG::Axis::Vertical, std::sin(t) * radius);
+    x = floatToFloatPixel(Axis::Horizontal, std::cos(t) * radius);
+    y = floatToFloatPixel(Axis::Vertical, std::sin(t) * radius);
     if (std::isnan(previousX)) {
       continue;
     }
     KDPoint from = KDPoint(previousX, previousY);
     KDPoint to = KDPoint(x, y);
     if (rect.contains(from) || rect.contains(to)) {
-      ctx->drawAntialiasedLine(previousX, previousY, x, y, color, KDColorWhite);
+      ctx->drawAntialiasedLine(previousX, previousY, x, y, color, Theme::ThemeGestion::getColor("KDColorWhite"));
     }
     // straightJoinDots(ctx, rect, x, y, previousX, previousY, color, thick);
   } while (!isLastSegment);
 }
 
-void AbstractPlotView::drawTick(KDContext* ctx, KDRect rect,
-                                OMG::Axis perpendicular, float position,
-                                KDColor color) const {
-  OMG::Axis parallel = OMG::OtherAxis(perpendicular);
+void AbstractPlotView::drawTick(KDContext *ctx, KDRect rect, Axis perpendicular,
+                                float position, KDColor color) const {
+  Axis parallel = OtherAxis(perpendicular);
   KDCoordinate p = floatToKDCoordinatePixel(perpendicular, position);
   KDCoordinate tickStart =
       floatToKDCoordinatePixel(parallel, 0.f) - k_tickHalfLength;
   KDCoordinate tickLength = 2 * k_tickHalfLength + 1;
-  KDRect tickRect = perpendicular == OMG::Axis::Horizontal
+  KDRect tickRect = perpendicular == Axis::Horizontal
                         ? KDRect(p, tickStart, 1, tickLength)
                         : KDRect(tickStart, p, tickLength, 1);
   ctx->fillRect(tickRect, color);
 }
 
-void AbstractPlotView::drawArrowhead(KDContext* ctx, KDRect rect,
+void AbstractPlotView::drawArrowhead(KDContext *ctx, KDRect rect,
                                      Coordinate2D<float> xy,
                                      Coordinate2D<float> dxy,
                                      float pixelArrowWidth, KDColor color,
@@ -400,9 +408,9 @@ void AbstractPlotView::drawArrowhead(KDContext* ctx, KDRect rect,
   straightJoinDots(ctx, rect, pA, pD, color, thick);
 }
 
-View* AbstractPlotView::subviewAtIndex(int i) {
+View *AbstractPlotView::subviewAtIndex(int i) {
   constexpr int maxNumberOfSubviews = 3;
-  View* subviews[maxNumberOfSubviews] = {cursorView(), bannerView(),
+  View *subviews[maxNumberOfSubviews] = {cursorView(), bannerView(),
                                          ornamentView()};
   assert(numberOfSubviews() <= maxNumberOfSubviews);
   for (int k = 0; k < maxNumberOfSubviews; k++) {
@@ -419,7 +427,7 @@ View* AbstractPlotView::subviewAtIndex(int i) {
 }
 
 void AbstractPlotView::layoutSubviews(bool force) {
-  View* banner = bannerView();
+  View *banner = bannerView();
   if (banner) {
     KDRect oldFrame = banner->bounds();
     setChildFrame(banner, bannerFrame(), force);
@@ -431,14 +439,13 @@ void AbstractPlotView::layoutSubviews(bool force) {
           KDFont::GlyphSize(k_font).height() + 2 * k_labelMargin;
       markRectAsDirty(KDRect(0, bounds().height() - dirtyHeight,
                              bounds().width(), dirtyHeight));
-      m_bannerBoundsChanged = true;
     }
   }
-  CursorView* cursor = cursorView();
+  CursorView *cursor = cursorView();
   if (cursor) {
     cursor->setCursorFrame(this, cursorFrame(), force);
   }
-  View* ornament = ornamentView();
+  View *ornament = ornamentView();
   if (ornament) {
     setChildFrame(ornament, bounds().differencedWith(bannerFrame()), force);
   }
@@ -558,7 +565,7 @@ constexpr Mask<k_thickStampSize>
          shiftedMask(thickStampMask, 1.0, 1.0)},
 };
 
-static void clipBarycentricCoordinatesBetweenBounds(float* start, float* end,
+static void clipBarycentricCoordinatesBetweenBounds(float *start, float *end,
                                                     KDCoordinate lower,
                                                     KDCoordinate upper,
                                                     float p1, float p2) {
@@ -573,7 +580,7 @@ static void clipBarycentricCoordinatesBetweenBounds(float* start, float* end,
   }
 }
 
-void AbstractPlotView::straightJoinDots(KDContext* ctx, KDRect rect,
+void AbstractPlotView::straightJoinDots(KDContext *ctx, KDRect rect,
                                         Coordinate2D<float> pixelA,
                                         Coordinate2D<float> pixelB,
                                         KDColor color, bool thick) const {
@@ -610,7 +617,7 @@ void AbstractPlotView::straightJoinDots(KDContext* ctx, KDRect rect,
   }
 }
 
-void AbstractPlotView::stamp(KDContext* ctx, KDRect rect, Coordinate2D<float> p,
+void AbstractPlotView::stamp(KDContext *ctx, KDRect rect, Coordinate2D<float> p,
                              KDColor color, bool thick) const {
   if (m_stampDashIndex != k_stampIndexNoDash) {
     /* The curve or line being drawn is dashed. Skip half the stamps. */
@@ -644,12 +651,12 @@ void AbstractPlotView::stamp(KDContext* ctx, KDRect rect, Coordinate2D<float> p,
     return;
   }
 
-  KDColor workingBuffer[k_thickStampSize * k_thickStampSize];
+  KDColor workingBuffer[stampSize * stampSize];
   float dx = px - pxf;
   float dy = py - pyf;
   size_t ix = std::round(dx * k_shiftedSteps);
   size_t iy = std::round(dy * k_shiftedSteps);
-  const uint8_t* shiftedMask;
+  const uint8_t *shiftedMask;
   if (thick) {
     shiftedMask = &thickShiftedMasks[ix][iy].m_mask[0];
   } else {

@@ -29,13 +29,17 @@ class ListController : public Shared::ExpressionModelListController,
   void fillCellForRow(Escher::HighlightCell* cell, int row) override;
   /* Responder */
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
+  void didEnterResponderChain(
+      Escher::Responder* previousFirstResponder) override;
   /* ViewController */
   Escher::View* view() override { return &m_equationListView; }
+  TELEMETRY_ID("List");
   bool layoutFieldDidFinishEditing(Escher::LayoutField* layoutField,
                                    Ion::Events::Event event) override;
   void layoutFieldDidChangeSize(Escher::LayoutField* layoutField) override;
   void layoutFieldDidAbortEditing(Escher::LayoutField* layoutField) override;
-  bool isAcceptableExpression(const Poincare::UserExpression expression,
+  bool isAcceptableExpression(const Poincare::Expression expression,
                               Poincare::Context* context) override;
   /* ExpressionModelListController */
   void editExpression(Ion::Events::Event event) override;
@@ -45,10 +49,6 @@ class ListController : public Shared::ExpressionModelListController,
   Escher::LayoutField* layoutField() override {
     return m_editableCell.layoutField();
   }
-
- protected:
-  void handleResponderChainEvent(
-      Escher::Responder::ResponderChainEvent event) override;
 
  private:
   constexpr static int k_maxNumberOfRows =
@@ -66,9 +66,9 @@ class ListController : public Shared::ExpressionModelListController,
   void reloadBrace();
   EquationStore* modelStore() const override;
   Escher::StackViewController* stackController() const;
-  bool shouldCompleteEquation(Poincare::UserExpression expression,
+  bool shouldCompleteEquation(Poincare::Expression expression,
                               CodePoint symbol) override {
-    return !expression.isComparison();
+    return expression.type() != Poincare::ExpressionNode::Type::Comparison;
   }
   bool completeEquation(Escher::LayoutField* equationField,
                         CodePoint symbol) override;

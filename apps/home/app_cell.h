@@ -3,8 +3,10 @@
 
 #include <escher/app.h>
 #include <escher/highlight_cell.h>
-#include <escher/image_view.h>
-#include <escher/pointer_text_view.h>
+#include <escher/transparent_pointer_text_view.h>
+#include <escher/transparent_message_text_view.h>
+#include <escher/transparent_text_view.h>
+#include <escher/transparent_image_view_moded.h>
 #include <ion/external_apps.h>
 
 namespace Home {
@@ -29,14 +31,12 @@ class AppCell : public Escher::HighlightCell {
   constexpr static KDCoordinate k_iconHeight = 56;
   constexpr static KDCoordinate k_nameWidthMargin = 4;
   constexpr static KDCoordinate k_nameHeightMargin = 1;
-  constexpr static KDGlyph::Format k_glyphsFormat = {
-      .style = {.font = KDFont::Size::Small},
-      .horizontalAlignment = KDGlyph::k_alignCenter};
-  const Escher::TextView* textView() const;
-  Escher::ImageView m_iconView;
-  Escher::MessageTextView m_messageNameView;
+  static KDGlyph::Format k_glyphsFormat();
+  const Escher::TransparentTextView* textView() const;
+  Escher::TransparentImageViewModed m_iconView;
+  Escher::TransparentMessageTextView m_messageNameView;
   Escher::Image m_image;
-  Escher::PointerTextView m_pointerNameView;
+  Escher::TransparentPointerTextView m_pointerNameView;
 };
 
 }  // namespace Home

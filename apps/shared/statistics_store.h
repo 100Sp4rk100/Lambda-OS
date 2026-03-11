@@ -1,7 +1,7 @@
 #ifndef SHARED_STATISTICS_STORE_H
 #define SHARED_STATISTICS_STORE_H
 
-#include <poincare/statistics/statistics.h>
+#include <poincare/statistics_dataset.h>
 
 #include "double_pair_store.h"
 
@@ -29,9 +29,6 @@ class StatisticsStore : public DoublePairStore {
     return k_columnNames[column][0];
   }
   double defaultValueForColumn1() const override { return 1.0; }
-  bool deleteValueAtIndex(int series, int i, int j,
-                          bool authorizeNonEmptyRowDeletion = true,
-                          bool delayUpdate = false) override;
   bool updateSeries(int series, bool delayUpdate = false) override;
   bool valueValidInColumn(double value, int relativeColumn) const override {
     return DoublePairStore::valueValidInColumn(value, relativeColumn) &&

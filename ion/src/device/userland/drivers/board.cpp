@@ -1,6 +1,6 @@
 #include "board.h"
 
-#include "svcall.h"
+#include <drivers/svcall.h>
 
 namespace Ion {
 namespace Device {

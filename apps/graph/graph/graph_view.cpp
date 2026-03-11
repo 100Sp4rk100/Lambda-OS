@@ -2,6 +2,8 @@
 
 #include <poincare/trigonometry.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 #include "../app.h"
 
 using namespace Escher;
@@ -10,9 +12,9 @@ using namespace Shared;
 
 namespace Graph {
 
-GraphView::GraphView(InteractiveCurveViewRange* graphRange,
-                     CurveViewCursor* cursor, Shared::BannerView* bannerView,
-                     MemoizedCursorView* cursorView)
+GraphView::GraphView(InteractiveCurveViewRange *graphRange,
+                     CurveViewCursor *cursor, Shared::BannerView *bannerView,
+                     MemoizedCursorView *cursorView)
     : FunctionGraphView(graphRange, cursor, bannerView, cursorView),
       m_interestView(this),
       m_areaIndex(0),
@@ -21,16 +23,14 @@ GraphView::GraphView(InteractiveCurveViewRange* graphRange,
       m_computePointsOfInterest(false),
       m_tangentDisplay(false) {}
 
-void GraphView::reload(bool resetInterrupted, bool force,
-                       bool forceRedrawAxes) {
+void GraphView::reload(bool resetInterrupted, bool force) {
   if (m_tangentDisplay) {
     markRectAsDirty(boundsWithoutBanner());
-    forceRedrawAxes = true;
   }
-  return FunctionGraphView::reload(resetInterrupted, force, forceRedrawAxes);
+  return FunctionGraphView::reload(resetInterrupted, force);
 }
 
-void GraphView::drawRect(KDContext* ctx, KDRect rect) const {
+void GraphView::drawRect(KDContext *ctx, KDRect rect) const {
   if (rect.intersectedWith(boundsWithoutBanner()) == boundsWithoutBanner()) {
     // If the whole curve is redrawn, all points of interest need a redraw
     m_nextPointOfInterestIndex = 0;
@@ -55,7 +55,7 @@ int GraphView::numberOfDrawnRecords() const {
 }
 
 void GraphView::drawRecord(Ion::Storage::Record record, int index,
-                           KDContext* ctx, KDRect rect,
+                           KDContext *ctx, KDRect rect,
                            bool firstDrawnRecord) const {
   if (firstDrawnRecord) {
     m_areaIndex = 0;
@@ -64,24 +64,25 @@ void GraphView::drawRecord(Ion::Storage::Record record, int index,
   ExpiringPointer<ContinuousFunction> f =
       functionStore()->modelForRecord(record);
 
-  SystemFunction e = f->expressionApproximated(context());
+  Expression e = f->expressionApproximated(context());
   ContinuousFunctionProperties::AreaType area = f->properties().areaType();
   assert(f->numberOfSubCurves() <= 2);
   if (area == ContinuousFunctionProperties::AreaType::None) {
-    if (e.isDep()) {
-      e = e.cloneChildAtIndex(0);
+    if (e.type() == ExpressionNode::Type::Dependency) {
+      e = e.childAtIndex(0);
     }
     bool isUndefined = e.isUndefined();
-    if (!isUndefined && e.isPoint()) {
+    if (!isUndefined && e.type() == ExpressionNode::Type::Point) {
       assert(f->properties().isParametric() || f->properties().isScatterPlot());
-      isUndefined = e.cloneChildAtIndex(0).isUndefined() ||
-                    e.cloneChildAtIndex(1).isUndefined();
+      assert(e.numberOfChildren() == 2);
+      isUndefined =
+          e.childAtIndex(0).isUndefined() || e.childAtIndex(1).isUndefined();
     }
     if (!isUndefined && f->numberOfSubCurves() == 2) {
-      assert(e.isList());
-      assert(static_cast<List&>(e).numberOfChildren() == 2);
-      isUndefined = e.cloneChildAtIndex(0).isUndefined() &&
-                    e.cloneChildAtIndex(1).isUndefined();
+      assert(e.type() == ExpressionNode::Type::List);
+      assert(e.numberOfChildren() == 2);
+      isUndefined =
+          e.childAtIndex(0).isUndefined() && e.childAtIndex(1).isUndefined();
     }
     if (isUndefined) {
       // There is no need to plot anything.
@@ -89,14 +90,14 @@ void GraphView::drawRecord(Ion::Storage::Record record, int index,
     }
   }
 
-  ContinuousFunctionCache* cch = functionStore()->cacheAtIndex(index);
+  ContinuousFunctionCache *cch = functionStore()->cacheAtIndex(index);
   float tmin = f->tMin();
   float tmax = f->tMax();
-  OMG::Axis axis = f->isAlongY() ? OMG::Axis::Vertical : OMG::Axis::Horizontal;
-  KDCoordinate rectMin = axis == OMG::Axis::Horizontal
+  Axis axis = f->isAlongY() ? Axis::Vertical : Axis::Horizontal;
+  KDCoordinate rectMin = axis == Axis::Horizontal
                              ? rect.left() - k_externRectMargin
                              : rect.bottom() + k_externRectMargin;
-  KDCoordinate rectMax = axis == OMG::Axis::Horizontal
+  KDCoordinate rectMax = axis == Axis::Horizontal
                              ? rect.right() + k_externRectMargin
                              : rect.top() - k_externRectMargin;
   float tCacheMin, tStep, tCacheStep;
@@ -107,7 +108,7 @@ void GraphView::drawRecord(Ion::Storage::Record record, int index,
      * entirely invalidated. */
     tCacheMin = std::isnan(rectLimit) ? tmin : std::max(tmin, rectLimit);
     tmax = std::min(pixelToFloat(axis, rectMax), tmax);
-    tStep = axis == OMG::Axis::Horizontal ? pixelWidth() : pixelHeight();
+    tStep = axis == Axis::Horizontal ? pixelWidth() : pixelHeight();
     tCacheStep = tStep / 2.;
   } else {
     tCacheMin = tmin;
@@ -122,15 +123,18 @@ void GraphView::drawRecord(Ion::Storage::Record record, int index,
    * discontinuous functions, this avoids recomputing potential
    * discontinuity at each dot of the curve. */
   DiscontinuityTest discontinuityEvaluation =
-      e.involvesDiscontinuousFunction() ? FunctionIsDiscontinuousOnFloatInterval
-                                        : NoDiscontinuity;
+      e.involvesDiscontinuousFunction(context())
+          ? FunctionIsDiscontinuousBetweenFloatValues
+          : NoDiscontinuity;
 
   if (f->properties().isCartesian()) {
     drawCartesian(ctx, rect, f.operator->(), record, tCacheMin, tmax, tStep,
                   discontinuityEvaluation, axis);
+
   } else if (f->properties().isPolar()) {
     drawPolar(ctx, rect, f.operator->(), tCacheMin, tmax, tStep,
               discontinuityEvaluation);
+
   } else if (f->properties().isScatterPlot()) {
     drawScatterPlot(ctx, rect, f.operator->());
   } else {
@@ -143,63 +147,62 @@ void GraphView::drawRecord(Ion::Storage::Record record, int index,
   drawTangent(ctx, rect, record);
 }
 
-void GraphView::tidyModel(int i, const PoolObject* treePoolCursor) const {
+void GraphView::tidyModel(int i, TreeNode *treePoolCursor) const {
   functionStore()
       ->modelForRecord(functionStore()->activeRecordAtIndex(i))
       ->tidyDownstreamPoolFrom(treePoolCursor);
 }
 
-ContinuousFunctionStore* GraphView::functionStore() const {
+ContinuousFunctionStore *GraphView::functionStore() const {
   return App::app()->functionStore();
 }
 
 template <typename T>
-static Coordinate2D<T> evaluateXY(T t, void* model, void* context) {
-  return reinterpret_cast<ContinuousFunction*>(model)->evaluateXYAtParameter(
-      t, reinterpret_cast<Context*>(context), 0);
+static Coordinate2D<T> evaluateXY(T t, void *model, void *context) {
+  return reinterpret_cast<ContinuousFunction *>(model)->evaluateXYAtParameter(
+      t, reinterpret_cast<Context *>(context), 0);
 }
 template <typename T>
-static Coordinate2D<T> evaluateXYSecondCurve(T t, void* model, void* context) {
-  return reinterpret_cast<ContinuousFunction*>(model)->evaluateXYAtParameter(
-      t, reinterpret_cast<Context*>(context), 1);
+static Coordinate2D<T> evaluateXYSecondCurve(T t, void *model, void *context) {
+  return reinterpret_cast<ContinuousFunction *>(model)->evaluateXYAtParameter(
+      t, reinterpret_cast<Context *>(context), 1);
 }
 template <typename T>
-static Coordinate2D<T> evaluateXYFirstDerivative(T t, void* model,
-                                                 void* context) {
-  return reinterpret_cast<ContinuousFunction*>(model)
-      ->evaluateXYDerivativeAtParameter(t, reinterpret_cast<Context*>(context),
+static Coordinate2D<T> evaluateXYFirstDerivative(T t, void *model,
+                                                 void *context) {
+  return reinterpret_cast<ContinuousFunction *>(model)
+      ->evaluateXYDerivativeAtParameter(t, reinterpret_cast<Context *>(context),
                                         1);
 }
 template <typename T>
-static Coordinate2D<T> evaluateXYSecondDerivative(T t, void* model,
-                                                  void* context) {
-  return reinterpret_cast<ContinuousFunction*>(model)
-      ->evaluateXYDerivativeAtParameter(t, reinterpret_cast<Context*>(context),
+static Coordinate2D<T> evaluateXYSecondDerivative(T t, void *model,
+                                                  void *context) {
+  return reinterpret_cast<ContinuousFunction *>(model)
+      ->evaluateXYDerivativeAtParameter(t, reinterpret_cast<Context *>(context),
                                         2);
 }
 
-static Coordinate2D<float> evaluateInfinity(float t, void*, void*) {
+static Coordinate2D<float> evaluateInfinity(float t, void *, void *) {
   return Coordinate2D<float>(INFINITY, INFINITY);
 }
-static Coordinate2D<float> evaluateMinusInfinity(float t, void*, void*) {
+static Coordinate2D<float> evaluateMinusInfinity(float t, void *, void *) {
   return Coordinate2D<float>(-INFINITY, -INFINITY);
 }
-static Coordinate2D<float> evaluateZero(float t, void*, void*) {
+static Coordinate2D<float> evaluateZero(float t, void *, void *) {
   return Coordinate2D<float>(t, 0.f);
 }
 
-bool GraphView::FunctionIsDiscontinuousOnFloatInterval(float minBound,
-                                                       float maxBound,
-                                                       void* model,
-                                                       void* context) {
-  return static_cast<ContinuousFunction*>(model)
-      ->isDiscontinuousOnFloatInterval(
-          minBound, maxBound, static_cast<Poincare::Context*>(context));
+bool GraphView::FunctionIsDiscontinuousBetweenFloatValues(float x1, float x2,
+                                                          void *model,
+                                                          void *context) {
+  return static_cast<ContinuousFunction *>(model)
+      ->isDiscontinuousBetweenFloatValues(
+          x1, x2, static_cast<Poincare::Context *>(context));
 }
 
 template <typename T>
 GraphView::Curve2DEvaluation<T> GraphView::subCurveEvaluation(
-    ContinuousFunction* f, int subCurveIndex) const {
+    ContinuousFunction *f, int subCurveIndex) const {
   if (subCurveIndex == 0) {
     return evaluateXY<T>;
   }
@@ -216,12 +219,12 @@ GraphView::Curve2DEvaluation<T> GraphView::subCurveEvaluation(
                               : evaluateXYSecondDerivative<T>;
 }
 
-void GraphView::drawCartesian(KDContext* ctx, KDRect rect,
-                              ContinuousFunction* f,
+void GraphView::drawCartesian(KDContext *ctx, KDRect rect,
+                              ContinuousFunction *f,
                               Ion::Storage::Record record, float tStart,
                               float tEnd, float tStep,
                               DiscontinuityTest discontinuity,
-                              OMG::Axis axis) const {
+                              Axis axis) const {
   assert(f->properties().isCartesian());
   ContinuousFunctionProperties::AreaType area = f->properties().areaType();
   bool hasTwoCurves = (f->numberOfSubCurves() == 2);
@@ -265,7 +268,7 @@ void GraphView::drawCartesian(KDContext* ctx, KDRect rect,
         if (m_secondSelectedRecord.isNull()) {
           patternLower = Curve2D(evaluateZero);
         } else {
-          ContinuousFunction* otherModel =
+          ContinuousFunction *otherModel =
               functionStore()
                   ->modelForRecord(m_secondSelectedRecord)
                   .
@@ -311,7 +314,7 @@ void GraphView::drawCartesian(KDContext* ctx, KDRect rect,
   }
 }
 
-void GraphView::drawTangent(KDContext* ctx, KDRect rect,
+void GraphView::drawTangent(KDContext *ctx, KDRect rect,
                             Ion::Storage::Record record) const {
   if (!m_tangentDisplay || m_selectedRecord != record) {
     return;
@@ -319,7 +322,7 @@ void GraphView::drawTangent(KDContext* ctx, KDRect rect,
   ExpiringPointer<ContinuousFunction> f =
       functionStore()->modelForRecord(record);
   assert(f->canComputeTangent());
-  /* TODO: We could handle tangent on second curve here by finding out
+  /* TODO : We could handle tangent on second curve here by finding out
    * which of the two curves is selected. */
   float tangentParameterA = f->approximateSlope(m_cursor->t(), context());
   float tangentParameterB = -tangentParameterA * m_cursor->x() + m_cursor->y();
@@ -342,13 +345,13 @@ void GraphView::drawTangent(KDContext* ctx, KDRect rect,
    * approximations errors.
    * */
   float minAbscissa =
-      pixelToFloat(OMG::Axis::Horizontal, rect.left() - k_externRectMargin);
+      pixelToFloat(Axis::Horizontal, rect.left() - k_externRectMargin);
   float maxAbscissa =
-      pixelToFloat(OMG::Axis::Horizontal, rect.right() + k_externRectMargin);
+      pixelToFloat(Axis::Horizontal, rect.right() + k_externRectMargin);
   float minOrdinate =
-      pixelToFloat(OMG::Axis::Vertical, rect.bottom() + k_externRectMargin);
+      pixelToFloat(Axis::Vertical, rect.bottom() + k_externRectMargin);
   float maxOrdinate =
-      pixelToFloat(OMG::Axis::Vertical, rect.top() - k_externRectMargin);
+      pixelToFloat(Axis::Vertical, rect.top() - k_externRectMargin);
 
   Coordinate2D<float> leftIntersection(
       minAbscissa, tangentParameterA * minAbscissa + tangentParameterB);
@@ -385,7 +388,7 @@ void GraphView::drawTangent(KDContext* ctx, KDRect rect,
       continue;
     }
     // Second dot in window found
-    drawSegment(ctx, rect, firstVisibleDot, currentDot, Palette::GrayVeryDark,
+    drawSegment(ctx, rect, firstVisibleDot, currentDot, Theme::ThemeGestion::getColor("GrayVeryDark"),
                 false);
     break;
   }
@@ -399,22 +402,21 @@ static float polarThetaFromCoordinates(float x, float y,
       .real();
 }
 
-void GraphView::drawPolar(KDContext* ctx, KDRect rect, ContinuousFunction* f,
+void GraphView::drawPolar(KDContext *ctx, KDRect rect, ContinuousFunction *f,
                           float tStart, float tEnd, float tStep,
                           DiscontinuityTest discontinuity) const {
   assert(f->properties().isPolar());
   // Compute rect limits
   float rectLeft =
-      pixelToFloat(OMG::Axis::Horizontal, rect.left() - k_externRectMargin);
+      pixelToFloat(Axis::Horizontal, rect.left() - k_externRectMargin);
   float rectRight =
-      pixelToFloat(OMG::Axis::Horizontal, rect.right() + k_externRectMargin);
-  float rectUp =
-      pixelToFloat(OMG::Axis::Vertical, rect.top() - k_externRectMargin);
+      pixelToFloat(Axis::Horizontal, rect.right() + k_externRectMargin);
+  float rectUp = pixelToFloat(Axis::Vertical, rect.top() - k_externRectMargin);
   float rectDown =
-      pixelToFloat(OMG::Axis::Vertical, rect.bottom() + k_externRectMargin);
+      pixelToFloat(Axis::Vertical, rect.bottom() + k_externRectMargin);
 
   const Preferences::AngleUnit angleUnit =
-      MathPreferences::SharedPreferences()->angleUnit();
+      Preferences::SharedPreferences()->angleUnit();
   const float piInAngleUnit = Trigonometry::PiInAngleUnit(angleUnit);
   /* Cancel optimization if :
    * - One of rect limits is nan.
@@ -523,7 +525,7 @@ void GraphView::drawPolar(KDContext* ctx, KDRect rect, ContinuousFunction* f,
   }
 }
 
-void GraphView::drawFunction(KDContext* ctx, KDRect rect, ContinuousFunction* f,
+void GraphView::drawFunction(KDContext *ctx, KDRect rect, ContinuousFunction *f,
                              float tStart, float tEnd, float tStep,
                              DiscontinuityTest discontinuity) const {
   assert(f->properties().isParametric() || f->properties().isInversePolar() ||
@@ -534,12 +536,14 @@ void GraphView::drawFunction(KDContext* ctx, KDRect rect, ContinuousFunction* f,
   plot.draw(this, ctx, rect);
 }
 
-void GraphView::drawScatterPlot(KDContext* ctx, KDRect rect,
-                                ContinuousFunction* f) const {
+void GraphView::drawScatterPlot(KDContext *ctx, KDRect rect,
+                                ContinuousFunction *f) const {
   assert(f->properties().isScatterPlot());
   // TODO Handle limiting tMax and tMin ?
-  for (Coordinate2D<float> p : f->iterateScatterPlot(context())) {
-    drawDot(ctx, rect, k_dotSize, p, f->color());
+  ApproximationContext approximationContext(context());
+  for (Point p : f->iterateScatterPlot(context())) {
+    drawDot(ctx, rect, k_dotSize, p.approximate2D<float>(approximationContext),
+            f->color());
   }
 }
 
@@ -548,7 +552,7 @@ void GraphView::resumePointsOfInterestDrawing() {
   m_interestView.dirtyBounds();
 }
 
-void GraphView::drawPointsOfInterest(KDContext* ctx, KDRect rect) {
+void GraphView::drawPointsOfInterest(KDContext *ctx, KDRect rect) {
   if (!hasFocus()) {
     return;
   }
@@ -559,20 +563,17 @@ void GraphView::drawPointsOfInterest(KDContext* ctx, KDRect rect) {
   Ion::Storage::Record selectedRec = selectedRecord();
   ExpiringPointer<ContinuousFunction> f =
       functionStore()->modelForRecord(selectedRec);
-  bool isStrictInequality = f->properties().isStrictInequality();
-
   if (!f->properties().isCartesian() ||
       functionWasInterrupted(
           functionStore()->indexOfRecordAmongActiveRecords(selectedRec))) {
     return;
   }
 
-  PointsOfInterestCache* pointsOfInterestCache =
+  PointsOfInterestCache *pointsOfInterestCache =
       App::app()->graphController()->pointsOfInterestForRecord(selectedRec);
 
   bool canDisplayPoints = pointsOfInterestCache->canDisplayPoints(m_interest);
   PointOfInterest p;
-  Coordinate2D<float> lastBlackDot;
   int i = 0;
   do {
     // Compute more points of interest if necessary
@@ -593,7 +594,8 @@ void GraphView::drawPointsOfInterest(KDContext* ctx, KDRect rect) {
       m_nextPointOfInterestIndex = i;
     }
 
-    if (!PointsOfInterestCache::PointFitInterest(p, m_interest)) {
+    if (m_interest != Poincare::Solver<double>::Interest::None &&
+        m_interest != p.interest()) {
       continue;
     }
 
@@ -607,7 +609,8 @@ void GraphView::drawPointsOfInterest(KDContext* ctx, KDRect rect) {
       // Redraw curve and cursor without any interest point
       drawRect(ctx, rect);
       if (cursorView()) {
-        static_cast<MemoizedCursorView*>(cursorView())
+        cursorView()->setHighlighted(false);
+        static_cast<MemoizedCursorView *>(cursorView())
             ->redrawCursor(rect.translatedBy(absoluteOrigin()));
       }
     }
@@ -620,19 +623,8 @@ void GraphView::drawPointsOfInterest(KDContext* ctx, KDRect rect) {
     // Draw the dot
     Coordinate2D<float> dotCoordinates =
         static_cast<Coordinate2D<float>>(p.xy());
-    if (lastBlackDot == dotCoordinates &&
-        p.interest == Solver<double>::Interest::ReachedDiscontinuity) {
-      /* Reached discontinuity dots are drawn in the color of the function, but
-       * a dot is already drawn in black at the same coordinates. */
-      continue;
-    }
 
-    bool isRing =
-        isStrictInequality ||
-        p.interest == Solver<double>::Interest::UnreachedDiscontinuity ||
-        p.interest == Solver<double>::Interest::UnreachedIntersection;
-
-    KDRect dotRelativeRect = dotRect(k_dotSize, dotCoordinates, isRing);
+    KDRect dotRelativeRect = dotRect(k_dotSize, dotCoordinates);
     /* If the dot intersects the dirty rect, force the redraw.
      * Either dotRelativeRect or dirtyRect needs to be translated, as one is
      * relative and the other absolute. Since dotRect might have been clamped to
@@ -650,29 +642,13 @@ void GraphView::drawPointsOfInterest(KDContext* ctx, KDRect rect) {
       assert(cursorView());
       cursorView()->setCursorFrame(this, frameOfCursor, true);
     }
-    // Refresh expiring pointer
-    ExpiringPointer<ContinuousFunction> f =
-        functionStore()->modelForRecord(selectedRec);
-    KDColor color =
-        p.interest == Solver<double>::Interest::ReachedDiscontinuity ||
-                p.interest == Solver<double>::Interest::UnreachedDiscontinuity
-            ? f->color()
-            : Escher::Palette::GrayDarkest;
-    if (isRing) {
-      drawRing(ctx, rect, k_dotSize, dotCoordinates, color, false);
-    } else {
-      drawDot(ctx, rect, k_dotSize, dotCoordinates, color);
-    }
-    if (color == Escher::Palette::GrayDarkest) {
-      lastBlackDot = dotCoordinates;
-    }
-
+    drawDot(ctx, rect, k_dotSize, dotCoordinates, Theme::ThemeGestion::getColor("GrayDarkest"));
     if (redrawCursor) {
       /* WARNING: We cannot assert that cursorView is a MemoizedCursorView
        * but it is thanks to the constructor. */
       /* The cursor cannot be safely highlighted here since it might intersect
        * the dot of the point of interest without being exactly on it. */
-      static_cast<MemoizedCursorView*>(cursorView())
+      static_cast<MemoizedCursorView *>(cursorView())
           ->redrawCursor(rect.translatedBy(absoluteOrigin()));
     }
   } while (1);
@@ -684,9 +660,9 @@ KDRect GraphView::boundsWithoutBanner() const {
                 bounds().height() - m_banner->bounds().height());
 }
 
-void GraphView::drawAxesAndGrid(KDContext* ctx, KDRect rect) const {
-  InteractiveCurveViewRange* viewRange =
-      static_cast<InteractiveCurveViewRange*>(range());
+void GraphView::drawAxesAndGrid(KDContext *ctx, KDRect rect) const {
+  InteractiveCurveViewRange *viewRange =
+      static_cast<InteractiveCurveViewRange *>(range());
   if (viewRange->gridType() == InteractiveCurveViewRange::GridType::Polar) {
     PlotPolicy::WithPolarGrid::DrawGrid(this, ctx, rect);
 

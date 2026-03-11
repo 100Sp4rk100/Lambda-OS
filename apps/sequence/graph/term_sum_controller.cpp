@@ -1,6 +1,8 @@
 #include "term_sum_controller.h"
 
-#include <poincare/layout.h>
+#include <poincare/code_point_layout.h>
+#include <poincare/horizontal_layout.h>
+#include <poincare/vertical_offset_layout.h>
 
 #include <cmath>
 
@@ -23,7 +25,7 @@ TermSumController::TermSumController(Responder* parentResponder,
                                      CurveViewCursor* cursor)
     : SumGraphController(parentResponder, graphView, graphRange, cursor) {}
 
-const char* TermSumController::title() const {
+const char* TermSumController::title() {
   return I18n::translate(I18n::Message::TermSum);
 }
 

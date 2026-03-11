@@ -2,8 +2,8 @@
 
 #include <apps/i18n.h>
 #include <assert.h>
-#include <omg/utf8_decoder.h>
-#include <omg/utf8_helper.h>
+#include <ion/unicode/utf8_decoder.h>
+#include <poincare/serialization_helper.h>
 #include <string.h>
 
 namespace Shared {
@@ -46,12 +46,12 @@ void TextToInsertForCommandText(const char* command, int commandLength,
       if (argumentAlreadyReplaced) {
         argumentAlreadyReplaced = false;
       }
-      length += UTF8Helper::WriteCodePoint(buffer + length, bufferSize - length,
-                                           codePoint);
+      length += Poincare::SerializationHelper::CodePoint(
+          buffer + length, bufferSize - length, codePoint);
     } else {
       if (replaceArgsWithEmptyChar && !argumentAlreadyReplaced) {
         assert(length < bufferSize);
-        length += UTF8Helper::WriteCodePoint(
+        length += Poincare::SerializationHelper::CodePoint(
             buffer + length, bufferSize - length, UCodePointEmpty);
         argumentAlreadyReplaced = true;
       }

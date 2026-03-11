@@ -2,14 +2,10 @@
 #define SHARED_POINCARE_HELPERS_H
 
 #include <apps/global_preferences.h>
-#include <apps/math_preferences.h>
 #include <poincare/expression.h>
-#include <poincare/expression_or_float.h>
 #include <poincare/preferences.h>
 #include <poincare/print_float.h>
-#include <poincare/src/expression/projection.h>
-
-#include <type_traits>
+#include <poincare/solver.h>
 
 namespace Shared {
 
@@ -18,31 +14,32 @@ namespace PoincareHelpers {
 // ===== Layout =====
 
 inline Poincare::Layout CreateLayout(
-    const Poincare::UserExpression e, Poincare::Context* context,
+    const Poincare::Expression e, Poincare::Context* context,
     Poincare::Preferences::PrintFloatMode displayMode =
-        MathPreferences::SharedPreferences()->displayMode(),
+        Poincare::Preferences::SharedPreferences()->displayMode(),
     uint8_t numberOfSignificantDigits =
-        MathPreferences::SharedPreferences()->numberOfSignificantDigits()) {
+        Poincare::Preferences::SharedPreferences()
+            ->numberOfSignificantDigits()) {
   return e.createLayout(displayMode, numberOfSignificantDigits, context);
 }
 
 // ===== Serialization =====
 
 template <class T>
-inline size_t ConvertFloatToText(T d, char* buffer, size_t bufferSize,
-                                 int numberOfSignificantDigits) {
+inline int ConvertFloatToText(T d, char* buffer, int bufferSize,
+                              int numberOfSignificantDigits) {
   return Poincare::PrintFloat::ConvertFloatToText(
              d, buffer, bufferSize,
              Poincare::PrintFloat::glyphLengthForFloatWithPrecision(
                  numberOfSignificantDigits),
              numberOfSignificantDigits,
-             MathPreferences::SharedPreferences()->displayMode())
+             Poincare::Preferences::SharedPreferences()->displayMode())
       .CharLength;
 }
 
 template <class T>
-inline size_t ConvertFloatToTextWithDisplayMode(
-    T d, char* buffer, size_t bufferSize, int numberOfSignificantDigits,
+inline int ConvertFloatToTextWithDisplayMode(
+    T d, char* buffer, int bufferSize, int numberOfSignificantDigits,
     Poincare::Preferences::PrintFloatMode displayMode) {
   return Poincare::PrintFloat::ConvertFloatToText(
              d, buffer, bufferSize,
@@ -52,104 +49,157 @@ inline size_t ConvertFloatToTextWithDisplayMode(
       .CharLength;
 }
 
+inline size_t Serialize(
+    const Poincare::Expression e, char* buffer, size_t bufferSize,
+    int numberOfSignificantDigits =
+        Poincare::PrintFloat::k_maxNumberOfSignificantDigits) {
+  return e.serialize(buffer, bufferSize,
+                     Poincare::Preferences::SharedPreferences()->displayMode(),
+                     numberOfSignificantDigits);
+}
+
 // ===== Approximation =====
 
 struct ApproximationParameters {
   Poincare::Preferences::ComplexFormat complexFormat =
-      MathPreferences::SharedPreferences()->complexFormat();
+      Poincare::Preferences::SharedPreferences()->complexFormat();
   Poincare::Preferences::AngleUnit angleUnit =
-      MathPreferences::SharedPreferences()->angleUnit();
+      Poincare::Preferences::SharedPreferences()->angleUnit();
   bool updateComplexFormatWithExpression = true;
 };
 
-// Approximate to tree and keep units
-template <class T>
-inline Poincare::Expression Approximate(
-    Poincare::Expression e, Poincare::Context* context,
-    const ApproximationParameters& approximationParameters = {}) {
-  Poincare::Preferences::ComplexFormat complexFormat =
-      approximationParameters.complexFormat;
+inline Poincare::ApproximationContext ApproximationContextForParameters(
+    const Poincare::Expression e, Poincare::Context* context,
+    const ApproximationParameters& approximationParameters) {
+  Poincare::ApproximationContext approximationContext(
+      context, approximationParameters.complexFormat,
+      approximationParameters.angleUnit);
   if (approximationParameters.updateComplexFormatWithExpression) {
-    complexFormat =
-        Poincare::Preferences::UpdatedComplexFormatWithExpressionInput(
-            complexFormat, e, context);
+    approximationContext.updateComplexFormat(e);
   }
-  return e.approximateToTree<T>(approximationParameters.angleUnit,
-                                complexFormat, context);
+  return approximationContext;
 }
 
-// Approximate a real scalar expression. Contexts are not handled.
-template <class FloatType = float>
-inline FloatType ApproximateToRealScalar(Poincare::Expression e) {
-  static_assert(std::is_floating_point_v<FloatType>);
-  return e.approximateToRealScalar<FloatType>(
-      MathPreferences::SharedPreferences()->angleUnit(),
-      MathPreferences::SharedPreferences()->complexFormat());
+template <class T>
+inline Poincare::Expression Approximate(
+    const Poincare::Expression e, Poincare::Context* context,
+    const ApproximationParameters& approximationParameters = {}) {
+  return e.approximate<T>(
+      ApproximationContextForParameters(e, context, approximationParameters));
+}
+
+template <class T>
+inline T ApproximateToScalar(
+    const Poincare::Expression e, Poincare::Context* context,
+    const ApproximationParameters& approximationParameters = {}) {
+  return e.approximateToScalar<T>(
+      ApproximationContextForParameters(e, context, approximationParameters));
+}
+
+template <class T>
+inline T ApproximateWithValueForSymbol(
+    const Poincare::Expression e, const char* symbol, T x,
+    Poincare::Context* context,
+    const ApproximationParameters& approximationParameters = {}) {
+  return e.approximateToScalarWithValueForSymbol<T>(
+      symbol, x,
+      ApproximationContextForParameters(e, context, approximationParameters));
 }
 
 // ===== Reduction =====
 
 struct ReductionParameters {
   Poincare::Preferences::ComplexFormat complexFormat =
-      MathPreferences::SharedPreferences()->complexFormat();
+      Poincare::Preferences::SharedPreferences()->complexFormat();
   Poincare::Preferences::AngleUnit angleUnit =
-      MathPreferences::SharedPreferences()->angleUnit();
+      Poincare::Preferences::SharedPreferences()->angleUnit();
   bool updateComplexFormatWithExpression = true;
 
   Poincare::ReductionTarget target = Poincare::ReductionTarget::User;
   Poincare::SymbolicComputation symbolicComputation =
-      Poincare::SymbolicComputation::ReplaceDefinedSymbols;
+      Poincare::SymbolicComputation::ReplaceAllDefinedSymbolsWithDefinition;
+  Poincare::UnitConversion unitConversion = Poincare::UnitConversion::Default;
 };
 
-inline Poincare::Internal::ProjectionContext ProjectionContextForParameters(
+inline Poincare::ReductionContext ReductionContextForParameters(
     const Poincare::Expression e, Poincare::Context* context,
     const ReductionParameters& reductionParameters) {
-  Poincare::Internal::ProjectionContext projectionContext = {
-      .m_complexFormat = reductionParameters.complexFormat,
-      .m_angleUnit = reductionParameters.angleUnit,
-      .m_reductionTarget = reductionParameters.target,
-      .m_unitFormat =
-          GlobalPreferences::SharedGlobalPreferences()->unitFormat(),
-      .m_symbolic = reductionParameters.symbolicComputation,
-      .m_context = context};
+  Poincare::ReductionContext reductionContext(
+      context, reductionParameters.complexFormat, reductionParameters.angleUnit,
+      GlobalPreferences::SharedGlobalPreferences()->unitFormat(),
+      reductionParameters.target, reductionParameters.symbolicComputation,
+      reductionParameters.unitConversion);
   if (reductionParameters.updateComplexFormatWithExpression) {
-    Poincare::Internal::Projection::UpdateComplexFormatWithExpressionInput(
-        e, &projectionContext);
+    reductionContext.updateComplexFormat(e);
   }
-  return projectionContext;
+  return reductionContext;
+}
+
+template <class T>
+inline Poincare::Expression ApproximateKeepingUnits(
+    const Poincare::Expression e, Poincare::Context* context,
+    const ReductionParameters& reductionParameters = {}) {
+  return e.approximateKeepingUnits<T>(
+      ReductionContextForParameters(e, context, reductionParameters));
 }
 
 inline void CloneAndSimplify(
     Poincare::Expression* e, Poincare::Context* context,
     const ReductionParameters& reductionParameters = {},
     bool* reductionFailure = nullptr) {
-  assert(reductionFailure);
-
   *e = e->cloneAndSimplify(
-      ProjectionContextForParameters(*e, context, reductionParameters),
+      ReductionContextForParameters(*e, context, reductionParameters),
       reductionFailure);
-  assert(!e->isUninitialized());
 }
 
-inline Poincare::SystemExpression CloneAndReduce(
-    Poincare::UserExpression e, Poincare::Context* context,
-    const ReductionParameters& reductionParameters = {},
-    bool* reductionFailure = nullptr) {
-  assert(reductionFailure);
-  return e.cloneAndReduce(
-      ProjectionContextForParameters(e, context, reductionParameters),
-      reductionFailure);
+inline void CloneAndSimplifyAndApproximate(
+    Poincare::Expression e, Poincare::Expression* simplifiedExpression,
+    Poincare::Expression* approximatedExpression, Poincare::Context* context,
+    const ReductionParameters& reductionParameters = {}) {
+  e.cloneAndSimplifyAndApproximate(
+      simplifiedExpression, approximatedExpression,
+      ReductionContextForParameters(e, context, reductionParameters));
+}
+
+inline void CloneAndReduce(
+    Poincare::Expression* e, Poincare::Context* context,
+    const ReductionParameters& reductionParameters = {}) {
+  *e = e->cloneAndReduce(
+      ReductionContextForParameters(*e, context, reductionParameters));
+}
+
+inline void CloneAndApproximateKeepingSymbols(
+    Poincare::Expression* e, Poincare::Context* context,
+    const ReductionParameters& reductionParameters = {}) {
+  *e = e->cloneAndApproximateKeepingSymbols(
+      ReductionContextForParameters(*e, context, reductionParameters));
+}
+
+inline void CloneAndReduceAndRemoveUnit(
+    Poincare::Expression* e, Poincare::Expression* unit,
+    Poincare::Context* context,
+    const ReductionParameters& reductionParameters = {}) {
+  *e = e->cloneAndReduceAndRemoveUnit(
+      ReductionContextForParameters(*e, context, reductionParameters), unit);
 }
 
 // ===== Misc =====
+
+template <typename T>
+inline Poincare::Solver<T> Solver(T xMin, T xMax, const char* unknown = nullptr,
+                                  Poincare::Context* context = nullptr) {
+  Poincare::Preferences* preferences =
+      Poincare::Preferences::SharedPreferences();
+  return Poincare::Solver<T>(xMin, xMax, unknown, context,
+                             preferences->complexFormat(),
+                             preferences->angleUnit());
+}
 
 // Return the nearest number from t's representation with given precision.
 template <class T>
 inline T ValueOfFloatAsDisplayed(T t, int precision,
                                  Poincare::Context* context) {
-  assert(
-      precision <=
-      static_cast<int>(Poincare::PrintFloat::k_maxNumberOfSignificantDigits));
+  assert(precision <= Poincare::PrintFloat::k_maxNumberOfSignificantDigits);
   constexpr static size_t bufferSize =
       Poincare::PrintFloat::charSizeForFloatsWithPrecision(
           Poincare::PrintFloat::k_maxNumberOfSignificantDigits);
@@ -160,42 +210,8 @@ inline T ValueOfFloatAsDisplayed(T t, int precision,
   // Silence compiler warnings for assert
   (void)numberOfChar;
   // Extract displayed value
-  return Poincare::Expression::ParseAndSimplifyAndApproximateToRealScalar<T>(
-      buffer, context, MathPreferences::SharedPreferences()->complexFormat(),
-      MathPreferences::SharedPreferences()->angleUnit());
-}
-
-// Conversions to float
-
-/* Some controllers are templated to handle a parameter which has either a
- * numeric float type, or Poincare::ExpressionOrFloat (which is a union
- * containing either a Poincare::Expression or a float). A conversion function
- * to a float is needed to take either a direct float type or a
- * Poincare::ExpressionOrFloat as an input. See the ParameterType and FloatType
- * type definitions in the SingleRangeController class for a concrete example.
- */
-
-// Float conversion for direct float types
-
-inline float ToFloat(float value) { return value; }
-inline double ToFloat(double value) { return value; }
-
-// Float conversion for Poincare::ExpressionOrFloat
-
-/* When an ExpressionOrFloat contains the expression variant, converting this
- * expression to a float is an approximation. The Poincare approximation API
- * requires an angle unit and a complex format in order to approximate the
- * expression. In the Epsilon apps context, the approximation should use the
- * user settings for angle unit and complex format. */
-
-template <typename FloatType = float>
-FloatType ToFloat(Poincare::ExpressionOrFloat value) {
-  static_assert(std::is_floating_point_v<FloatType>);
-  return value.approximation<FloatType>(
-      Poincare::ExpressionOrFloat::ApproximationParameters{
-          .angleUnit = MathPreferences::SharedPreferences()->angleUnit(),
-          .complexFormat =
-              MathPreferences::SharedPreferences()->complexFormat()});
+  return Poincare::Expression::ParseAndSimplifyAndApproximateToScalar<T>(
+      buffer, context);
 }
 
 }  // namespace PoincareHelpers

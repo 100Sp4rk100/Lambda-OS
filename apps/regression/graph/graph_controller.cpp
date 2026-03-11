@@ -3,11 +3,11 @@
 #include <apps/apps_container_helper.h>
 #include <apps/shared/function_banner_delegate.h>
 #include <apps/shared/poincare_helpers.h>
-#include <omg/utf8_helper.h>
-#include <poincare/layout.h>
+#include <poincare/helpers.h>
+#include <poincare/layout_helper.h>
 #include <poincare/preferences.h>
 #include <poincare/print.h>
-#include <poincare/solver/zoom.h>
+#include <poincare/serialization_helper.h>
 
 #include <algorithm>
 #include <cmath>
@@ -21,10 +21,10 @@ using namespace Escher;
 namespace Regression {
 
 GraphController::GraphController(
-    Responder* parentResponder, ButtonRowController* header,
-    Shared::InteractiveCurveViewRange* interactiveRange,
-    CurveViewCursor* cursor, int* selectedDotIndex, int* selectedCurveIndex,
-    Store* store)
+    Responder *parentResponder, ButtonRowController *header,
+    Shared::InteractiveCurveViewRange *interactiveRange,
+    CurveViewCursor *cursor, int *selectedDotIndex, int *selectedCurveIndex,
+    Store *store)
     : InteractiveCurveViewController(parentResponder, header, interactiveRange,
                                      &m_view, cursor, I18n::Message::Regression,
                                      selectedCurveIndex),
@@ -74,16 +74,11 @@ void GraphController::viewWillAppear() {
   setRoundCrossCursorView();
 }
 
-void GraphController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (*m_selectedDotIndex == -1 && curveView()->hasFocus()) {
-      setAbscissaInputAsFirstResponder();
-    }
-    Shared::InteractiveCurveViewController::handleResponderChainEvent(event);
-  } else {
-    Shared::InteractiveCurveViewController::handleResponderChainEvent(event);
+void GraphController::didBecomeFirstResponder() {
+  if (*m_selectedDotIndex == -1 && curveView()->hasFocus()) {
+    setAbscissaInputAsFirstResponder();
   }
+  Shared::InteractiveCurveViewController::didBecomeFirstResponder();
 }
 
 void GraphController::setAbscissaInputAsFirstResponder() {
@@ -92,7 +87,7 @@ void GraphController::setAbscissaInputAsFirstResponder() {
   App::app()->setFirstResponder(m_bannerView.abscissaValue());
 }
 
-Poincare::Context* GraphController::globalContext() const {
+Poincare::Context *GraphController::globalContext() const {
   return AppsContainerHelper::sharedAppsContainerGlobalContext();
 }
 
@@ -108,31 +103,32 @@ KDCoordinate GraphController::CurveSelectionController::nonMemoizedRowHeight(
 }
 
 void GraphController::CurveSelectionController::fillCellForRow(
-    HighlightCell* cell, int row) {
+    HighlightCell *cell, int row) {
   int series = graphController()->seriesIndexFromCurveIndex(row);
-  const char* name = Store::SeriesTitle(series);
-  CurveSelectionCellWithChevron* myCell =
-      static_cast<CurveSelectionCellWithChevron*>(cell);
+  const char *name = Store::SeriesTitle(series);
+  CurveSelectionCellWithChevron *myCell =
+      static_cast<CurveSelectionCellWithChevron *>(cell);
   myCell->setColor(DoublePairStore::colorOfSeriesAtIndex(series));
-  myCell->label()->setLayout(Layout::String(name));
+  myCell->label()->setLayout(LayoutHelper::String(name));
 }
 
 bool GraphController::buildRegressionExpression(
-    char* buffer, size_t bufferSize, Model::Type modelType,
+    char *buffer, size_t bufferSize, Model::Type modelType,
     int significantDigits,
     Poincare::Preferences::PrintFloatMode displayMode) const {
-  double* coefficients =
+  double *coefficients =
       m_store->coefficientsForSeries(selectedSeriesIndex(), globalContext());
   Layout l = m_store->regressionModel(modelType)->equationLayout(
       coefficients,
       GlobalPreferences::SharedGlobalPreferences()->yPredictedSymbol(),
       significantDigits, displayMode);
-  size_t length = l.serialize(std::span<char>(buffer, bufferSize));
+  size_t length = l.serializeForParsing(buffer, bufferSize);
   if (length >= bufferSize - 1 || length == 0) {
     return false;
   }
-  return UTF8Helper::ReplaceSystemParenthesesAndBracesByUserParentheses(
-             buffer, length) < bufferSize - 1;
+  return SerializationHelper::
+             ReplaceSystemParenthesesAndBracesByUserParentheses(
+                 buffer, length) < bufferSize - 1;
 }
 
 // SimpleInteractiveCurveViewController
@@ -140,9 +136,9 @@ bool GraphController::buildRegressionExpression(
 void GraphController::reloadBannerView() {
   const int selectedSeries = selectedSeriesIndex();
   const int significantDigits =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+      Preferences::SharedPreferences()->numberOfSignificantDigits();
   Poincare::Preferences::PrintFloatMode displayMode =
-      MathPreferences::SharedPreferences()->displayMode();
+      Poincare::Preferences::SharedPreferences()->displayMode();
 
   // If any coefficient is NAN, display that data is not suitable
   bool coefficientsAreDefined =
@@ -169,7 +165,7 @@ void GraphController::reloadBannerView() {
     m_bannerView.setDisplayParameters(true, true, !coefficientsAreDefined);
     m_bannerView.otherView()->setText(I18n::translate(I18n::Message::MeanDot));
   } else if (!(Store::HasCoefficients(modelType) ||
-               MathPreferences::SharedPreferences()
+               Preferences::SharedPreferences()
                    ->examMode()
                    .forbidStatsDiagnostics())) {
     // Display correlation coefficient
@@ -226,10 +222,10 @@ bool GraphController::moveCursorHorizontally(OMG::HorizontalDirection direction,
     }
     *m_selectedDotIndex = dotSelected;
   } else {
-    double step = (direction.isRight() ? 1 : -1) * scrollSpeed *
-                  PoincareHelpers::ToFloat<double>(
-                      interactiveCurveViewRange()->xGridUnit()) /
-                  static_cast<double>(k_numberOfCursorStepsInGradUnit);
+    double step =
+        (direction.isRight() ? 1 : -1) * scrollSpeed *
+        static_cast<double>(interactiveCurveViewRange()->xGridUnit()) /
+        static_cast<double>(k_numberOfCursorStepsInGradUnit);
     x = m_cursor->x() + step;
     y = yValue(*m_selectedCurveIndex, x, globalContext());
   }
@@ -237,7 +233,7 @@ bool GraphController::moveCursorHorizontally(OMG::HorizontalDirection direction,
   return true;
 }
 
-InteractiveCurveViewRange* GraphController::interactiveCurveViewRange() const {
+InteractiveCurveViewRange *GraphController::interactiveCurveViewRange() const {
   return App::app()->graphRange();
 }
 
@@ -250,7 +246,7 @@ void GraphController::openMenuForCurveAtIndex(int curveIndex) {
   }
   if (curveIsScatterPlot(*m_selectedCurveIndex)) {
     // Push regression controller directly
-    RegressionController* controller = App::app()->regressionController();
+    RegressionController *controller = App::app()->regressionController();
     controller->setSeries(selectedSeriesIndex());
     controller->setDisplayedFromDataTab(false);
     stackController()->push(controller);
@@ -292,7 +288,7 @@ Poincare::Coordinate2D<double> GraphController::selectedModelXyValues(
 }
 
 bool GraphController::moveCursorVertically(OMG::VerticalDirection direction) {
-  Poincare::Context* context = globalContext();
+  Poincare::Context *context = globalContext();
   double x = m_cursor->x();
   double y = m_cursor->y();
 
@@ -315,7 +311,7 @@ bool GraphController::moveCursorVertically(OMG::VerticalDirection direction) {
   bool validDot =
       0 <= dotSelected && dotSelected <= numberOfDotsOfCurve(closesDotCurve);
   if (validRegression && validDot) {
-    /* Compare the abscissa distances to select either the dot or the
+    /* Compare the abscissa distances to LAMDA_gray_light_palette either the dot or the
      * regression. If they are equal, compare the ordinate distances. */
     double dotDistanceX =
         std::fabs(dotAbscissa(closesDotCurve, dotSelected) - x);
@@ -342,7 +338,7 @@ bool GraphController::moveCursorVertically(OMG::VerticalDirection direction) {
   /* The model should be up to date before setting the cursor view. */
 
   if (validRegression) {
-    // Select the regression
+    // LAMDA_gray_light_palette the regression
     if (*m_selectedCurveIndex != closestRegressionCurve) {
       *m_selectedCurveIndex = closestRegressionCurve;
       // Reload so that the selected series is on top
@@ -357,7 +353,7 @@ bool GraphController::moveCursorVertically(OMG::VerticalDirection direction) {
   }
 
   if (validDot) {
-    // Select the dot
+    // LAMDA_gray_light_palette the dot
     if (*m_selectedCurveIndex != closesDotCurve) {
       *m_selectedCurveIndex = closesDotCurve;
       // Reload so that the selected curve is on top
@@ -378,7 +374,7 @@ bool GraphController::moveCursorVertically(OMG::VerticalDirection direction) {
 }
 
 Coordinate2D<double> GraphController::xyValues(int curveIndex, double t,
-                                               Poincare::Context* context,
+                                               Poincare::Context *context,
                                                int subCurveIndex) const {
   return Coordinate2D<double>(t, yValue(curveIndex, t, context));
 }
@@ -392,7 +388,7 @@ void GraphController::setRoundCrossCursorView() {
   /* At this point, the model (selected series and dot indices) should be up
    * to date. */
   bool round = *m_selectedDotIndex < 0;
-  m_cursorView.setIsRing(!round, &m_view);
+  m_cursorView.setIsRing(!round);
   assert(selectedSeriesIndex() <
          static_cast<int>(Palette::numberOfDataColors()));
   m_cursorView.setColor(Palette::DataColor[selectedSeriesIndex()], &m_view);
@@ -416,8 +412,8 @@ Range2D<float> GraphController::optimalRange(
   }
   Range2D<float> result(computeX ? xRange : *originalRange.x(),
                         computeY ? yRange : *originalRange.y());
-  return Zoom<float>::Sanitize(
-      result, InteractiveCurveViewRange::NormalYXRatio(), k_maxFloat);
+  return Zoom::Sanitize(result, InteractiveCurveViewRange::NormalYXRatio(),
+                        k_maxFloat);
 }
 
 double GraphController::dotCoordinate(int curveIndex, int dotIndex,

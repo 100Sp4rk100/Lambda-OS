@@ -6,29 +6,29 @@
 #include <escher/app.h>
 #include <escher/container.h>
 #include <escher/stack_view_controller.h>
-#include <omg/ring_buffer.h>
+#include <ion/ring_buffer.h>
 
-#include "controllers/chi_square/categorical_type_controller.h"
-#include "controllers/chi_square/input_goodness_controller.h"
-#include "controllers/chi_square/input_homogeneity_controller.h"
-#include "controllers/chi_square/results_goodness_controller.h"
-#include "controllers/chi_square/results_homogeneity_controller.h"
-#include "controllers/confidence_interval/interval_graph_controller.h"
-#include "controllers/dataset_controller.h"
-#include "controllers/dynamic_cells_data_source.h"
-#include "controllers/input_controller.h"
-#include "controllers/results_controller.h"
-#include "controllers/significance_test/hypothesis_controller.h"
-#include "controllers/significance_test/test_graph_controller.h"
-#include "controllers/store/input_store_controller.h"
-#include "controllers/test_controller.h"
-#include "controllers/type_controller.h"
-#include "models/inference_buffer.h"
+#include "models/statistic_buffer.h"
+#include "shared/dynamic_cells_data_source.h"
+#include "statistic/chi_square/categorical_type_controller.h"
+#include "statistic/chi_square/input_goodness_controller.h"
+#include "statistic/chi_square/input_homogeneity_controller.h"
+#include "statistic/chi_square/results_goodness_controller.h"
+#include "statistic/chi_square/results_homogeneity_controller.h"
+#include "statistic/dataset_controller.h"
+#include "statistic/input_controller.h"
+#include "statistic/interval/interval_graph_controller.h"
+#include "statistic/results_controller.h"
+#include "statistic/store/input_store_controller.h"
+#include "statistic/test/hypothesis_controller.h"
+#include "statistic/test/test_graph_controller.h"
+#include "statistic/test_controller.h"
+#include "statistic/type_controller.h"
 
 namespace Inference {
 
 class App : public Shared::MathApp, public Shared::MenuControllerDelegate {
-  using LargeStackViewController = Escher::StackViewController::Custom<9>;
+  using LargeStackViewController = Escher::StackViewController::Custom<8>;
 
  public:
   // Descriptor
@@ -38,46 +38,46 @@ class App : public Shared::MathApp, public Shared::MenuControllerDelegate {
     I18n::Message upperName() const override {
       return I18n::Message::InferenceAppCapital;
     };
-    const Escher::Image* icon() const override;
+    const Escher::Image *icon() const override;
   };
 
   // Snapshot
   class Snapshot : public Shared::SharedApp::Snapshot {
    public:
-    App* unpack(Escher::Container* container) override;
-    const Descriptor* descriptor() const override;
+    App *unpack(Escher::Container *container) override;
+    const Descriptor *descriptor() const override;
     void tidy() override;
     void reset() override;
 
-    InferenceModel* inference() { return m_inferenceBuffer.inference(); }
+    Statistic *statistic() { return m_statisticBuffer.statistic(); }
 
-    OMG::RingBuffer<Escher::ViewController*,
-                    LargeStackViewController::k_maxNumberOfChildren>*
-    pageQueue() {
+    Ion::RingBuffer<Escher::ViewController *,
+                    LargeStackViewController::k_maxNumberOfChildren>
+        *pageQueue() {
       return &m_pageQueue;
     }
 
    private:
     friend App;
     // TODO: optimize size of Stack
-    OMG::RingBuffer<Escher::ViewController*,
+    Ion::RingBuffer<Escher::ViewController *,
                     LargeStackViewController::k_maxNumberOfChildren>
         m_pageQueue;
-    InferenceBuffer m_inferenceBuffer;
+    StatisticBuffer m_statisticBuffer;
   };
 
-  static App* app() { return static_cast<App*>(Escher::App::app()); }
-  void didBecomeActive(Escher::Window* window) override;
+  static App *app() { return static_cast<App *>(Escher::App::app()); }
+  void didBecomeActive(Escher::Window *window) override;
   bool storageCanChangeForRecordName(
       const Ion::Storage::Record::Name recordName) const override;
 
   // Navigation
-  void willOpenPage(Escher::ViewController* controller) override;
-  void didExitPage(Escher::ViewController* controller) override;
+  void willOpenPage(Escher::ViewController *controller) override;
+  void didExitPage(Escher::ViewController *controller) override;
 
   // Cells buffer API
-  void* buffer(size_t offset = 0) { return m_buffer + offset; }
-  void cleanBuffer(DynamicCellsDataSourceDestructor* destructor);
+  void *buffer(size_t offset = 0) { return m_buffer + offset; }
+  void cleanBuffer(DynamicCellsDataSourceDestructor *destructor);
 
   constexpr static int k_bufferSize =  // 21056
       std::max({sizeof(ResultCell) * k_maxNumberOfResultCells,
@@ -92,23 +92,25 @@ class App : public Shared::MathApp, public Shared::MenuControllerDelegate {
                 sizeof(InferenceEvenOddEditableCell) *
                     k_doubleColumnTableNumberOfReusableCells});
 
+  TELEMETRY_ID("Inference");
+
   // Shared::MenuControllerDelegate
   void selectSubApp(int subAppIndex) override;
   int selectedSubApp() const override {
-    return static_cast<int>(snapshot()->inference()->subApp());
+    return static_cast<int>(snapshot()->statistic()->subApp());
   }
   int numberOfSubApps() const override {
-    return static_cast<int>(k_numberOfSubApps);
+    return static_cast<int>(Statistic::SubApp::NumberOfSubApps);
   }
 
-  Escher::InputViewController* inputViewController() {
+  Escher::InputViewController *inputViewController() {
     return &m_inputViewController;
   }
 
  private:
-  App(Snapshot* snapshot, Poincare::Context* parentContext);
-  Snapshot* snapshot() const {
-    return static_cast<Snapshot*>(Escher::App::snapshot());
+  App(Snapshot *snapshot, Poincare::Context *parentContext);
+  Snapshot *snapshot() const {
+    return static_cast<Snapshot *>(Escher::App::snapshot());
   }
 
   // Controllers
@@ -118,8 +120,7 @@ class App : public Shared::MathApp, public Shared::MenuControllerDelegate {
   InputHomogeneityController m_inputHomogeneityController;
   ResultsGoodnessTabController m_goodnessResultsController;
   InputGoodnessController m_inputGoodnessController;
-  InputStoreController m_inputStoreController1;
-  InputStoreController m_inputStoreController2;
+  InputStoreController m_inputStoreController;
   ResultsController m_resultsController;
   InputController m_inputController;
   TypeController m_typeController;
@@ -133,7 +134,7 @@ class App : public Shared::MathApp, public Shared::MenuControllerDelegate {
   /* Buffer used for allocating table cells to avoid duplicating required
    * space for these memory-needy tables. */
   char m_buffer[k_bufferSize];
-  DynamicCellsDataSourceDestructor* m_bufferDestructor;
+  DynamicCellsDataSourceDestructor *m_bufferDestructor;
 };
 
 }  // namespace Inference

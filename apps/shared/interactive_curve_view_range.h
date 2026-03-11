@@ -3,24 +3,17 @@
 
 #include <float.h>
 #include <ion/display.h>
-#include <poincare/range.h>
 #include <stdint.h>
 
 #include "grid_type_controller.h"
 #include "interactive_curve_view_range_delegate.h"
 #include "memoized_curve_view_range.h"
-#include "poincare/expression_or_float.h"
-#include "poincare_helpers.h"
-
 namespace Shared {
 
 class InteractiveCurveViewRange : public MemoizedCurveViewRange {
  public:
   constexpr static float k_maxFloat = 1E+8f;
   using GridType = GridTypeController::GridType;
-  using UserStepType = Poincare::ExpressionOrFloat;
-  template <typename T>
-  using AxisInformation = MemoizedCurveViewRange::AxisInformation<T>;
 
   InteractiveCurveViewRange(
       InteractiveCurveViewRangeDelegate* delegate = nullptr)
@@ -31,7 +24,7 @@ class InteractiveCurveViewRange : public MemoizedCurveViewRange {
         m_checksumOfMemoizedAutoRange(0),
         m_offscreenYAxis(0.f),
         m_gridType(GridType::Cartesian),
-        m_zoomAuto{true, true},
+        m_isAuto{true, true},
         m_zoomNormalize(false) {}
 
   constexpr static float NormalYXRatio() {
@@ -43,36 +36,21 @@ class InteractiveCurveViewRange : public MemoizedCurveViewRange {
 
   void setDelegate(InteractiveCurveViewRangeDelegate* delegate);
 
-  bool zoomAndGridUnitAuto() const { return zoomAuto() && gridUnitAuto(); }
-  bool zoomAuto() const { return m_zoomAuto.x && m_zoomAuto.y; }
+  bool zoomAuto() const { return m_isAuto.x && m_isAuto.y; }
   void setZoomAuto(bool v) { privateSetZoomAuto(v, v); }
-  bool zoomAuto(OMG::Axis axis) const { return m_zoomAuto(axis); }
-  void setZoomAuto(OMG::Axis axis, bool v) {
-    AxisInformation<bool> newAuto = m_zoomAuto;
+  bool isAuto(Axis axis) const { return m_isAuto(axis); }
+  void setAuto(Axis axis, bool v) {
+    BoolPair newAuto = m_isAuto;
     newAuto.set(axis, v);
     privateSetZoomAuto(newAuto.x, newAuto.y);
-  }
-  bool gridUnitAuto() const {
-    return gridUnitAuto(OMG::Axis::Horizontal) &&
-           gridUnitAuto(OMG::Axis::Vertical);
-  }
-  void setGridUnitAuto() { privateSetUserStep({}, {}); }
-  bool gridUnitAuto(OMG::Axis axis) const {
-    return std::isnan(PoincareHelpers::ToFloat(m_userStep(axis)));
-  }
-  AxisInformation<UserStepType> userStep() const { return m_userStep; }
-  void setUserStep(AxisInformation<UserStepType> userStep) {
-    privateSetUserStep(userStep.x, userStep.y);
-  }
-  UserStepType userStep(OMG::Axis axis) const { return m_userStep(axis); }
-  void setUserStep(OMG::Axis axis, UserStepType v) {
-    AxisInformation<UserStepType> newUserStep = m_userStep;
-    newUserStep.set(axis, v);
-    privateSetUserStep(newUserStep.x, newUserStep.y);
   }
   bool zoomNormalize() const { return m_zoomNormalize; }
   void setZoomNormalize(bool v);
   float roundLimit(float y, float range, bool isMin);
+
+  // MemoizedCurveViewRange
+  float xGridUnit() const override;
+  float yGridUnit() const override;
 
   // CurveViewWindow
   void setXRange(float min, float max) override;
@@ -84,9 +62,9 @@ class InteractiveCurveViewRange : public MemoizedCurveViewRange {
   // Window
   void zoom(float ratio, float x, float y);
   void panWithVector(float x, float y);
-  void computeRanges() { privateComputeRanges(m_zoomAuto.x, m_zoomAuto.y); }
+  void computeRanges() { privateComputeRanges(m_isAuto.x, m_isAuto.y); }
   void normalize();
-  void centerAxisAround(OMG::Axis axis, float position);
+  void centerAxisAround(Axis axis, float position);
   bool panToMakePointVisible(float x, float y, float topMarginRatio,
                              float rightMarginRatio, float bottomMarginRatio,
                              float leftMarginRatio, float pixelWidth);
@@ -97,15 +75,6 @@ class InteractiveCurveViewRange : public MemoizedCurveViewRange {
 
   GridType gridType() const { return m_gridType; }
   void setGridType(GridType grid);
-
-  // The equality operator cannot be const because of the grid unit memoization
-  bool operator==(InteractiveCurveViewRange& other) {
-    using enum OMG::Axis;
-    return (rangeChecksum() == other.rangeChecksum() &&
-            m_zoomAuto(Horizontal) == other.m_zoomAuto(Horizontal) &&
-            m_zoomAuto(Vertical) == other.m_zoomAuto(Vertical) &&
-            m_gridType == other.m_gridType && m_userStep == other.m_userStep);
-  }
 
  protected:
   constexpr static float k_maxRatioPositionRange = 1E5f;
@@ -139,22 +108,20 @@ class InteractiveCurveViewRange : public MemoizedCurveViewRange {
 
  private:
   void privateSetZoomAuto(bool xAuto, bool yAuto);
-  void privateSetGridUnitAuto(bool xAuto, bool yAuto);
-  void privateSetUserStep(UserStepType xValue, UserStepType yValue);
   void privateComputeRanges(bool computeX, bool computeY);
-  Poincare::ExpressionOrFloat computeGridUnitFromUserParameter(
-      OMG::Axis axis) const;
-
-  // MemoizedCurveViewRange
-  Poincare::ExpressionOrFloat computeGridUnit(OMG::Axis axis) override;
 
   Poincare::Range2D<float> m_memoizedAutoRange;
   uint64_t m_checksumOfMemoizedAutoRange;
   float m_offscreenYAxis;
 
   GridType m_gridType;
-  AxisInformation<bool> m_zoomAuto;
-  AxisInformation<UserStepType> m_userStep;
+
+  struct BoolPair {
+    bool x, y;
+    bool operator()(Axis axis) const { return axis == Axis::X ? x : y; }
+    void set(Axis axis, bool value) { (axis == Axis::X ? x : y) = value; }
+  };
+  BoolPair m_isAuto;
   bool m_zoomNormalize;
 };
 

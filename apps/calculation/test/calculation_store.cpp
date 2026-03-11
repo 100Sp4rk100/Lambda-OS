@@ -1,62 +1,46 @@
 #include "../calculation_store.h"
 
 #include <apps/calculation/additional_results/additional_results_type.h>
-#include <apps/math_preferences.h>
+#include <apps/shared/expression_display_permissions.h>
 #include <apps/shared/global_context.h>
 #include <assert.h>
-#include <poincare/cas.h>
-#include <poincare/context.h>
-#include <poincare/k_tree.h>
+#include <poincare/preferences.h>
 #include <poincare/test/helper.h>
-#include <poincare/test/old/helper.h>
+#include <poincare_expressions.h>
 #include <quiz.h>
 #include <string.h>
 
-using AdditionalResultsType = Calculation::AdditionalResultsType;
-using DisplayOutput = Calculation::Calculation::DisplayOutput;
-using EqualSign = Calculation::Calculation::EqualSign;
-using OutputLayouts = Calculation::Calculation::OutputLayouts;
-using CalculationStore = Calculation::CalculationStore;
+typedef ::Calculation::AdditionalResultsType AdditionalResultsType;
+typedef ::Calculation::Calculation::DisplayOutput DisplayOutput;
+typedef ::Calculation::Calculation::EqualSign EqualSign;
+typedef ::Calculation::Calculation::NumberOfSignificantDigits
+    NumberOfSignificantDigits;
 
 using namespace Poincare;
+using namespace Calculation;
 
 constexpr static size_t calculationBufferSize =
-    10 * (sizeof(Calculation::Calculation) +
-          Calculation::Calculation::k_numberOfExpressions *
+    10 * (sizeof(::Calculation::Calculation) +
+          ::Calculation::Calculation::k_numberOfExpressions *
               ::Constant::MaxSerializedExpressionSize +
-          sizeof(Calculation::Calculation*));
+          sizeof(::Calculation::Calculation *));
 char calculationBuffer[calculationBufferSize];
 
-void assert_store_is(CalculationStore* store, const char** result) {
+void assert_store_is(CalculationStore *store, const char **result) {
   for (int i = 0; i < store->numberOfCalculations(); i++) {
-    assert_expression_serializes_to(store->calculationAtIndex(i)->input(),
-                                    result[i]);
+    quiz_assert(strcmp(store->calculationAtIndex(i)->inputText(), result[i]) ==
+                0);
   }
-}
-
-OutputLayouts pushAndProcessCalculation(CalculationStore* store,
-                                        const char* input, Context* context) {
-  /* These two variables mirror the "font" and "maxVisibleWidth" variables in
-   * HistoryViewCell::setNewCalculation */
-  constexpr static KDFont::Size font = KDFont::Size::Large;
-  constexpr static KDCoordinate maxVisibleWidth = 280;
-
-  store->push(Layout::String(input), context);
-  Shared::ExpiringPointer<Calculation::Calculation> lastCalculation =
-      store->calculationAtIndex(0);
-
-  return lastCalculation->layoutCalculation(font, maxVisibleWidth, context,
-                                            true);
 }
 
 QUIZ_CASE(calculation_store) {
   Shared::GlobalContext globalContext;
   CalculationStore store(calculationBuffer, calculationBufferSize);
   // Store is now {9, 8, 7, 6, 5, 4, 3, 2, 1, 0}
-  const char* result[] = {"9", "8", "7", "6", "5", "4", "3", "2", "1", "0"};
+  const char *result[] = {"9", "8", "7", "6", "5", "4", "3", "2", "1", "0"};
   for (int i = 0; i < 10; i++) {
     char text[2] = {(char)(i + '0'), 0};
-    pushAndProcessCalculation(&store, text, &globalContext);
+    store.push(text, &globalContext);
     quiz_assert(store.numberOfCalculations() == i + 1);
   }
   assert_store_is(&store, result);
@@ -65,65 +49,94 @@ QUIZ_CASE(calculation_store) {
     store.deleteCalculationAtIndex(i);
   }
   // Store is now {9, 7, 5, 3, 1}
-  const char* result2[] = {"9", "7", "5", "3", "1"};
+  const char *result2[] = {"9", "7", "5", "3", "1"};
   assert_store_is(&store, result2);
 
   store.deleteAll();
-
   /* Checking if the store handles correctly the delete of older calculations
    * when full. */
-
-  constexpr const char* pattern = "1234567890123456789+";
-  constexpr size_t patternSize = 20;
+  constexpr size_t minimalSize = ::CalculationStore::k_calculationMinimalSize +
+                                 sizeof(::Calculation::Calculation *);
+  constexpr const char *pattern = "123456789+";
+  constexpr size_t patternSize = 10;
   assert(strlen(pattern) == patternSize);
 
-  constexpr size_t textSize = 200;
-  static_assert(textSize % patternSize == 0);
-  char text[textSize];
-  for (size_t i = 0; i < textSize; i += patternSize) {
-    memcpy(text + i, pattern, patternSize);
+  // Case 1 : Remaining space < minimalSize
+  {
+    constexpr size_t calculationSize = 200;
+    assert(calculationSize < store.remainingBufferSize());
+    assert(calculationSize % patternSize == 0);
+    char text[calculationSize];
+    for (size_t i = 0; i < calculationSize; i += patternSize) {
+      memcpy(text + i, pattern, patternSize);
+    }
+    text[calculationSize - 1] = 0;
+
+    while (store.remainingBufferSize() > minimalSize) {
+      store.push(text, &globalContext);
+    }
+    int numberOfCalculations1 = store.numberOfCalculations();
+    /* The buffer is now too full to push a new calculation.
+     * Trying to push a new one should delete the oldest one. Alter new text to
+     * distinguish it from previously pushed ones. */
+    text[0] = '9';
+    Shared::ExpiringPointer<::Calculation::Calculation> pushedCalculation =
+        store.push(text, &globalContext);
+    // Assert pushed text is correct
+    quiz_assert(strcmp(store.calculationAtIndex(0)->inputText(), text) == 0);
+    quiz_assert(strcmp(pushedCalculation->inputText(), text) == 0);
+    int numberOfCalculations2 = store.numberOfCalculations();
+    // The numberOfCalculations should be the same
+    quiz_assert(numberOfCalculations1 == numberOfCalculations2);
   }
-  text[textSize - 1] = 0;
+  store.deleteAll();
 
-  const size_t emptyStoreSize = store.remainingBufferSize();
-  pushAndProcessCalculation(&store, text, &globalContext);
-  assert(emptyStoreSize > store.remainingBufferSize());
-  const size_t calculationSize = emptyStoreSize - store.remainingBufferSize();
+  // Case 2 : Remaining space > minimalSize but pushed calculation doesn't fit
+  {
+    constexpr size_t calculationSize =
+        2 * minimalSize - (2 * minimalSize) % patternSize;
+    assert(calculationSize % patternSize == 0);
+    assert(calculationSize < store.remainingBufferSize());
+    char text[calculationSize];
+    for (size_t i = 0; i < calculationSize; i += patternSize) {
+      memcpy(text + i, pattern, patternSize);
+    }
+    text[calculationSize - 1] = 0;
 
-  int numberOfCalculations = store.numberOfCalculations();
-  while (store.remainingBufferSize() > calculationSize) {
-    pushAndProcessCalculation(&store, text, &globalContext);
-    quiz_assert(++numberOfCalculations == store.numberOfCalculations());
+    // Push big calculations until approaching the limit
+    while (store.remainingBufferSize() > 2 * minimalSize) {
+      store.push(text, &globalContext);
+    }
+    /* Push small calculations so that remainingBufferSize remain bigger, but
+     * gets closer to minimalSize */
+    while (store.remainingBufferSize() > minimalSize + minimalSize / 2) {
+      store.push("1", &globalContext);
+    }
+    assert(store.remainingBufferSize() > minimalSize);
+    int numberOfCalculations1 = store.numberOfCalculations();
+    /* The buffer is now too full to push a new calculation.
+     * Trying to push a new one should delete older ones. Alter new text to
+     * distinguish it from previously pushed ones. */
+    text[0] = '9';
+    Shared::ExpiringPointer<::Calculation::Calculation> pushedCalculation =
+        store.push(text, &globalContext);
+    quiz_assert(strcmp(store.calculationAtIndex(0)->inputText(), text) == 0);
+    quiz_assert(strcmp(pushedCalculation->inputText(), text) == 0);
+    int numberOfCalculations2 = store.numberOfCalculations();
+    // The numberOfCalculations should be the equal or smaller
+    quiz_assert(numberOfCalculations1 >= numberOfCalculations2);
   }
-  int numberOfCalculations1 = store.numberOfCalculations();
-  /* The buffer is now too full to push a new calculation.
-   * Trying to push a new one should delete the oldest one. Alter new text to
-   * distinguish it from previously pushed ones. */
-  text[0] = '9';
-  pushAndProcessCalculation(&store, text, &globalContext);
-  // Assert pushed text is correct
-  char buffer[4096];
-  store.calculationAtIndex(0)->input().serialize(buffer);
-  quiz_assert(strcmp(buffer, text) == 0);
-  store.calculationAtIndex(0)->input().serialize(buffer);
-  quiz_assert(strcmp(buffer, text) == 0);
-  int numberOfCalculations2 = store.numberOfCalculations();
-  // The numberOfCalculations should be the same
-  quiz_assert(numberOfCalculations1 == numberOfCalculations2);
-
   store.deleteAll();
   quiz_assert(store.remainingBufferSize() == store.bufferSize());
 }
 
-void assertAnsIs(const char* input, const char* expectedAnsInputText,
-                 Context* context, CalculationStore* store) {
-  pushAndProcessCalculation(store, input, context);
-  Shared::ExpiringPointer<Calculation::Calculation> lastCalculation =
+void assertAnsIs(const char *input, const char *expectedAnsInputText,
+                 Context *context, CalculationStore *store) {
+  store->push(input, context);
+  store->push("Ans", context);
+  Shared::ExpiringPointer<::Calculation::Calculation> lastCalculation =
       store->calculationAtIndex(0);
-  pushAndProcessCalculation(store, "Ans", context);
-  lastCalculation = store->calculationAtIndex(0);
-  assert_expression_serializes_to(lastCalculation->input(),
-                                  expectedAnsInputText);
+  quiz_assert(strcmp(lastCalculation->inputText(), expectedAnsInputText) == 0);
 }
 
 QUIZ_CASE(calculation_ans) {
@@ -131,28 +144,28 @@ QUIZ_CASE(calculation_ans) {
   CalculationStore store(calculationBuffer, calculationBufferSize);
   // Setup complex format and exam mode
   Preferences::ComplexFormat previousComplexFormat =
-      MathPreferences::SharedPreferences()->complexFormat();
-  ExamMode previousExamMode = MathPreferences::SharedPreferences()->examMode();
-  MathPreferences::SharedPreferences()->setComplexFormat(
+      Preferences::SharedPreferences()->complexFormat();
+  ExamMode previousExamMode = Preferences::SharedPreferences()->examMode();
+  Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Real);
-  if (previousExamMode != ExamMode(ExamMode::Ruleset::Off)) {
-    MathPreferences::SharedPreferences()->setExamMode(
-        ExamMode(ExamMode::Ruleset::Off));
-  }
-  pushAndProcessCalculation(&store, "1+3/4", &globalContext);
-  pushAndProcessCalculation(&store, "ans+2/3", &globalContext);
-  Shared::ExpiringPointer<Calculation::Calculation> lastCalculation =
-      store.calculationAtIndex(0);
-  quiz_assert(lastCalculation->displayOutput() ==
-              DisplayOutput::ExactAndApproximate);
-  assert_expression_serializes_to(lastCalculation->exactOutput(), "29/12");
+  Preferences::SharedPreferences()->setExamMode(
+      ExamMode(ExamMode::Ruleset::Off));
 
-  pushAndProcessCalculation(&store, "ans+0.22", &globalContext);
+  store.push("1+3/4", &globalContext);
+  store.push("ans+2/3", &globalContext);
+  Shared::ExpiringPointer<::Calculation::Calculation> lastCalculation =
+      store.calculationAtIndex(0);
+  quiz_assert(lastCalculation->displayOutput(&globalContext) ==
+              DisplayOutput::ExactAndApproximate);
+  quiz_assert(strcmp(lastCalculation->exactOutputText(), "29/12") == 0);
+
+  store.push("ans+0.22", &globalContext);
   lastCalculation = store.calculationAtIndex(0);
-  quiz_assert(lastCalculation->displayOutput() ==
+  quiz_assert(lastCalculation->displayOutput(&globalContext) ==
               DisplayOutput::ExactAndApproximateToggle);
-  assert_expression_serializes_to(lastCalculation->approximateOutput(),
-                                  "2.6366666666667");
+  quiz_assert(strcmp(lastCalculation->approximateOutputText(
+                         NumberOfSignificantDigits::Maximal),
+                     "2.6366666666667") == 0);
 
   assertAnsIs("1+1→a", "2", &globalContext, &store);
   assertAnsIs("0^0→a", "0^0", &globalContext, &store);
@@ -169,114 +182,61 @@ QUIZ_CASE(calculation_ans) {
 
   assertAnsIs("√(1+1)", "√(2)", &globalContext, &store);
 
-  MathPreferences::SharedPreferences()->setExamMode(
+  Preferences::SharedPreferences()->setExamMode(
       ExamMode(ExamMode::Ruleset::Dutch));
-  assert(CAS::ShouldOnlyDisplayApproximation(
-      UserExpression::Builder(KSqrt(2_e)), UserExpression::Builder(KSqrt(2_e)),
-      Expression(), nullptr));
+  assert(Shared::ExpressionDisplayPermissions::ShouldOnlyDisplayApproximation(
+      SquareRoot::Builder(Rational::Builder(2)),
+      SquareRoot::Builder(Rational::Builder(2)), Expression(), nullptr));
 
   assertAnsIs("√(1+1)", "√(1+1)", &globalContext, &store);
 
   // Restore complex format and exam mode
-  MathPreferences::SharedPreferences()->setExamMode(previousExamMode);
-  MathPreferences::SharedPreferences()->setComplexFormat(previousComplexFormat);
+  Preferences::SharedPreferences()->setExamMode(previousExamMode);
+  Preferences::SharedPreferences()->setComplexFormat(previousComplexFormat);
 
-  pushAndProcessCalculation(&store, "_g0", &globalContext);
-  pushAndProcessCalculation(&store, "ans→m*s^-2", &globalContext);
+  store.push("_g0", &globalContext);
+  store.push("ans→m*s^-2", &globalContext);
   lastCalculation = store.calculationAtIndex(0);
-  assert_expression_serializes_to(lastCalculation->exactOutput(),
-                                  "9.80665×_m×_s^\U00000012-2\U00000013");
-
-  pushAndProcessCalculation(&store, "4546249×1.0071^9", &globalContext);
-  pushAndProcessCalculation(&store, "Ans×1.0071^9", &globalContext);
-  lastCalculation = store.calculationAtIndex(0);
-  assert_expression_serializes_to(lastCalculation->input(),
-                                  "(4546249×1.0071^9)×1.0071^9");
+  quiz_assert(strcmp(lastCalculation->exactOutputText(),
+                     "9.80665×_m×_s^\U00000012-2\U00000013") == 0);
 
   store.deleteAll();
 }
 
-void assertCalculationIs(const char* input, DisplayOutput expectedDisplay,
-                         EqualSign expectedSign,
-                         const char* expectedExactOutput,
-                         const char* expectedApproximateOutput,
-                         Context* context, CalculationStore* store,
-                         const char* expectedStoredInput = nullptr,
-                         bool skipApproximation = false) {
-  OutputLayouts outputLayouts =
-      pushAndProcessCalculation(store, input, context);
-  Shared::ExpiringPointer<Calculation::Calculation> lastCalculation =
+void assertCalculationIs(const char *input, DisplayOutput display,
+                         EqualSign sign, const char *exactOutput,
+                         const char *displayedApproximateOutput,
+                         const char *storedApproximateOutput, Context *context,
+                         CalculationStore *store,
+                         const char *storedInput = nullptr) {
+  store->push(input, context);
+  Shared::ExpiringPointer<::Calculation::Calculation> lastCalculation =
       store->calculationAtIndex(0);
-
-  bool displayOutputTest = lastCalculation->displayOutput() == expectedDisplay;
-#if POINCARE_STRICT_TESTS
-  quiz_assert(displayOutputTest);
-#else
-  quiz_tolerate_print_if_failure(displayOutputTest, input,
-                                 "correct displayOutput",
-                                 "incorrect displayOutput");
-#endif
-
-  bool equalSignTest = lastCalculation->equalSign() == expectedSign;
-#if POINCARE_STRICT_TESTS
-  quiz_assert(equalSignTest);
-#else
-  quiz_tolerate_print_if_failure(equalSignTest, input, "correct equalSign",
-                                 "incorrect equalSign");
-#endif
-
-  if (expectedStoredInput) {
-    assert_expression_serializes_to(lastCalculation->input(),
-                                    expectedStoredInput);
+  quiz_assert(lastCalculation->displayOutput(context) == display);
+  if (sign != EqualSign::Unknown && display != DisplayOutput::ApproximateOnly &&
+      display != DisplayOutput::ExactOnly) {
+    quiz_assert(lastCalculation->equalSign(context) == sign);
   }
-  /* To preserve the Poincare_update CI, we output a something whether or not
-   * the layouts can be compared. */
-  if (expectedExactOutput) {
-    assert(Calculation::Calculation::CanDisplayExact(expectedDisplay));
-    if (outputLayouts.exact.isUninitialized()) {
-#if POINCARE_STRICT_TESTS
-      quiz_assert_print_if_failure(false, expectedExactOutput,
-                                   expectedExactOutput, "Uninitialized");
-#else
-      quiz_tolerate_print_if_failure(false, input, expectedExactOutput,
-                                     "Uninitialized");
-#endif
-    } else {
-      assert_layout_serializes_to(outputLayouts.exact, expectedExactOutput);
-    }
-  } else {
-    assert(!Calculation::Calculation::CanDisplayExact(expectedDisplay));
-#if !POINCARE_STRICT_TESTS
-    quiz_tolerate_print_if_failure(true, input, "Uninitialized",
-                                   "Uninitialized");
-#endif
+  if (storedInput) {
+    quiz_assert_print_if_failure(
+        strcmp(lastCalculation->inputText(), storedInput) == 0, input);
   }
-
-  /* To preserve the Poincare_update CI, we output a something whether or not
-   * the layouts can be compared. */
-  if (expectedApproximateOutput && !skipApproximation) {
-    assert(Calculation::Calculation::CanDisplayApproximate(expectedDisplay));
-    if (outputLayouts.approximate.isUninitialized()) {
-#if POINCARE_STRICT_TESTS
-      quiz_assert_print_if_failure(false, expectedExactOutput,
-                                   expectedExactOutput, "Uninitialized");
-#else
-      quiz_tolerate_print_if_failure(false, input, expectedApproximateOutput,
-                                     "Uninitialized");
-#endif
-    } else {
-      assert_layout_serializes_to(outputLayouts.approximate,
-                                  expectedApproximateOutput);
-    }
-  } else {
-    /* When testing input containing random nodes, the approximation is skipped
-     * as we can't compare it. */
-    assert(skipApproximation ||
-           !Calculation::Calculation::CanDisplayApproximate(expectedDisplay));
-#if !POINCARE_STRICT_TESTS
-    quiz_tolerate_print_if_failure(true, input, "Uninitialized",
-                                   "Uninitialized");
-#endif
+  if (exactOutput) {
+    quiz_assert_print_if_failure(
+        strcmp(lastCalculation->exactOutputText(), exactOutput) == 0, input);
+  }
+  if (displayedApproximateOutput) {
+    quiz_assert_print_if_failure(
+        strcmp(lastCalculation->approximateOutputText(
+                   NumberOfSignificantDigits::UserDefined),
+               displayedApproximateOutput) == 0,
+        input);
+  }
+  if (storedApproximateOutput) {
+    quiz_assert_print_if_failure(strcmp(lastCalculation->approximateOutputText(
+                                            NumberOfSignificantDigits::Maximal),
+                                        storedApproximateOutput) == 0,
+                                 input);
   }
   store->deleteAll();
 }
@@ -285,24 +245,12 @@ QUIZ_CASE(calculation_significant_digits) {
   Shared::GlobalContext globalContext;
   CalculationStore store(calculationBuffer, calculationBufferSize);
 
-  assertCalculationIs("123456789123456789",
-                      DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "123456789123456789",
-                      "1.234567891×10^17", &globalContext, &store);
-  // FIXME: sign is wrong (returns Equal)
-  assertCalculationIs("123123456789", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "123123456789",
-                      "1.231234568×10^11", &globalContext, &store);
-  // FIXME: sign is wrong (returns Equal)
   assertCalculationIs("11123456789", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "11123456789",
-                      "1.112345679×10^10", &globalContext, &store);
-  assertCalculationIs(
-      "1123456789", DisplayOutput::ApproximateIsIdenticalToExact,
-      EqualSign::Hidden, "1123456789", nullptr, &globalContext, &store);
-  assertCalculationIs("123456789", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "123456789", nullptr, &globalContext,
-                      &store);
+                      EqualSign::Approximation, "11123456789", "1.112345679ᴇ10",
+                      "11123456789", &globalContext, &store);
+  assertCalculationIs("1123456789", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, "1123456789", "1123456789",
+                      "1123456789", &globalContext, &store);
 }
 
 QUIZ_CASE(calculation_display_exact_approximate) {
@@ -310,270 +258,185 @@ QUIZ_CASE(calculation_display_exact_approximate) {
   CalculationStore store(calculationBuffer, calculationBufferSize);
 
   Preferences::AngleUnit previousAngleUnit =
-      MathPreferences::SharedPreferences()->angleUnit();
-  MathPreferences::SharedPreferences()->setAngleUnit(
+      Preferences::SharedPreferences()->angleUnit();
+  Preferences::SharedPreferences()->setAngleUnit(
       Preferences::AngleUnit::Degree);
 
-  uint8_t previousNumberOfSignificantDigits =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
-  MathPreferences::SharedPreferences()->setNumberOfSignificantDigits(
-      PrintFloat::k_maxNumberOfSignificantDigits);
-
   assertCalculationIs("1/2", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Equal, "1/2", "0.5", &globalContext, &store);
+                      EqualSign::Equal, "1/2", "0.5", "0.5", &globalContext,
+                      &store);
   assertCalculationIs("1/3", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "1/3", "0.33333333333333",
-                      &globalContext, &store);
-
+                      EqualSign::Approximation, "1/3", "0.3333333333",
+                      "0.33333333333333", &globalContext, &store);
   assertCalculationIs("1/(2i)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Equal, "-(1/2)i", "-0.5i", &globalContext,
-                      &store);
-  assertCalculationIs("1/0", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store);
-  assertCalculationIs("2x-x", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store);
-  assertCalculationIs("[[1,2,3]]", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "[[1,2,3]]", nullptr, &globalContext,
-                      &store);
-  assertCalculationIs("[[1,x,3]]", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "[[1,undef,3]]", nullptr,
+                      EqualSign::Equal, "-1/2×i", "-0.5×i", "-0.5×i",
                       &globalContext, &store);
-  assertCalculationIs(
-      "[[1/0,2/0]]", DisplayOutput::ApproximateIsIdenticalToExact,
-      EqualSign::Hidden, "[[undef,undef]]", nullptr, &globalContext, &store);
-  assertCalculationIs("{1/0,2/0}", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "{undef,undef}", nullptr,
+  assertCalculationIs("1/0", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      "undef", "undef", "undef", &globalContext, &store);
+  assertCalculationIs("2x-x", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, "undef", "undef", "undef",
                       &globalContext, &store);
-  assertCalculationIs("28^7", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "13492928512", nullptr, &globalContext,
-                      &store);
+  assertCalculationIs("[[1,2,3]]", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "[[1,2,3]]", "[[1,2,3]]",
+                      &globalContext, &store);
+  assertCalculationIs("[[1,x,3]]", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "[[1,undef,3]]",
+                      "[[1,undef,3]]", &globalContext, &store);
+  assertCalculationIs("[[1/0,2/0]]", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "[[undef,undef]]",
+                      "[[undef,undef]]", &globalContext, &store);
+  assertCalculationIs("{1/0,2/0}", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "{undef,undef}",
+                      "{undef,undef}", &globalContext, &store);
+  assertCalculationIs("28^7", DisplayOutput::ExactAndApproximate,
+                      EqualSign::Unknown, "13492928512", "1.349292851ᴇ10",
+                      "13492928512", &globalContext, &store);
   assertCalculationIs("3+√(2)→a", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "3+√(2)", "4.4142135623731",
-                      &globalContext, &store);
+                      EqualSign::Approximation, "3+√(2)", "4.414213562",
+                      "4.4142135623731", &globalContext, &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
-  assertCalculationIs("3+2→a", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "5", nullptr, &globalContext, &store);
+  assertCalculationIs("3+2→a", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, "5", "5", "5", &globalContext,
+                      &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
-  assertCalculationIs("3→a", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "3", nullptr, &globalContext, &store);
+  assertCalculationIs("3→a", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      "3", "3", "3", &globalContext, &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
   assertCalculationIs("3/2→a", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Equal, "3/2", "1.5", &globalContext, &store);
+                      EqualSign::Unknown, "3/2", "1.5", "1.5", &globalContext,
+                      &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
-  assertCalculationIs("3+x→f(x)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "3+x", nullptr, &globalContext, &store);
+  assertCalculationIs("3+x→f(x)", DisplayOutput::ExactOnly, EqualSign::Unknown,
+                      "3+x", nullptr, nullptr, &globalContext, &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("f.func").destroy();
   assertCalculationIs("1+1+random()", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, nullptr, &globalContext,
-                      &store, nullptr, true);
+                      EqualSign::Unknown, nullptr, nullptr, nullptr,
+                      &globalContext, &store);
   assertCalculationIs("1+1+round(1.343,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "3.34", &globalContext,
-                      &store);
+                      EqualSign::Unknown, nullptr, "3.34", "3.34",
+                      &globalContext, &store);
   assertCalculationIs("randint(2,2)+3", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "5", &globalContext, &store);
-  assertCalculationIs("√(8)", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "√(8)", "2.8284271247462",
-                      &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "5", "5", &globalContext,
+                      &store);
+  assertCalculationIs("√(8)", DisplayOutput::ExactAndApproximate,
+                      EqualSign::Unknown, "2×√(2)", "2.828427125",
+                      "2.8284271247462", &globalContext, &store);
   assertCalculationIs("cos(45×_°)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "(√(2))/2", "0.70710678118655",
-                      &globalContext, &store);
+                      EqualSign::Unknown, "√(2)/2", "0.7071067812",
+                      "0.70710678118655", &globalContext, &store);
   assertCalculationIs("cos(π/4×_rad)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "(√(2))/2", "0.70710678118655",
-                      &globalContext, &store);
+                      EqualSign::Unknown, "√(2)/2", "0.7071067812",
+                      "0.70710678118655", &globalContext, &store);
   assertCalculationIs("cos(50×_°)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "cos(50)", "0.64278760968654",
-                      &globalContext, &store);
+                      EqualSign::Unknown, "cos(50)", "0.6427876097",
+                      "0.64278760968654", &globalContext, &store);
   assertCalculationIs("binompdf(2,3,0.5)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "0.375", &globalContext,
-                      &store);
+                      EqualSign::Unknown, nullptr, "0.375", "0.375",
+                      &globalContext, &store);
   assertCalculationIs("1+2%", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Equal, "1(1+(2/100))", "1.02", &globalContext,
-                      &store);
+                      EqualSign::Equal, "1×(1+2/100)", "1.02", "1.02",
+                      &globalContext, &store);
   assertCalculationIs("1-(1/3)%", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "1×(1-((1/3)/100))",
-                      "0.99666666666667", &globalContext, &store);
-  assertCalculationIs("π-15i", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "π-15i", "3.1415926535898-15i",
-                      &globalContext, &store);
-  assertCalculationIs(
-      "1.234×10^22×i", DisplayOutput::ApproximateIsIdenticalToExact,
-      EqualSign::Hidden, "1.234×10^22×i", nullptr, &globalContext, &store);
-
-  // Big integers
-  assertCalculationIs(
-      "12340000000000000000000", DisplayOutput::ApproximateIsIdenticalToExact,
-      EqualSign::Hidden, "1.234×10^22", nullptr, &globalContext, &store);
-  assertCalculationIs("1234567890123456789012345678000",
-                      DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation,
-                      "1.234567890123456789012345678×10^30",
-                      "1.2345678901235×10^30", &globalContext, &store);
-  assertCalculationIs("123456789012345678901234567800",
-                      DisplayOutput::ApproximateOnly, EqualSign::Hidden,
-                      nullptr, "1.2345678901235×10^29", &globalContext, &store);
-  assertCalculationIs("1234567890123456789012345678901×10^15",
-                      DisplayOutput::ApproximateOnly, EqualSign::Hidden,
-                      nullptr, "1.2345678901235×10^45", &globalContext, &store);
-  assertCalculationIs(
-      "10^45+i*10^45", DisplayOutput::ApproximateIsIdenticalToExact,
-      EqualSign::Hidden, "10^45+10^45i", nullptr, &globalContext, &store);
-  // TODO: first parentheses should be removed in approximation too.
-  assertCalculationIs("-10^45-i*10^45", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Equal, "-(10^45)-10^45i", "-(10^45)-(10^45)i",
-                      &globalContext, &store);
-
-  // IntegerOverflow during reduction
-  assertCalculationIs("0^(10^600)",
-                      DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "0", nullptr, &globalContext, &store);
+                      EqualSign::Approximation, "1×(1-\u00121/3\u0013/100)",
+                      "0.9966666667", "0.99666666666667", &globalContext,
+                      &store);
 
   // Exact output that have dependencies are not displayed
-  assertCalculationIs("2→f(x)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "2", nullptr, &globalContext, &store);
+  assertCalculationIs("2→f(x)", DisplayOutput::ExactOnly, EqualSign::Unknown,
+                      "2", "2", "2", &globalContext, &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("f.func").destroy();
 
   assertCalculationIs("(1/6)_g", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "0.16666666666667g",
-                      &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "1.666666667×_dg",
+                      "1.6666666666667×_dg", &globalContext, &store);
   assertCalculationIs("(1/6)_L_kg", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "1.6666666666667×10^-4m^3·kg",
-                      &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "1.666666667×_dg×_m^3",
+                      "1.6666666666667×_dg×_m^3", &globalContext, &store);
   assertCalculationIs("(π/6)_rad", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "30°", &globalContext,
-                      &store);
+                      EqualSign::Approximation, nullptr, "30×_°", "30×_°",
+                      &globalContext, &store);
   assertCalculationIs("(1/11)_°", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "0.090909090909091°",
-                      &globalContext, &store);
+                      EqualSign::Approximation, nullptr, "5.454545455×_'",
+                      "5.4545454545455×_'", &globalContext, &store);
   assertCalculationIs("180→rad", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "πrad", "3.1415926535898rad",
-                      &globalContext, &store);
+                      EqualSign::Approximation, "π×_rad", "3.141592654×_rad",
+                      "3.1415926535898×_rad", &globalContext, &store);
   assertCalculationIs("45→gon", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "50gon", &globalContext,
-                      &store);
-  MathPreferences::SharedPreferences()->setAngleUnit(
-      Preferences::AngleUnit::Radian);
-  assertCalculationIs("2+π→_rad", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "(2+π)rad",
-                      "5.1415926535898rad", &globalContext, &store);
-  assertCalculationIs("π/2→°", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "90°", &globalContext,
-                      &store);
-  assertCalculationIs("πrad/2→°", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "90°", &globalContext,
-                      &store);
-  assertCalculationIs("(1/6)_rad^(-1)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "0.16666666666667rad^(-1)",
+                      EqualSign::Unknown, nullptr, "50×_gon", "50×_gon",
                       &globalContext, &store);
+  Preferences::SharedPreferences()->setAngleUnit(
+      Preferences::AngleUnit::Radian);
+  assertCalculationIs("π/2→°", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "90×_°", "90×_°",
+                      &globalContext, &store);
+  assertCalculationIs("πrad/2→°", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "90×_°", "90×_°",
+                      &globalContext, &store);
+  assertCalculationIs(
+      "(1/6)_rad^(-1)", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+      nullptr, "0.1666666667×_rad^\u0012-1\u0013",
+      "0.16666666666667×_rad^\u0012-1\u0013", &globalContext, &store);
   assertCalculationIs("diff(x^2,x,3)_rad", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "6rad", &globalContext,
-                      &store);
+                      EqualSign::Unknown, nullptr, "6×_rad", "6×_rad",
+                      &globalContext, &store);
   assertCalculationIs("(1/6)_rad→a", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "(1/6)rad",
-                      "0.16666666666667rad", &globalContext, &store);
+                      EqualSign::Approximation, "1/6×_rad", "0.1666666667×_rad",
+                      "0.16666666666667×_rad", &globalContext, &store);
   assertCalculationIs("diff(x^2,x,3)_rad→a", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "6rad", &globalContext,
-                      &store);
-  assertCalculationIs("int(6/x^2-8/x^3,x,1,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "0", &globalContext, &store);
-  assertCalculationIs("6i'log(14,10)", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation,
-                      "6rad·(((π·log(2))/10800)i+((π·log(7))/10800)i)",
-                      "0.0020003707872rad·i", &globalContext, &store);
-  assertCalculationIs("i'log(14,10)", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation,
-                      "6rad·(((π·log(2))/10800)i+((π·log(7))/10800)i)",
-                      "3.333951312×10^(-4)×rad×i", &globalContext, &store);
-
-  MathPreferences::SharedPreferences()->setAngleUnit(
+                      EqualSign::Unknown, nullptr, "6×_rad", "6×_rad",
+                      &globalContext, &store);
+  Preferences::SharedPreferences()->setAngleUnit(
       Preferences::AngleUnit::Degree);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
 
-  ExamMode previousExamMode = MathPreferences::SharedPreferences()->examMode();
-  MathPreferences::SharedPreferences()->setExamMode(
+  ExamMode previousExamMode = Preferences::SharedPreferences()->examMode();
+  Preferences::SharedPreferences()->setExamMode(
       ExamMode(ExamMode::Ruleset::Dutch));
 
-  assertCalculationIs("1+1", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "2", nullptr, &globalContext, &store);
+  assertCalculationIs("1+1", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      nullptr, "2", "2", &globalContext, &store);
   assertCalculationIs("1/2", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Equal, "1/2", "0.5", &globalContext, &store);
-  assertCalculationIs("0.5", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Equal, "1/2", "0.5", &globalContext, &store);
-  assertCalculationIs("√(8)", DisplayOutput::ApproximateOnly, EqualSign::Hidden,
-                      nullptr, "2.8284271247462", &globalContext, &store);
-  assertCalculationIs("cos(45×°)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "0.70710678118655",
-                      &globalContext, &store);
-  assertCalculationIs("cos(π/4×_rad)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "0.70710678118655",
-                      &globalContext, &store);
-  assertCalculationIs("_G", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store);
-  assertCalculationIs("_g0", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store);
-
-  using PTTFlags = ExamMode::PressToTestFlags::Flags;
-  MathPreferences::SharedPreferences()->setExamMode(ExamMode(
-      ExamMode::Ruleset::PressToTest,
-      ExamMode::PressToTestFlags().setFlag(PTTFlags::ForbidBasedLogarithm)));
-
-  assertCalculationIs("ln(5)", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "ln(5)", "1.6094379124341",
-                      &globalContext, &store);
-  assertCalculationIs("log(5)", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "log(5)", "0.69897000433602",
-                      &globalContext, &store);
-  assertCalculationIs("log(5,10)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "log(5)", "0.69897000433602",
-                      &globalContext, &store);
-  assertCalculationIs("log(5,e)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "ln(5)", "1.6094379124341",
-                      &globalContext, &store);
-  assertCalculationIs("log(5,5)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store);
-  assertCalculationIs("ln(89)/ln(5)", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "(ln(89))/(ln(5))",
-                      "2.7889465850494", &globalContext, &store);
-
-  MathPreferences::SharedPreferences()->setExamMode(previousExamMode);
-  MathPreferences::SharedPreferences()->setAngleUnit(previousAngleUnit);
-
-  MathPreferences::SharedPreferences()->setNumberOfSignificantDigits(
-      previousNumberOfSignificantDigits);
-
-  assertCalculationIs("(π+1)*log(7,3)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "(1+π)log(7,3)", "7.335770099",
-                      &globalContext, &store);
-  I18n::Country previousCountry =
-      GlobalPreferences::SharedGlobalPreferences()->country();
-  GlobalPreferences::SharedGlobalPreferences()->setCountry(I18n::Country::NL);
-  assertCalculationIs("(π+1)*log(7,3)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "(1+π)·log(7,3)", "7.335770099",
-                      &globalContext, &store);
-  GlobalPreferences::SharedGlobalPreferences()->setCountry(previousCountry);
-}
-
-QUIZ_CASE(calculation_big_expressions) {
-  Shared::GlobalContext globalContext;
-  CalculationStore store(calculationBuffer, calculationBufferSize);
-  assertCalculationIs("identity(37)", DisplayOutput::ExactOnly,
-                      EqualSign::Hidden, "undef", nullptr, &globalContext,
+                      EqualSign::Equal, "1/2", "0.5", nullptr, &globalContext,
                       &store);
+  assertCalculationIs("0.5", DisplayOutput::ExactAndApproximateToggle,
+                      EqualSign::Equal, "1/2", "0.5", nullptr, &globalContext,
+                      &store);
+  assertCalculationIs("√(8)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "2.828427125",
+                      "2.8284271247462", &globalContext, &store);
+  assertCalculationIs("cos(45×°)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "0.7071067812",
+                      "0.70710678118655", &globalContext, &store);
+  assertCalculationIs("cos(π/4×_rad)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "0.7071067812",
+                      "0.70710678118655", &globalContext, &store);
+  assertCalculationIs("_G", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      nullptr, nullptr, nullptr, &globalContext, &store);
+  assertCalculationIs("_g0", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      nullptr, nullptr, nullptr, &globalContext, &store);
+
+  Preferences::SharedPreferences()->setExamMode(previousExamMode);
+  Preferences::SharedPreferences()->setAngleUnit(previousAngleUnit);
 }
 
-void assertMainCalculationOutputIs(const char* input, const char* output,
-                                   Context* context, CalculationStore* store) {
+void assertMainCalculationOutputIs(const char *input, const char *output,
+                                   Context *context, CalculationStore *store) {
   // For the next test, we only need to checkout input and output text.
-  pushAndProcessCalculation(store, input, context);
-  Shared::ExpiringPointer<Calculation::Calculation> lastCalculation =
+  store->push(input, context);
+  Shared::ExpiringPointer<::Calculation::Calculation> lastCalculation =
       store->calculationAtIndex(0);
-  switch (lastCalculation->displayOutput()) {
+  switch (lastCalculation->displayOutput(context)) {
     case DisplayOutput::ApproximateOnly:
-      assert_expression_serializes_to(lastCalculation->approximateOutput(),
-                                      output);
+      quiz_assert_print_if_failure(
+          strcmp(lastCalculation->approximateOutputText(
+                     NumberOfSignificantDigits::UserDefined),
+                 output) == 0,
+          input);
       break;
     default:
-      assert_expression_serializes_to(lastCalculation->exactOutput(), output);
+      quiz_assert_print_if_failure(
+          strcmp(lastCalculation->exactOutputText(), output) == 0, input);
       break;
   }
   store->deleteAll();
@@ -600,30 +463,31 @@ QUIZ_CASE(calculation_symbolic_computation) {
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("x.exp").destroy();
 
   // Derivatives
-  assertCalculationIs("foo'(1)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store, "f×o×o×_'×(1)");
-  assertCalculationIs("foo\"(1)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store,
-                      "f×o×o×_\"×(1)");
-  assertCalculationIs("foo^(3)(1)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "undef", nullptr, &globalContext, &store,
-                      "f×o×o^(3)×(1)");
+  assertCalculationIs("foo'(1)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, "undef", "undef", "undef",
+                      &globalContext, &store, "f×o×o×_'×(1)");
+  assertCalculationIs("foo\"(1)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, "undef", "undef", "undef",
+                      &globalContext, &store, "f×o×o×_\"×(1)");
+  assertCalculationIs("foo^(3)(1)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, "undef", "undef", "undef",
+                      &globalContext, &store, "f×o×o^(3)×(1)");
   assertMainCalculationOutputIs("x^4→foo(x)", "x^4", &globalContext, &store);
   assertCalculationIs("foo'(1)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "4", &globalContext, &store,
+                      EqualSign::Unknown, "4", "4", "4", &globalContext, &store,
                       "foo'(1)");
   assertCalculationIs("foo^(1)(1)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "4", &globalContext, &store,
+                      EqualSign::Unknown, "4", "4", "4", &globalContext, &store,
                       "foo'(1)");
   assertCalculationIs("foo\"(1)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "12", &globalContext, &store,
-                      "foo\"(1)");
+                      EqualSign::Unknown, "12", "12", "12", &globalContext,
+                      &store, "foo\"(1)");
   assertCalculationIs("foo^(2)(1)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "12", &globalContext, &store,
-                      "foo\"(1)");
+                      EqualSign::Unknown, "12", "12", "12", &globalContext,
+                      &store, "foo\"(1)");
   assertCalculationIs("foo^(3)(1)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "24", &globalContext, &store,
-                      "foo^(3)(1)");
+                      EqualSign::Unknown, "24", "24", "24", &globalContext,
+                      &store, "foo^(3)(1)");
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("foo.func").destroy();
 
   // 1 - Predefined variable in fraction in integral
@@ -776,12 +640,12 @@ QUIZ_CASE(calculation_symbolic_computation) {
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("g.func").destroy();
 
   // 8 - Circularly with symbols
-  pushAndProcessCalculation(&store, "x→f(x)", &globalContext);
+  store.push("x→f(x)", &globalContext);
   assertMainCalculationOutputIs("f(Ans)→A", "undef", &globalContext, &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("f.func").destroy();
 
   // Derivatives condensed form
-  pushAndProcessCalculation(&store, "2→c(x)", &globalContext);
+  store.push("2→c(x)", &globalContext);
   assertMainCalculationOutputIs("c''(0)→c(x)", "diff(2,x,0,2)", &globalContext,
                                 &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("c.func").destroy();
@@ -793,26 +657,34 @@ QUIZ_CASE(calculation_symbolic_computation_and_parametered_expressions) {
 
   // Tests a bug with symbolic computation
   assertCalculationIs("int((e^(-x))-x^(0.5), x, 0, 3)",
-                      DisplayOutput::ApproximateOnly, EqualSign::Hidden,
-                      nullptr, "-2.513888684", &globalContext, &store);
+                      DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      nullptr, nullptr, nullptr, &globalContext, &store);
   assertCalculationIs("int(x,x,0,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "2", &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "2", "2", &globalContext,
+                      &store);
   assertCalculationIs("sum(x,x,0,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "3", &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "3", "3", &globalContext,
+                      &store);
   assertCalculationIs("product(x,x,1,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "2", &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "2", "2", &globalContext,
+                      &store);
   assertCalculationIs("diff(x^2,x,3)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "6", &globalContext, &store);
-  assertCalculationIs("2→x", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "2", nullptr, &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "6", "6", &globalContext,
+                      &store);
+  assertCalculationIs("2→x", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      nullptr, nullptr, nullptr, &globalContext, &store);
   assertCalculationIs("int(x,x,0,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "2", &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "2", "2", &globalContext,
+                      &store);
   assertCalculationIs("sum(x,x,0,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "3", &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "3", "3", &globalContext,
+                      &store);
   assertCalculationIs("product(x,x,1,2)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "2", &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "2", "2", &globalContext,
+                      &store);
   assertCalculationIs("diff(x^2,x,3)", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "6", &globalContext, &store);
+                      EqualSign::Unknown, nullptr, "6", "6", &globalContext,
+                      &store);
 
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("x.exp").destroy();
 }
@@ -821,122 +693,93 @@ QUIZ_CASE(calculation_complex_format) {
   Shared::GlobalContext globalContext;
   CalculationStore store(calculationBuffer, calculationBufferSize);
 
-  uint8_t previousNumberOfSignificantDigits =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
-  MathPreferences::SharedPreferences()->setNumberOfSignificantDigits(
-      PrintFloat::k_maxNumberOfSignificantDigits);
-
-  MathPreferences::SharedPreferences()->setComplexFormat(
+  Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Real);
-  assertCalculationIs("1+i", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "1+i", nullptr, &globalContext,
+  assertCalculationIs("1+i", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      nullptr, "1+i", "1+i", &globalContext, &store);
+  assertCalculationIs("√(-1)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, "nonreal", nullptr, nullptr,
+                      &globalContext, &store);
+  assertCalculationIs("ln(-2)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "nonreal", "nonreal",
+                      &globalContext, &store);
+  assertCalculationIs("√(-1)×√(-1)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "nonreal", "nonreal",
+                      &globalContext, &store);
+  assertCalculationIs("(-8)^(1/3)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "-2", "-2", &globalContext,
                       &store);
-  assertCalculationIs("√(-1)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "nonreal", nullptr, &globalContext, &store);
-  assertCalculationIs("ln(-2)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "nonreal", nullptr, &globalContext, &store);
-  assertCalculationIs("√(-1)×√(-1)", DisplayOutput::ExactOnly,
-                      EqualSign::Hidden, "nonreal", nullptr, &globalContext,
+  assertCalculationIs("(-8)^(2/3)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "4", "4", &globalContext,
                       &store);
-  assertCalculationIs("(-8)^(1/3)",
-                      DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "-2", nullptr, &globalContext, &store);
-  assertCalculationIs("(-8)^(2/3)",
-                      DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "4", nullptr, &globalContext, &store);
-  assertCalculationIs("(-2)^(1/4)", DisplayOutput::ExactOnly, EqualSign::Hidden,
-                      "nonreal", nullptr, &globalContext, &store);
-  assertCalculationIs("log(-inf,0.3)", DisplayOutput::ExactOnly,
-                      EqualSign::Hidden, "undef", nullptr, &globalContext,
-                      &store);
-  assertCalculationIs("log(-inf,3)", DisplayOutput::ExactOnly,
-                      EqualSign::Hidden, "undef", nullptr, &globalContext,
-                      &store);
-  assertCalculationIs("log(inf,-3)", DisplayOutput::ExactOnly,
-                      EqualSign::Hidden, "undef", nullptr, &globalContext,
-                      &store);
-  assertCalculationIs(
-      "{√(-1),1/0}", DisplayOutput::ApproximateIsIdenticalToExact,
-      EqualSign::Hidden, "{nonreal,undef}", nullptr, &globalContext, &store);
-  assertCalculationIs("(√(-1),2)", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "(nonreal,2)", nullptr, &globalContext,
-                      &store);
-  assertCalculationIs(
-      "[[√(-1),2]]", DisplayOutput::ApproximateIsIdenticalToExact,
-      EqualSign::Hidden, "[[nonreal,2]]", nullptr, &globalContext, &store);
-  assertCalculationIs("√(cos(2))", DisplayOutput::ApproximateOnly,
-                      EqualSign::Hidden, nullptr, "nonreal", &globalContext,
-                      &store);
+  assertCalculationIs("(-2)^(1/4)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "nonreal", "nonreal",
+                      &globalContext, &store);
 
-  MathPreferences::SharedPreferences()->setComplexFormat(
+  Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Cartesian);
-  assertCalculationIs("1+i", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "1+i", nullptr, &globalContext,
+  assertCalculationIs("1+i", DisplayOutput::ApproximateOnly, EqualSign::Unknown,
+                      nullptr, "1+i", "1+i", &globalContext, &store);
+  assertCalculationIs("√(-1)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "i", "i", &globalContext,
                       &store);
-  assertCalculationIs("√(-1)", DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "i", nullptr, &globalContext, &store);
-  assertCalculationIs(
-      "ln(-2)", DisplayOutput::ExactAndApproximate, EqualSign::Approximation,
-      "ln(2)+π·i", "0.69314718055995+3.1415926535898i", &globalContext, &store);
-  assertCalculationIs("√(-1)×√(-1)",
-                      DisplayOutput::ApproximateIsIdenticalToExact,
-                      EqualSign::Hidden, "-1", nullptr, &globalContext, &store);
+  assertCalculationIs("ln(-2)", DisplayOutput::ExactAndApproximateToggle,
+                      EqualSign::Approximation, "ln(-2)", nullptr, nullptr,
+                      &globalContext, &store);
+  assertCalculationIs("√(-1)×√(-1)", DisplayOutput::ApproximateOnly,
+                      EqualSign::Unknown, nullptr, "-1", "-1", &globalContext,
+                      &store);
   assertCalculationIs("(-8)^(1/3)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "1+√(3)i", "1+1.7320508075689i",
+                      EqualSign::Approximation, "1+√(3)×i", nullptr, nullptr,
                       &globalContext, &store);
   assertCalculationIs("(-8)^(2/3)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "-2+2×√(3)×i",
-                      "-2+3.4641016151378i", &globalContext, &store);
+                      EqualSign::Approximation, "-2+2×√(3)×i", nullptr, nullptr,
+                      &globalContext, &store);
   assertCalculationIs("(-2)^(1/4)", DisplayOutput::ExactAndApproximate,
                       EqualSign::Approximation, "root(8,4)/2+root(8,4)/2×i",
-                      "0.84089641525371+0.84089641525371i", &globalContext,
-                      &store);
+                      nullptr, nullptr, &globalContext, &store);
 
-  MathPreferences::SharedPreferences()->setComplexFormat(
+  Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Polar);
   assertCalculationIs("1+i", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "√(2)e^((π/4)i)",
-                      "1.4142135623731e^(0.78539816339745i)", &globalContext,
-                      &store);
+                      EqualSign::Approximation, "√(2)×e^\u0012π/4×i\u0013",
+                      nullptr, nullptr, &globalContext, &store);
   assertCalculationIs("√(-1)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "e^((π/2)i)",
-                      "e^(1.5707963267949i)", &globalContext, &store);
+                      EqualSign::Approximation, "e^\u0012π/2×i\u0013", nullptr,
+                      nullptr, &globalContext, &store);
   assertCalculationIs("ln(-2)", DisplayOutput::ExactAndApproximateToggle,
-                      EqualSign::Approximation, "ln(-2)",
-                      "3.2171505117118e^(1.3536398454434i)", &globalContext,
-                      &store);
-  assertCalculationIs("√(-1)×√(-1)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "e^(π·i)",
-                      "e^(3.1415926535898i)", &globalContext, &store);
+                      EqualSign::Approximation, "ln(-2)", nullptr, nullptr,
+                      &globalContext, &store);
+  assertCalculationIs(
+      "√(-1)×√(-1)", DisplayOutput::ExactAndApproximate, EqualSign::Unknown,
+      nullptr, "e^\u00123.141592654×i\u0013", "e^\u00123.1415926535898×i\u0013",
+      &globalContext, &store);
   assertCalculationIs("(-8)^(1/3)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "2e^((π/3)i)",
-                      "2e^(1.0471975511966i)", &globalContext, &store);
+                      EqualSign::Approximation, "2×e^\u0012π/3×i\u0013",
+                      nullptr, nullptr, &globalContext, &store);
   assertCalculationIs("(-8)^(2/3)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "4e^(((2π)/3)i)",
-                      "4e^(2.0943951023932i)", &globalContext, &store);
+                      EqualSign::Approximation,
+                      "4×e^\u0012\u00122×π\u0013/3×i\u0013", nullptr, nullptr,
+                      &globalContext, &store);
   assertCalculationIs("(-2)^(1/4)", DisplayOutput::ExactAndApproximate,
-                      EqualSign::Approximation, "root(2,4)e^((π/4)i)",
-                      "1.1892071150027e^(0.78539816339745i)", &globalContext,
-                      &store);
+                      EqualSign::Approximation, "root(2,4)×e^\u0012π/4×i\u0013",
+                      nullptr, nullptr, &globalContext, &store);
 
-  MathPreferences::SharedPreferences()->setComplexFormat(
-      Preferences::ComplexFormat::Real);
-
-  MathPreferences::SharedPreferences()->setNumberOfSignificantDigits(
-      previousNumberOfSignificantDigits);
+  Preferences::SharedPreferences()->setComplexFormat(
+      Preferences::ComplexFormat::Cartesian);
 }
 
 QUIZ_CASE(calculation_involving_sequence) {
   Shared::GlobalContext globalContext;
 
-  Shared::SequenceStore* seqStore = globalContext.s_sequenceStore;
+  Shared::SequenceStore *seqStore = globalContext.sequenceStore;
   Ion::Storage::Record::ErrorStatus err = seqStore->addEmptyModel();
   assert(err == Ion::Storage::Record::ErrorStatus::None);
   Ion::Storage::Record record =
       seqStore->recordAtIndex(seqStore->numberOfModels() - 1);
-  Shared::Sequence* u = seqStore->modelForRecord(record);
+  Shared::Sequence *u = seqStore->modelForRecord(record);
   u->setType(Shared::Sequence::Type::Explicit);
-  err = u->setContent(Layout::String("i"), &globalContext);
+  err = u->setContent("i", &globalContext);
   assert(err == Ion::Storage::Record::ErrorStatus::None);
   (void)err;  // Silence compilation warning.
 
@@ -948,8 +791,8 @@ QUIZ_CASE(calculation_involving_sequence) {
   seqStore->tidyDownstreamPoolFrom();
 }
 
-bool operator==(const AdditionalResultsType& a,
-                const AdditionalResultsType& b) {
+bool operator==(const AdditionalResultsType &a,
+                const AdditionalResultsType &b) {
   // TODO C++20 Use a default comparison operator
   return a.integer == b.integer && a.rational == b.rational &&
          a.directTrigonometry == b.directTrigonometry &&
@@ -960,19 +803,13 @@ bool operator==(const AdditionalResultsType& a,
 }
 
 void assertCalculationAdditionalResultTypeHas(
-    const char* input, const AdditionalResultsType additionalResultsType,
-    Context* context, CalculationStore* store) {
-  pushAndProcessCalculation(store, input, context);
-  Shared::ExpiringPointer<Calculation::Calculation> lastCalculation =
+    const char *input, const AdditionalResultsType additionalResultsType,
+    Context *context, CalculationStore *store) {
+  store->push(input, context);
+  Shared::ExpiringPointer<::Calculation::Calculation> lastCalculation =
       store->calculationAtIndex(0);
-#if POINCARE_STRICT_TESTS
-  quiz_assert(lastCalculation->additionalResultsType(context) ==
-              additionalResultsType);
-#else
-  quiz_tolerate_print_if_failure(
-      lastCalculation->additionalResultsType(context) == additionalResultsType,
-      input, "correct additional results", "incorrect additional results");
-#endif
+  quiz_assert_print_if_failure(
+      lastCalculation->additionalResultsType() == additionalResultsType, input);
   store->deleteAll();
 }
 
@@ -980,7 +817,7 @@ QUIZ_CASE(calculation_additional_results) {
   Shared::GlobalContext globalContext;
   CalculationStore store(calculationBuffer, calculationBufferSize);
 
-  MathPreferences::SharedPreferences()->setComplexFormat(
+  Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Real);
   assertCalculationAdditionalResultTypeHas("1+1", {.integer = true},
                                            &globalContext, &store);
@@ -997,8 +834,6 @@ QUIZ_CASE(calculation_additional_results) {
       "cos(45°)", {.directTrigonometry = true}, &globalContext, &store);
   assertCalculationAdditionalResultTypeHas(
       "acos(0.5)", {.inverseTrigonometry = true}, &globalContext, &store);
-  assertCalculationAdditionalResultTypeHas(
-      "acos(e/5)", {.inverseTrigonometry = true}, &globalContext, &store);
   assertCalculationAdditionalResultTypeHas("sin(iπ)", {.complex = true},
                                            &globalContext, &store);
   assertCalculationAdditionalResultTypeHas(
@@ -1013,8 +848,6 @@ QUIZ_CASE(calculation_additional_results) {
       "e^3", {.function = true, .scientificNotation = true}, &globalContext,
       &store);
   assertCalculationAdditionalResultTypeHas("tan(π/2)", {}, &globalContext,
-                                           &store);
-  assertCalculationAdditionalResultTypeHas("atan(i)", {}, &globalContext,
                                            &store);
   assertCalculationAdditionalResultTypeHas(
       "atan(∞)", {.inverseTrigonometry = true}, &globalContext, &store);
@@ -1044,9 +877,6 @@ QUIZ_CASE(calculation_additional_results) {
   assertCalculationAdditionalResultTypeHas(
       "400", {.integer = true, .scientificNotation = true}, &globalContext,
       &store);
-  assertCalculationAdditionalResultTypeHas(
-      "sum(k,k,0,5)", {.integer = true, .scientificNotation = true},
-      &globalContext, &store);
   assertCalculationAdditionalResultTypeHas("π+π", {}, &globalContext, &store);
   assertCalculationAdditionalResultTypeHas(
       "e^(2+3)", {.scientificNotation = true}, &globalContext, &store);
@@ -1056,7 +886,6 @@ QUIZ_CASE(calculation_additional_results) {
                                            &store);
   assertCalculationAdditionalResultTypeHas("-sin(\")", {}, &globalContext,
                                            &store);
-  assertCalculationAdditionalResultTypeHas("i=0", {}, &globalContext, &store);
   assertCalculationAdditionalResultTypeHas("30°+2_rad", {.unit = true},
                                            &globalContext, &store);
   assertCalculationAdditionalResultTypeHas("45_rad", {.unit = true},
@@ -1073,23 +902,20 @@ QUIZ_CASE(calculation_additional_results) {
   assertCalculationAdditionalResultTypeHas("_L/(_L/3)", {}, &globalContext,
                                            &store);
 
-  // IntegerOverflow during reduction
-  assertCalculationAdditionalResultTypeHas("0^(10^600)", {}, &globalContext,
-                                           &store);
-
-  MathPreferences::SharedPreferences()->setDisplayMode(
+  Preferences::SharedPreferences()->setDisplayMode(
       Preferences::PrintFloatMode::Scientific);
   assertCalculationAdditionalResultTypeHas("e^(2+3)", {}, &globalContext,
                                            &store);
-  MathPreferences::SharedPreferences()->setDisplayMode(
+  Preferences::SharedPreferences()->setDisplayMode(
       Preferences::PrintFloatMode::Decimal);
 
   assertCalculationAdditionalResultTypeHas("√(-1)", {}, &globalContext, &store);
   assertCalculationAdditionalResultTypeHas("{1}", {}, &globalContext, &store);
   assertCalculationAdditionalResultTypeHas("{i}", {}, &globalContext, &store);
-  /* TODO: Not working on windows
-   * assertCalculationAdditionalResultTypeHas("i^(2×e^(7i^(2×e^322)))", {},
-   *                                         &globalContext, &store);*/
+#ifndef PLATFORM_WINDOWS
+  assertCalculationAdditionalResultTypeHas("i^(2×e^(7i^(2×e^322)))", {},
+                                           &globalContext, &store);
+#endif
 
   assertCalculationAdditionalResultTypeHas("ln(3+4)", {}, &globalContext,
                                            &store);
@@ -1102,12 +928,12 @@ QUIZ_CASE(calculation_additional_results) {
                                            &globalContext, &store);
   Ion::Storage::FileSystem::sharedFileSystem->recordNamed("z.exp").destroy();
 
-  MathPreferences::SharedPreferences()->setComplexFormat(
+  Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Polar);
   assertCalculationAdditionalResultTypeHas("-10", {.complex = true},
                                            &globalContext, &store);
 
-  MathPreferences::SharedPreferences()->setComplexFormat(
+  Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Cartesian);
   assertCalculationAdditionalResultTypeHas("√(-1)", {.complex = true},
                                            &globalContext, &store);
@@ -1115,7 +941,4 @@ QUIZ_CASE(calculation_additional_results) {
                                            &globalContext, &store);
   assertCalculationAdditionalResultTypeHas("-10", {.scientificNotation = true},
                                            &globalContext, &store);
-
-  MathPreferences::SharedPreferences()->setComplexFormat(
-      Preferences::ComplexFormat::Real);
 }

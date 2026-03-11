@@ -1,160 +1,119 @@
 #include <apps/shared/global_context.h>
-#include <ion/storage/file_system.h>
-#include <poincare/src/expression/advanced_reduction.h>
-#include <poincare/src/expression/degree.h>
-#include <poincare/src/expression/k_tree.h>
-#include <poincare/src/expression/polynomial.h>
-#include <poincare/src/expression/projection.h>
-#include <poincare/src/expression/systematic_reduction.h>
+#include <poincare/polynomial.h>
 
 #include "helper.h"
 
-using namespace Poincare::Internal;
+using namespace Poincare;
 
-QUIZ_CASE(pcj_polynomial_operations) {
-  /* A = x^2 + 3*x*y + y + 1 */
-  const Tree* polA =
-      KPol(Exponents<2, 1, 0>(), "x"_e, 1_e, KPol(Exponents<1>(), "y"_e, 3_e),
-           KPol(Exponents<1, 0>(), "y"_e, 1_e, 1_e));
-  /* B = x^3 + 2*x*y^2 + 7*x*y + 23 */
-  const Tree* polB = KPol(Exponents<3, 1, 0>(), "x"_e, 1_e,
-                          KPol(Exponents<2, 1>(), "y"_e, 2_e, 7_e), 23_e);
-  /* C = -2x^3 + 7*x*y + 23 */
-  const Tree* polC = KPol(Exponents<3, 1, 0>(), "x"_e, -2_e,
-                          KPol(Exponents<1>(), "y"_e, 7_e), 23_e);
+template <int N>
+void assert_roots_of_polynomial_are(const char* polynomial,
+                                    const char* const (&roots)[N],
+                                    const char* delta,
+                                    Preferences::ComplexFormat complexFormat,
+                                    Preferences::AngleUnit angleUnit = Radian,
+                                    const char* symbol = "x") {
+  Shared::GlobalContext context;
+  ReductionContext reductionContext(&context, complexFormat, angleUnit,
+                                    MetricUnitFormat, User);
 
-  /* Inverse(A) = -x^2 - 3*x*y - y - 1 */
-  Tree* inv = polA->cloneTree();
-  Polynomial::Inverse(inv);
-  assert_trees_are_equal(inv, KPol(Exponents<2, 1, 0>(), "x"_e, -1_e,
-                                   KPol(Exponents<1>(), "y"_e, -3_e),
-                                   KPol(Exponents<1, 0>(), "y"_e, -1_e, -1_e)));
+  Expression polynomialExp = parse_expression(polynomial, &context, false)
+                                 .cloneAndReduce(reductionContext);
+  Expression coefficients[Expression::k_maxNumberOfPolynomialCoefficients];
+  int degree = polynomialExp.getPolynomialReducedCoefficients(
+      symbol, coefficients, &context, complexFormat, angleUnit,
+      MetricUnitFormat, ReplaceAllDefinedSymbolsWithDefinition);
 
-  /* Normalize(C) = 2x^3 - 7*x*y - 23*/
-  Tree* norm = polC->cloneTree();
-  Polynomial::Normalize(norm);
-  assert_trees_are_equal(norm, KPol(Exponents<3, 1, 0>(), "x"_e, 2_e,
-                                    KPol(Exponents<1>(), "y"_e, -7_e), -23_e));
+  Expression deltaExp;
+  Expression rootsExp[Expression::k_maxPolynomialDegree];
+  int numberOfRoots;
+  if (degree == 2) {
+    numberOfRoots = Polynomial::QuadraticPolynomialRoots(
+        coefficients[2], coefficients[1], coefficients[0], rootsExp,
+        rootsExp + 1, &deltaExp, reductionContext);
+  } else {
+    assert(degree == 3);
+    numberOfRoots = Polynomial::CubicPolynomialRoots(
+        coefficients[3], coefficients[2], coefficients[1], coefficients[0],
+        rootsExp, rootsExp + 1, rootsExp + 2, &deltaExp, reductionContext);
+  }
 
-  /* A + B = x^3 + x^2 + 2*x*y^2 + 10*x*y + y + 24 */
-  assert_trees_are_equal(
-      Polynomial::Addition(polA->cloneTree(), polB->cloneTree()),
-      TreeRef(KPol(Exponents<3, 2, 1, 0>(), "x"_e, 1_e, 1_e,
-                   KPol(Exponents<2, 1>(), "y"_e, 2_e, 10_e),
-                   KPol(Exponents<1, 0>(), "y"_e, 1_e, 24_e))));
-  SharedTreeStack->flush();
-
-  /* B + A = x^3 + x^2 + 2*x*y^2 + 10*x*y + y + 24 */
-  assert_trees_are_equal(
-      Polynomial::Addition(polB->cloneTree(), polA->cloneTree()),
-      KPol(Exponents<3, 2, 1, 0>(), "x"_e, 1_e, 1_e,
-           KPol(Exponents<2, 1>(), "y"_e, 2_e, 10_e),
-           KPol(Exponents<1, 0>(), "y"_e, 1_e, 24_e)));
-  SharedTreeStack->flush();
-
-  // TODO: test A-B and B-A!
-
-  /* A * B = x^5 + 3yx^4 + (2y^2+8y+1)*x^3 + (6y^3+21y^2+23)x^2 +
-  (2y^3+9y^2+
-   * 76y)x + 23y + 23 */
-  assert_trees_are_equal(
-      Polynomial::Multiplication(TreeRef(polA->cloneTree()),
-                                 TreeRef(polB->cloneTree())),
-      KPol(Exponents<5, 4, 3, 2, 1, 0>(), "x"_e, 1_e,
-           KPol(Exponents<1>(), "y"_e, 3_e),
-           KPol(Exponents<2, 1, 0>(), "y"_e, 2_e, 8_e, 1_e),
-           KPol(Exponents<3, 2, 0>(), "y"_e, 6_e, 21_e, 23_e),
-           KPol(Exponents<3, 2, 1>(), "y"_e, 2_e, 9_e, 76_e),
-           KPol(Exponents<1, 0>(), "y"_e, 23_e, 23_e)));
-  SharedTreeStack->flush();
-
-  /* Test variable order:
-   * (y^2) + ((y+1)x + 1 = (y+1)x + y^2 + 1 */
-  assert_trees_are_equal(
-      Polynomial::Addition(
-          TreeRef(KPol(Exponents<2>(), "y"_e, 1_e)),
-          TreeRef(KPol(Exponents<1, 0>(), "x"_e,
-                       KPol(Exponents<1, 0>(), "y"_e, 1_e, 1_e), 1_e))),
-      KPol(Exponents<1, 0>(), "x"_e, KPol(Exponents<1, 0>(), "y"_e, 1_e, 1_e),
-           KPol(Exponents<2, 0>(), "y"_e, 1_e, 1_e)));
-  SharedTreeStack->flush();
-
-  // A = x^2y^2 + y
-  polA = KPol(Exponents<2, 0>(), "x"_e, KPol(Exponents<2>(), "y"_e, 1_e),
-              KPol(Exponents<1>(), "y"_e, 1_e));
-  // B = xy + 1
-  polB = KPol(Exponents<1, 0>(), "x"_e, KPol(Exponents<1>(), "y"_e, 1_e), 1_e);
-  // A / B = (xy + 1)*(xy - 1) + y + 1
-  auto [quotient, remainder] =
-      Polynomial::PseudoDivision(polA->cloneTree(), polB->cloneTree());
-  assert_trees_are_equal(
-      quotient,
-      KPol(Exponents<1, 0>(), "x"_e, KPol(Exponents<1>(), "y"_e, 1_e), -1_e));
-  assert_trees_are_equal(remainder, KPol(Exponents<1, 0>(), "y"_e, 1_e, 1_e));
+  int targetNumberOfRoots = (N == 1 && roots[0][0] == '\0') ? 0 : N;
+  quiz_assert_print_if_failure(numberOfRoots == targetNumberOfRoots,
+                               polynomial);
+  assert_expression_serializes_to(deltaExp, delta);
+  for (int i = 0; i < targetNumberOfRoots; i++) {
+    assert_expression_serializes_to(rootsExp[i], roots[i]);
+  }
 }
 
-void assert_polynomial_degree_is(ProjectionContext projectionContext,
-                                 const char* input, int expectedDegree,
-                                 const char* symbolName = "x") {
-  Tree* expression = parse(input, projectionContext.m_context);
-  Simplification::ProjectAndReduce(expression, &projectionContext);
-  int degree = Degree::Get(expression, symbolName);
-  quiz_assert(degree == expectedDegree);
-  expression->removeTree();
+QUIZ_CASE(poincare_polynomial_roots_quadratic) {
+  // Real roots
+  assert_roots_of_polynomial_are("x^2-3×x+2", {"1", "2"}, "1", Real);
+  assert_roots_of_polynomial_are("3×x^2", {"0"}, "0", Real);
+  assert_roots_of_polynomial_are("1/3×x^2+2/3×x-5", {"-5", "3"}, "64/9", Real);
+  assert_roots_of_polynomial_are("i/5×(x-3)^2", {"3"}, "0", Cartesian);
+  assert_roots_of_polynomial_are("(x-2/3)(x+0.2)", {"-1/5", "2/3"}, "169/225",
+                                 Real);
+  assert_roots_of_polynomial_are("√(2)(x-√(3))(x-√(5))", {"√(3)", "√(5)"},
+                                 "16-4×√(15)", Real);
+
+  // ComplexRoots
+  assert_roots_of_polynomial_are("x^2+1", {""}, "-4", Real);
+  assert_roots_of_polynomial_are("x^2+1", {"-i", "i"}, "-4", Cartesian);
+  assert_roots_of_polynomial_are("2i×(x-3i)^2", {"3×i"}, "0", Cartesian);
 }
 
-QUIZ_CASE(pcj_polynomial_degree) {
-  Shared::GlobalContext globalContext;
-  assert(
-      Ion::Storage::FileSystem::sharedFileSystem->numberOfRecords() ==
-      Ion::Storage::FileSystem::sharedFileSystem->numberOfRecordsWithExtension(
-          "sys"));
-
-  ProjectionContext projCtx = {
-      .m_complexFormat = ComplexFormat::Cartesian,
-      .m_symbolic = SymbolicComputation::ReplaceDefinedSymbols,
-      .m_context = &globalContext,
-      .m_advanceReduce = false};
-
-  assert_polynomial_degree_is(projCtx, "x+1", 1);
-  assert_polynomial_degree_is(projCtx, "cos(2)+1", 0);
-  assert_polynomial_degree_is(projCtx, "diff(3×x+x,x,2)", 0);
-  assert_polynomial_degree_is(projCtx, "diff(3×x+x,x,x)", 0);
-  assert_polynomial_degree_is(projCtx, "diff(3×x+x,x,x)", 0, "a");
-  assert_polynomial_degree_is(projCtx, "(3×x+2)/3", 1);
-  assert_polynomial_degree_is(projCtx, "(3×x+2)/x", -1);
-  assert_polynomial_degree_is(projCtx, "int(2×x,x, 0, 1)", -1);
-  assert_polynomial_degree_is(projCtx, "int(2×x,x, 0, 1)", 0, "a");
-  assert_polynomial_degree_is(projCtx, "[[1,2][3,4]]", -1);
-  assert_polynomial_degree_is(projCtx, "(x^2+2)×(x+1)", 3);
-  assert_polynomial_degree_is(projCtx, "-(x+1)", 1);
-  assert_polynomial_degree_is(projCtx, "(x^2+2)^(3)", 6);
-  assert_polynomial_degree_is(projCtx, "2-x-x^3", 3);
-  assert_polynomial_degree_is(projCtx, "π×x", 1);
-  assert_polynomial_degree_is(projCtx, "x+π^(-3)", 1);
-  assert_polynomial_degree_is(projCtx, "x^256", 256);
-  // polynomial degree is clamped to a maximum value
-  assert_polynomial_degree_is(projCtx, "x^257", Degree::k_maxPolynomialDegree);
-
-  // f: y→y^2+πy+1
-  store("1+π×y+y^2→f(y)", &globalContext);
-  assert_polynomial_degree_is(projCtx, "f(x)", 2);
-  // With y=1
-  store("1→y", &globalContext);
-  assert_polynomial_degree_is(projCtx, "f(x)", 2);
-  Ion::Storage::FileSystem::sharedFileSystem->recordNamed("f.func").destroy();
-  Ion::Storage::FileSystem::sharedFileSystem->recordNamed("y.exp").destroy();
-  // a : undef and f : y→ay+πy+1
-  store("undef→a", &globalContext);
-  store("1+π×y+y×a→f(y)", &globalContext);
-  assert_polynomial_degree_is(projCtx, "f(x)", 0);  // a is undefined
-  // With a = 1
-  store("1→a", &globalContext);
-  assert_polynomial_degree_is(projCtx, "f(x)", 1);
-  Ion::Storage::FileSystem::sharedFileSystem->recordNamed("f.func").destroy();
-  Ion::Storage::FileSystem::sharedFileSystem->recordNamed("a.exp").destroy();
-
-  projCtx.m_complexFormat = ComplexFormat::Real;
-  assert_polynomial_degree_is(projCtx, "√(-1)×x", 0);
-  assert_polynomial_degree_is(projCtx, "√(x)", -1);
+QUIZ_CASE(poincare_polynomial_roots_cubic) {
+  assert_roots_of_polynomial_are("x^3-3×x^2+3×x-1", {"1"}, "0", Real);
+  assert_roots_of_polynomial_are("1/9×(x+√(2))^3", {"-√(2)"}, "0", Real);
+  assert_roots_of_polynomial_are("x^3+x^2-15/4×x-9/2", {"-3/2", "2"}, "0",
+                                 Real);
+  assert_roots_of_polynomial_are("4×x^3+3×x+i", {"-i/2", "i"}, "0", Cartesian);
+  assert_roots_of_polynomial_are("x^3-8", {"2", "-1-√(3)×i", "-1+√(3)×i"},
+                                 "-1728", Cartesian);
+  assert_roots_of_polynomial_are("x^3-8i", {"-√(3)+i", "-2×i", "√(3)+i"},
+                                 "1728", Cartesian);
+  assert_roots_of_polynomial_are(
+      "x^3-13-i",
+      {"-1.228595+2.007539×i", "-1.124282-2.067764×i",
+       "2.352877+6.022476ᴇ-2×i"},
+      "-4.536ᴇ3-7.02ᴇ2×i", Cartesian);
+  assert_roots_of_polynomial_are(
+      "2x^3-e^(2iπ/7)",
+      {"7.937005ᴇ-1×e^2.393594×i", "7.937005ᴇ-1×e^-1.795196×i",
+       "7.937005ᴇ-1×e^2.991993ᴇ-1×i"},
+      "1.08ᴇ2×e^-1.346397×i", Polar);
+  assert_roots_of_polynomial_are(
+      "x^3-e^(2iπ/7)-1",
+      {"1.216877×e^2.243995×i", "1.216877×e^-1.944795×i",
+       "1.216877×e^1.495997ᴇ-1×i"},
+      "8.766845ᴇ1×e^-2.243995×i", Polar);
+  assert_roots_of_polynomial_are("(x-√(3)/2)(x^2-x+6/4)", {"√(3)/2"},
+                                 "\u0012-465+180×√(3)\u0013/16", Real);
+  assert_roots_of_polynomial_are("(x-√(3)/2)(x^2-x+6/4)",
+                                 {"√(3)/2", "1/2-√(5)/2×i", "1/2+√(5)/2×i"},
+                                 "\u0012-465+180×√(3)\u0013/16", Cartesian);
+  assert_roots_of_polynomial_are("(x-1)(x-2)(x-3)", {"1", "2", "3"}, "4", Real);
+  assert_roots_of_polynomial_are("x^3-(2+i)×x^2-2×i×x-2+4×i",
+                                 {"-1-i", "1+i", "2+i"}, "-96+40×i", Cartesian);
+  assert_roots_of_polynomial_are(
+      "x^3+3×x^2+3×x+0.7",
+      {"-3.30567ᴇ-1", "-1.334716-5.797459ᴇ-1×i", "-1.334716+5.797459ᴇ-1×i"},
+      "-2.43", Cartesian);
+  assert_roots_of_polynomial_are("x^3+3×x^2+3×x+0.7", {"-3.30567ᴇ-1"}, "-2.43",
+                                 Real);
+  assert_roots_of_polynomial_are("(x-4.231)^3", {"4231/1000"}, "0", Real);
+  assert_roots_of_polynomial_are("(x-7/3)(x-π)(x-log(3))",
+                                 {"log(3)", "7/3", "π"}, "1.598007ᴇ1", Real);
+  assert_roots_of_polynomial_are("(x-2i+1)(x+3i-1)(x-i+2)",
+                                 {"-2+1×i", "-1+2×i", "1-3×i"},
+                                 "-1.288ᴇ3-6.66ᴇ2×i", Cartesian);
+  assert_roots_of_polynomial_are(
+      "x^3+x^2+x-39999999",
+      {"3.416612ᴇ2", "-1.713306ᴇ2-2.961771ᴇ2×i", "-1.713306ᴇ2+2.961771ᴇ2×i"},
+      "-4.32ᴇ16", Cartesian);
+  assert_roots_of_polynomial_are(
+      "x^3+x^2+x+1-80*π*200000",
+      {"3.687201ᴇ2", "-1.8486ᴇ2-3.196107ᴇ2×i", "-1.8486ᴇ2+3.196107ᴇ2×i"},
+      "-6.82187ᴇ16", Cartesian);
 }

@@ -1,6 +1,15 @@
 #include <escher/glyphs_view.h>
 
 namespace Escher {
+
+KDGlyph::Format GlyphsView::k_defaultSubLabel(){return{
+      .style = {.glyphColor = Theme::ThemeGestion::getColor("GrayDark"), .font = KDFont::Size::Small}};}
+
+KDGlyph::Format GlyphsView::k_defaultAccessory(){return{
+      .horizontalAlignment = KDGlyph::k_alignRight};}
+
+KDGlyph::Format GlyphsView::k_defaultLabel(){ return {};}
+
 void GlyphsView::setGlyphFormat(KDGlyph::Format format) {
   m_glyphFormat = format;
   markWholeFrameAsDirty();

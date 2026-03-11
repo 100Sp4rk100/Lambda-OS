@@ -5,12 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <bit>
-
 namespace OMG {
 namespace BitHelper {
 
-constexpr static uint8_t k_numberOfBitsInByte = 8;
+constexpr static size_t k_numberOfBitsInByte = 8;
 constexpr static size_t k_numberOfBitsInInt =
     sizeof(int) * k_numberOfBitsInByte;
 constexpr static size_t k_numberOfBitsInUint32 =
@@ -73,49 +71,38 @@ constexpr void setBitAtIndex(T& mask, I i, bool b) {
 }
 
 constexpr inline size_t countLeadingZeros(uint32_t i) {
-  return std::countl_zero(i);
+  return __builtin_clz(i);
 }
 
-constexpr inline size_t numberOfOnes(uint32_t i) { return std::popcount(i); }
+constexpr inline size_t countTrailingZeros(uint32_t i) {
+  return __builtin_ctz(i);
+}
+
+constexpr inline size_t numberOfOnes(uint32_t i) {
+  return __builtin_popcount(i);
+}
 
 constexpr inline size_t indexOfMostSignificantBit(uint32_t i) {
   return numberOfBitsIn<uint32_t>() - countLeadingZeros(i) - 1;
 }
 
-constexpr inline size_t numberOfBitsToCountUpTo(uint64_t i) {
-  return i == 0 ? 0 : std::bit_width<uint64_t>(i - 1);
+constexpr inline size_t numberOfBitsToCountUpTo(uint32_t i) {
+  assert(i >= 2);
+  return indexOfMostSignificantBit(i - 1) + 1;
 }
 
 template <typename T>
 uint8_t log2(T v) {
-  static_assert(numberOfBitsIn<T>() < 256,
+  constexpr int nativeUnsignedIntegerBitCount =
+      k_numberOfBitsInByte * sizeof(T);
+  static_assert(nativeUnsignedIntegerBitCount < 256,
                 "uint8_t cannot contain the log2 of a templated class T");
-  return std::bit_width(v);
-}
-
-// TODO use in ion/src/device/shared/regs/register.h
-// TODO merge with ion/include/bit_helper.h
-
-template <typename T>
-constexpr static T bitRangeMask(uint8_t high, uint8_t low) {
-  // Same comment as for getBitRange: we should assert (high-low+1) <
-  // 8*sizeof(T)
-  return ((((T)1) << (high - low + 1)) - 1) << low;
-}
-
-template <typename T>
-constexpr static T getBitRange(T value, uint8_t high, uint8_t low) {
-  /* "Shift behavior is undefined if the right operand is negative, or greater
-   * than or equal to the length in bits of the promoted left operand" according
-   * to C++ spec. */
-  assert(low < 8 * sizeof(T));
-  return (value & bitRangeMask<T>(high, low)) >> low;
-}
-
-template <typename T>
-constexpr static T getByteAtIndex(T value, uint8_t index) {
-  return getBitRange(value, (index + 1) * k_numberOfBitsInByte - 1,
-                     index * k_numberOfBitsInByte);
+  for (uint8_t i = 0; i < nativeUnsignedIntegerBitCount; i++) {
+    if (v < (static_cast<T>(1) << i)) {
+      return i;
+    }
+  }
+  return numberOfBitsIn<T>();
 }
 
 }  // namespace BitHelper

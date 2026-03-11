@@ -1,20 +1,11 @@
 #include "continuous_function_store.h"
 
-#include <escher/palette.h>
 #include <ion.h>
-#include <omg/utf8_helper.h>
+#include <poincare/serialization_helper.h>
 
 using namespace Escher;
 
 namespace Shared {
-
-void ContinuousFunctionStore::removeAll() {
-  FunctionStore::removeAll();
-  m_memoizedNumberOfActiveFunctions = 0;
-  for (int i = 0; i < k_maxNumberOfMemoizedModels; i++) {
-    m_functions[i] = ContinuousFunction();
-  }
-}
 
 bool ContinuousFunctionStore::displaysOnlyCartesianFunctions(
     int* nbActiveFunctions) const {
@@ -109,7 +100,7 @@ ContinuousFunction ContinuousFunctionStore::newModel(const char* name,
 Ion::Storage::Record::ErrorStatus ContinuousFunctionStore::addEmptyModel() {
   constexpr size_t bufferSize = ContinuousFunction::k_maxDefaultNameSize;
   char name[bufferSize];
-  size_t length = UTF8Helper::WriteCodePoint(
+  size_t length = Poincare::SerializationHelper::CodePoint(
       name, bufferSize, ContinuousFunction::k_unnamedRecordFirstChar);
   Ion::Storage::FileSystem::sharedFileSystem->firstAvailableNameFromPrefix(
       name, length, bufferSize, modelExtension());

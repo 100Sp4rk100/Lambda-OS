@@ -10,6 +10,7 @@ namespace Statistics {
 class HistogramRange : public Shared::MemoizedCurveViewRange {
  public:
   HistogramRange(Store* store) : m_store(store) {}
+  void setHistogramRange(float min, float max) { protectedSetXRange(min, max); }
 
   // return true if the window has scrolled
   bool scrollToSelectedBarIndex(int series, int index);

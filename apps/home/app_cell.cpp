@@ -2,28 +2,71 @@
 
 #include <assert.h>
 
+#include <escher/text_view.h>
+
+#include <kandinsky/ion_context.h>
+
+#include "apps/theme_gestion/themeGestion.h"
+#include "apps/theme_gestion/backgroundGestion.h"
+
 using namespace Escher;
 
 namespace Home {
 
+KDGlyph::Format AppCell::k_glyphsFormat(){
+  return {
+      .style = {.font = KDFont::Size::Small},
+      .horizontalAlignment = KDGlyph::k_alignCenter};}
+
 AppCell::AppCell()
     : HighlightCell(),
-      m_messageNameView((I18n::Message)0, k_glyphsFormat),
+      m_messageNameView((I18n::Message)0, k_glyphsFormat()),
       m_image(0, 0, nullptr, 0),
-      m_pointerNameView(nullptr, k_glyphsFormat) {}
+      m_pointerNameView(nullptr, k_glyphsFormat()) {}
 
-void AppCell::drawRect(KDContext* ctx, KDRect rect) const {
+void AppCell::drawRect(KDContext *ctx, KDRect rect) const {
   KDSize nameSize = textView()->minimalSizeForOptimalDisplay();
-  ctx->fillRect(
-      KDRect(0, bounds().height() - nameSize.height() - 2 * k_nameHeightMargin,
-             bounds().width(), nameSize.height() + 2 * k_nameHeightMargin),
-      KDColorWhite);
+
+  if (Theme::ThemeGestion::isThereBackground()){
+    int width  = bounds().width();
+    int height = nameSize.height() + 2 * k_nameHeightMargin;
+    int yStart = bounds().height() - height;
+
+    // Origine absolue de la cellule dans l’écran
+    KDPoint absOrigin = absoluteOrigin();
+
+    KDColor buffer[width * height];
+
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        int srcX = absOrigin.x() + x;
+        int srcY = absOrigin.y() + yStart + y - nameSize.height()-4;
+
+        int srcIndex = srcY * background_width + srcX;
+        int dstIndex = y * width + x;
+
+        buffer[dstIndex] = reinterpret_cast<const KDColor *>(Theme::ThemeGestion::getBackground())[srcIndex];
+      }
+    }
+
+    ctx->fillRectWithPixels(
+      KDRect(0, yStart, width, height),
+      buffer,
+      nullptr
+    );
+  }else {
+    KDSize nameSize = textView()->minimalSizeForOptimalDisplay();
+    ctx->fillRect(
+        KDRect(0, bounds().height() - nameSize.height() - 2 * k_nameHeightMargin,
+              bounds().width(), nameSize.height() + 2 * k_nameHeightMargin),
+        Theme::ThemeGestion::getBackgroundColor());
+  }
 }
 
 int AppCell::numberOfSubviews() const { return isVisible() ? 2 : 0; }
 
-View* AppCell::subviewAtIndex(int index) {
-  View* views[] = {&m_iconView, const_cast<TextView*>(textView())};
+View *AppCell::subviewAtIndex(int index) {
+  View *views[] = {&m_iconView, const_cast<TransparentTextView *>(textView())};
   return views[index];
 }
 
@@ -34,7 +77,7 @@ void AppCell::layoutSubviews(bool force) {
                 force);
   KDSize nameSize = textView()->minimalSizeForOptimalDisplay();
   setChildFrame(
-      const_cast<TextView*>(textView()),
+      const_cast<TransparentTextView *>(textView()),
       KDRect((bounds().width() - nameSize.width()) / 2 - k_nameWidthMargin,
              bounds().height() - nameSize.height() - 2 * k_nameHeightMargin,
              nameSize.width() + 2 * k_nameWidthMargin,
@@ -42,11 +85,12 @@ void AppCell::layoutSubviews(bool force) {
       force);
 }
 
-void AppCell::setBuiltinAppDescriptor(const ::App::Descriptor* descriptor) {
+void AppCell::setBuiltinAppDescriptor(const ::App::Descriptor *descriptor) {
   m_iconView.setImage(descriptor->icon());
   m_messageNameView.setMessage(descriptor->name());
   m_pointerNameView.setText(nullptr);
   layoutSubviews();
+  reloadCell();
 }
 
 void AppCell::setExternalApp(Ion::ExternalApps::App app) {
@@ -55,6 +99,7 @@ void AppCell::setExternalApp(Ion::ExternalApps::App app) {
   m_image = Image(k_iconWidth, k_iconHeight, app.iconData(), app.iconSize());
   m_iconView.setImage(&m_image);
   layoutSubviews();
+  reloadCell();
 }
 
 void AppCell::setVisible(bool visible) {
@@ -65,12 +110,16 @@ void AppCell::setVisible(bool visible) {
 }
 
 void AppCell::reloadCell() {
-  TextView* t = const_cast<TextView*>(textView());
-  t->setTextColor(isHighlighted() ? KDColorWhite : KDColorBlack);
-  t->setBackgroundColor(isHighlighted() ? Palette::YellowDark : KDColorWhite);
+  TransparentTextView *t = const_cast<TransparentTextView *>(textView());
+  if (Theme::ThemeGestion::isThereBackground()){
+    t->setTextColor(isHighlighted() ? Theme::ThemeGestion::getColor("TextHillightColor") : Theme::ThemeGestion::getColor("TextColor"));
+  }else{
+    t->setTextColor(isHighlighted() ? Theme::ThemeGestion::getColor("TextHillightColor") : Theme::ThemeGestion::getColor("TextColor"));
+    t->setBackgroundColor(isHighlighted() ? Theme::ThemeGestion::getColor("BackgroundColorHilight") : Theme::ThemeGestion::getColor("BackgroundColor"));
+  }
 }
 
-const Escher::TextView* AppCell::textView() const {
+const Escher::TransparentTextView *AppCell::textView() const {
   if (m_pointerNameView.text()) {
     return &m_pointerNameView;
   } else {

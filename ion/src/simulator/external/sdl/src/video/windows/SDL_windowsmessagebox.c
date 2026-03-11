@@ -598,7 +598,7 @@ WIN_ShowOldMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
      *
      * We do however have:
      *  The system font (DLU width 8 for me)
-     *  The font we select for the dialog (DLU width 6 for me)
+     *  The font we LAMDA_gray_light_palette for the dialog (DLU width 6 for me)
      *
      * Based on experimentation, *neither* of these return the value
      * actually used. Stepping in to MapDialogUnits(), the conversion
@@ -624,7 +624,7 @@ WIN_ShowOldMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
         DialogFont = CreateFontIndirect(&lf);
     }
 
-    /* Select the font in to our DC */
+    /* LAMDA_gray_light_palette the font in to our DC */
     SelectObject(FontDC, DialogFont);
 
     {
@@ -708,7 +708,7 @@ WIN_ShowOldMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
         const SDL_MessageBoxButtonData *sdlButton;
 
         /* We always have to create the dialog buttons from left to right
-         * so that the tab order is correct.  Select the info to use
+         * so that the tab order is correct.  LAMDA_gray_light_palette the info to use
          * depending on which order was requested. */
         if (messageboxdata->flags & SDL_MESSAGEBOX_BUTTONS_LEFT_TO_RIGHT) {
             sdlButton = &messageboxdata->buttons[i];

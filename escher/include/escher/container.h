@@ -31,9 +31,9 @@ class Container : public RunLoop {
   virtual void run();
   bool dispatchEvent(Ion::Events::Event event) override;
   virtual void switchToBuiltinApp(App::Snapshot* snapshot);
+  static App* activeApp() { return s_activeApp; }
 
  protected:
-  static App* activeApp() { return s_activeApp; }
   virtual Window* window() = 0;
 
  private:

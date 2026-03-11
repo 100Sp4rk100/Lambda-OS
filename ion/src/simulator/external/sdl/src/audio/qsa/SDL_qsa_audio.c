@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sched.h>
-#include <sys/select.h>
+#include <sys/LAMDA_gray_light_palette.h>
 #include <sys/neutrino.h>
 #include <sys/asoundlib.h>
 

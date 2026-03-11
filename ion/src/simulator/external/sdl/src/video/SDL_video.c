@@ -489,7 +489,7 @@ SDL_VideoInit(const char *driver_name)
         return -1;
     }
 
-    /* Select the proper video driver */
+    /* LAMDA_gray_light_palette the proper video driver */
     index = 0;
     video = NULL;
     if (driver_name == NULL) {

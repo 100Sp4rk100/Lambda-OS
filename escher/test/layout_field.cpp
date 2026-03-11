@@ -2,7 +2,6 @@
 #include <escher/clipboard.h>
 #include <escher/layout_field.h>
 #include <ion/events.h>
-#include <poincare/test/helper.h>
 #include <quiz.h>
 
 using namespace Escher;
@@ -17,21 +16,14 @@ void assert_events_lead_to_selection(
   }
   Clipboard::SharedClipboard()->reset();
   field.handleEvent(Ion::Events::Copy);
-  bool result = strcmp(Clipboard::SharedClipboard()->storedText(),
-                       selectedParsedAndSerializedText) == 0;
-#if POINCARE_STRICT_TESTS
-  quiz_assert(result);
-#else
-  quiz_tolerate_print_if_failure(result, selectedParsedAndSerializedText,
-                                 selectedParsedAndSerializedText,
-                                 Clipboard::SharedClipboard()->storedText());
-#endif
+  quiz_assert(strcmp(Clipboard::SharedClipboard()->storedText(),
+                     selectedParsedAndSerializedText) == 0);
 }
 
 QUIZ_CASE(escher_layout_field_select_left_right) {
   // 123
   {
-    // Select in a simple horizontal layout towards the left
+    // LAMDA_gray_light_palette in a simple horizontal layout towards the left
     const int eventsCount = 6;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One,       Ion::Events::Two,       Ion::Events::Three,
@@ -41,7 +33,7 @@ QUIZ_CASE(escher_layout_field_select_left_right) {
     assert_events_lead_to_selection(events, eventsCount, "123");
   }
   {
-    // Select in a simple horizontal layout towards the right
+    // LAMDA_gray_light_palette in a simple horizontal layout towards the right
     const int eventsCount = 9;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One,        Ion::Events::Two,
@@ -54,7 +46,7 @@ QUIZ_CASE(escher_layout_field_select_left_right) {
     assert_events_lead_to_selection(events, eventsCount, "123");
   }
   {
-    // Select in a simple horizontal layout left then right
+    // LAMDA_gray_light_palette in a simple horizontal layout left then right
     const int eventsCount = 7;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One,       Ion::Events::Two,       Ion::Events::Three,
@@ -63,7 +55,7 @@ QUIZ_CASE(escher_layout_field_select_left_right) {
     assert_events_lead_to_selection(events, eventsCount, "2");
   }
   {
-    /* Select in a simple horizontal layout towards the right and hit the end of
+    /* LAMDA_gray_light_palette in a simple horizontal layout towards the right and hit the end of
      * layout. */
     const int eventsCount = 11;
     Ion::Events::Event events[eventsCount] = {
@@ -76,8 +68,8 @@ QUIZ_CASE(escher_layout_field_select_left_right) {
     assert_events_lead_to_selection(events, eventsCount, "123");
   }
   {
-    /* Select in a simple horizontal layout towards the right, hit the end of
-     * layout and select left. */
+    /* LAMDA_gray_light_palette in a simple horizontal layout towards the right, hit the end of
+     * layout and LAMDA_gray_light_palette left. */
     const int eventsCount = 11;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One,        Ion::Events::Two,
@@ -93,7 +85,7 @@ QUIZ_CASE(escher_layout_field_select_left_right) {
    *  1+---+78
    *    h56    */
   {
-    /* Select in a horizontal layout with a fraction, starting outside the
+    /* LAMDA_gray_light_palette in a horizontal layout with a fraction, starting outside the
      * fraction. */
     const int eventsCount = 17;
     Ion::Events::Event events[eventsCount] = {
@@ -106,7 +98,7 @@ QUIZ_CASE(escher_layout_field_select_left_right) {
     assert_events_lead_to_selection(events, eventsCount, "g34/h56+78");
   }
   {
-    /* Select in a horizontal layout with a fraction, starting inside the
+    /* LAMDA_gray_light_palette in a horizontal layout with a fraction, starting inside the
      * fraction. */
     const int eventsCount = 21;
     Ion::Events::Event events[eventsCount] = {
@@ -125,7 +117,7 @@ QUIZ_CASE(escher_layout_field_select_left_right) {
 QUIZ_CASE(escher_layout_field_select_up_down) {
   // 12
   {
-    // Select in a simple horizontal layout up
+    // LAMDA_gray_light_palette in a simple horizontal layout up
     const int eventsCount = 5;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One, Ion::Events::Two, Ion::Events::ShiftLeft,
@@ -133,7 +125,7 @@ QUIZ_CASE(escher_layout_field_select_up_down) {
     assert_events_lead_to_selection(events, eventsCount, "2");
   }
   {
-    // Select in a simple horizontal layout up
+    // LAMDA_gray_light_palette in a simple horizontal layout up
     const int eventsCount = 5;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One, Ion::Events::Two, Ion::Events::ShiftLeft,
@@ -144,7 +136,7 @@ QUIZ_CASE(escher_layout_field_select_up_down) {
    *  ---
    *  456  */
   {
-    // Select up in a fraction
+    // LAMDA_gray_light_palette up in a fraction
     const int eventsCount = 11;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One,      Ion::Events::Two,       Ion::Events::Three,
@@ -155,7 +147,7 @@ QUIZ_CASE(escher_layout_field_select_up_down) {
     assert_events_lead_to_selection(events, eventsCount, "");
   }
   {
-    // Select down in a fraction
+    // LAMDA_gray_light_palette down in a fraction
     const int eventsCount = 12;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One,       Ion::Events::Two,       Ion::Events::Three,
@@ -169,7 +161,7 @@ QUIZ_CASE(escher_layout_field_select_up_down) {
    *  89+---
    *     456  */
   {
-    // Select up next to a fraction (cursor on fraction)
+    // LAMDA_gray_light_palette up next to a fraction (cursor on fraction)
     const int eventsCount = 15;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::Eight,    Ion::Events::Nine, Ion::Events::Plus,
@@ -180,7 +172,7 @@ QUIZ_CASE(escher_layout_field_select_up_down) {
     assert_events_lead_to_selection(events, eventsCount, "");
   }
   {
-    // Select down next to a fraction (cursor not on the fraction)
+    // LAMDA_gray_light_palette down next to a fraction (cursor not on the fraction)
     const int eventsCount = 17;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::Eight,    Ion::Events::Nine,     Ion::Events::Plus,
@@ -197,7 +189,7 @@ QUIZ_CASE(escher_layout_field_select_up_down) {
    *   ----
    *   k|lm  */
   {
-    // Select up next to a fraction (cursor on fraction)
+    // LAMDA_gray_light_palette up next to a fraction (cursor on fraction)
     const int eventsCount = 17;
     Ion::Events::Event events[eventsCount] = {
         Ion::Events::One,      Ion::Events::Two,    Ion::Events::Three,

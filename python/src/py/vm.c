@@ -287,7 +287,7 @@ outer_dispatch_loop:
                 RAISE(exc);
             }
 
-#if !NDEBUG
+#if ASSERTIONS
             // Can go up to mandelbrot(361)
             int k_maxPythonIterations = 100000000;
             int counter = 0;
@@ -296,7 +296,7 @@ outer_dispatch_loop:
             // loop to execute byte code
             for (;;) {
 dispatch_loop:
-#if !NDEBUG
+#if ASSERTIONS
                 // This avoids trapping the fuzzer in an infinite while loop
                 counter++;
                 if (counter > k_maxPythonIterations) {

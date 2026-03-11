@@ -24,35 +24,35 @@ bool ScrollViewBar::update(KDCoordinate totalContentLength,
   return visible();
 }
 
-void ScrollViewHorizontalBar::drawRect(KDContext* ctx, KDRect rect) const {
+void ScrollViewHorizontalBar::drawRect(KDContext *ctx, KDRect rect) const {
   if (!visible()) {
     return;
   }
   KDCoordinate y = (bounds().height() - k_indicatorThickness) / 2;
   KDCoordinate height = k_indicatorThickness;
-  ctx->fillRect(KDRect(k_leftMargin, y, totalLength(), height), k_trackColor);
+  ctx->fillRect(KDRect(k_leftMargin, y, totalLength(), height), Theme::ThemeGestion::getColor("GrayMiddle"));
 
   KDCoordinate x = int(std::round(m_offset * totalLength()));
   KDCoordinate width =
       std::min(int(m_visibleLength * totalLength()), totalLength() - x);
-  ctx->fillRect(KDRect(k_leftMargin + x, y, width, height), k_color);
+  ctx->fillRect(KDRect(k_leftMargin + x, y, width, height), Theme::ThemeGestion::getColor("GrayDark"));
 }
 
 ScrollViewVerticalBar::ScrollViewVerticalBar()
     : m_margins(Metric::CommonMargins.vertical()) {}
 
-void ScrollViewVerticalBar::drawRect(KDContext* ctx, KDRect rect) const {
+void ScrollViewVerticalBar::drawRect(KDContext *ctx, KDRect rect) const {
   if (!visible()) {
     return;
   }
   KDCoordinate x = (bounds().width() - k_indicatorThickness) / 2;
   KDCoordinate width = k_indicatorThickness;
-  ctx->fillRect(KDRect(x, m_margins.top(), width, totalLength()), k_trackColor);
+  ctx->fillRect(KDRect(x, m_margins.top(), width, totalLength()), Theme::ThemeGestion::getColor("GrayMiddle"));
 
   KDCoordinate y = int(std::round(m_offset * totalLength()));
   KDCoordinate height =
       std::min(int(m_visibleLength * totalLength()), totalLength() - y);
-  ctx->fillRect(KDRect(x, m_margins.top() + y, width, height), k_color);
+  ctx->fillRect(KDRect(x, m_margins.top() + y, width, height), Theme::ThemeGestion::getColor("GrayDark"));
 }
 
 ScrollViewArrow::ScrollViewArrow()
@@ -66,10 +66,10 @@ bool ScrollViewArrow::update(bool visible) {
   return visible;
 }
 
-void ScrollViewArrow::drawRect(KDContext* ctx, KDRect rect) const {
+void ScrollViewArrow::drawRect(KDContext *ctx, KDRect rect) const {
   ctx->fillRect(bounds(), m_backgroundColor);
   ctx->alignAndDrawString(arrow(), KDPointZero, bounds().size(),
-                          {.style = {.glyphColor = k_color,
+                          {.style = {.glyphColor = Theme::ThemeGestion::getColor("GrayDark"),
                                      .backgroundColor = m_backgroundColor,
                                      .font = m_font},
                            .horizontalAlignment = KDGlyph::k_alignLeft,
@@ -78,9 +78,9 @@ void ScrollViewArrow::drawRect(KDContext* ctx, KDRect rect) const {
 }
 
 #if ESCHER_VIEW_LOGGING
-const char* ScrollViewBar::className() const { return "ScrollViewBar"; }
+const char *ScrollViewBar::className() const { return "ScrollViewBar"; }
 
-void ScrollViewBar::logAttributes(std::ostream& os) const {
+void ScrollViewBar::logAttributes(std::ostream &os) const {
   View::logAttributes(os);
   os << " offset=\"" << m_offset << "\"";
   os << " visibleLength=\"" << m_visibleLength << "\"";

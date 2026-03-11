@@ -1,19 +1,17 @@
 #ifndef PROBABILITE_TWO_PARAMETERS_DISTRIBUTION_H
 #define PROBABILITE_TWO_PARAMETERS_DISTRIBUTION_H
 
-#include <poincare/statistics/distribution.h>
-
 #include "distribution.h"
 
 namespace Distributions {
 
 class TwoParametersDistribution : public Distribution {
  public:
-  TwoParametersDistribution(Poincare::Distribution::Type type)
-      : Distribution(type),
-        m_parameters{Poincare::Distribution::DefaultParameterAtIndex(type, 0),
-                     Poincare::Distribution::DefaultParameterAtIndex(type, 1)} {
-  }
+  TwoParametersDistribution(Poincare::Distribution::Type type,
+                            double parameterValue1, double parameterValue2)
+      : Distribution(type), m_parameters{parameterValue1, parameterValue2} {}
+  int numberOfParameters() override { return 2; }
+  const double* constParametersArray() const override { return m_parameters; }
 
  protected:
   double* parametersArray() override { return m_parameters; }

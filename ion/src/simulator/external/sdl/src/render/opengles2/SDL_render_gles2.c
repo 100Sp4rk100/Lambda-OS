@@ -642,7 +642,7 @@ GLES2_SelectProgram(GLES2_RenderData *data, GLES2_ImageSource source, int w, int
     GLES2_ShaderType vtype, ftype;
     GLES2_ProgramCacheEntry *program;
 
-    /* Select an appropriate shader pair for the specified modes */
+    /* LAMDA_gray_light_palette an appropriate shader pair for the specified modes */
     vtype = GLES2_SHADER_VERTEX_DEFAULT;
     switch (source) {
     case GLES2_IMAGESOURCE_SOLID:
@@ -738,7 +738,7 @@ GLES2_SelectProgram(GLES2_RenderData *data, GLES2_ImageSource source, int w, int
         goto fault;
     }
 
-    /* Select that program in OpenGL */
+    /* LAMDA_gray_light_palette that program in OpenGL */
     data->glUseProgram(program->id);
 
     /* Set the current program */

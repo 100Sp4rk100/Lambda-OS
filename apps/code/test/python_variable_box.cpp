@@ -1,4 +1,3 @@
-#include <python/test/execution_environment.h>
 #include <quiz.h>
 #include <string.h>
 
@@ -9,10 +8,10 @@
 
 using namespace Code;
 
-void assert_variables_are(const char* script,
+void assert_variables_are(const char *script,
                           const size_t nameToCompleteOffsetInScript,
                           const size_t nameToCompleteLength,
-                          const char** expectedVariables,
+                          const char **expectedVariables,
                           int expectedVariablesCount) {
   // Clean the store
   ScriptStore::DeleteAllScripts();
@@ -30,7 +29,7 @@ void assert_variables_are(const char* script,
   // Load the variable box
   PythonVariableBoxController varBox;
 
-  const char* nameToComplete = script + nameToCompleteOffsetInScript;
+  const char *nameToComplete = script + nameToCompleteOffsetInScript;
   varBox.loadFunctionsAndVariables(scriptIndex, nameToComplete,
                                    nameToCompleteLength);
 
@@ -40,7 +39,7 @@ void assert_variables_are(const char* script,
   bool addParentheses;
   for (int i = 0; i < expectedVariablesCount; i++) {
     quiz_assert(i == index);
-    const char* autocompletionI = varBox.autocompletionAlternativeAtIndex(
+    const char *autocompletionI = varBox.autocompletionAlternativeAtIndex(
         nameToCompleteLength, &textToInsertLength, &addParentheses, i, &index);
     /* If false, the autocompletion has cycled: there are not as many results as
      * expected */
@@ -58,13 +57,11 @@ void assert_variables_are(const char* script,
   quiz_assert(index == 0);
 }
 
-QUIZ_CASE(code_variable_box) {
-  init_environment();
-
-  const char* expectedVariables[] = {"froo", "from", "frozenset()"};
+QUIZ_CASE(python_variable_box) {
+#ifndef PLATFORM_WINDOWS
+  const char *expectedVariables[] = {"froo", "from", "frozenset()"};
   // FIXME This test does not load imported variables for now
   assert_variables_are("\x01 from math import *\nfroo=3", 21, 2,
                        expectedVariables, std::size(expectedVariables));
-
-  deinit_environment();
+#endif
 }

@@ -1,11 +1,10 @@
 #include <escher/container.h>
 #include <escher/editable_field.h>
-#include <escher/layout_preferences.h>
 #include <escher/metric.h>
 #include <escher/toolbox.h>
-#include <omg/utf8_helper.h>
-#include <poincare/helpers/symbol.h>
-#include <poincare/xnt.h>
+#include <poincare/serialization_helper.h>
+#include <poincare/symbol.h>
+#include <poincare/xnt_helpers.h>
 
 using namespace Poincare;
 
@@ -31,30 +30,20 @@ bool EditableField::handleXNT(int currentIndex, CodePoint startingXNT) {
   if (!prepareToEdit()) {
     return false;
   }
-  constexpr int bufferSize = SymbolHelper::k_maxNameSize;
+  constexpr int bufferSize = SymbolAbstractNode::k_maxNameSize;
   char buffer[bufferSize];
   size_t cycleSize;
   // Find special XNT
   if (!findXNT(buffer, bufferSize, currentIndex, &cycleSize)) {
     // Use default XNT cycle
-    CodePoint xnt = Poincare::XNT::CodePointAtIndexInDefaultCycle(
+    CodePoint xnt = XNTHelpers::CodePointAtIndexInDefaultCycle(
         currentIndex, startingXNT, &cycleSize);
-    UTF8Helper::WriteCodePoint(buffer, bufferSize, xnt);
+    SerializationHelper::CodePoint(buffer, bufferSize, xnt);
   }
   if (cycleSize > 1 && currentIndex > 0) {
     removePreviousXNT();
   }
   return handleEventWithText(buffer, false, true);
-}
-
-size_t EditableField::getTextFromEvent(Ion::Events::Event event, char* buffer,
-                                       size_t bufferSize) {
-  if (event == Ion::Events::Log &&
-      LayoutPreferences::SharedPreferences()->logarithmKeyEvent() ==
-          Poincare::Preferences::LogarithmKeyEvent::WithBaseTen) {
-    return strlcpy(buffer, k_logWithBase10, bufferSize);
-  }
-  return Ion::Events::copyText(static_cast<uint8_t>(event), buffer, bufferSize);
 }
 
 }  // namespace Escher

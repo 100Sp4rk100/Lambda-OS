@@ -1,7 +1,6 @@
 #include "app.h"
 
 #include <apps/apps_container.h>
-#include <apps/math_preferences.h>
 #include <assert.h>
 
 using namespace Escher;
@@ -33,8 +32,8 @@ void App::didBecomeActive(Window* window) {
   ::App::didBecomeActive(window);
   // Disable spinner
   Ion::Events::setSpinner(false);
-  if (MathPreferences::SharedPreferences()->examMode().color() ==
-      KDColorBlack) {
+  if (Poincare::Preferences::SharedPreferences()->examMode().color() ==
+      Theme::ThemeGestion::getColor("KDColorBlack")) {
     // Forbid standby in exam mode with led since it disables the led
     Ion::Power::selectStandbyMode(true);
   }

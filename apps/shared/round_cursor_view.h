@@ -43,7 +43,7 @@ class RingCursorView : public AbstractRoundCursorView {
 class ToggleableRingRoundCursorView : public AbstractRoundCursorView {
  public:
   ToggleableRingRoundCursorView() : AbstractRoundCursorView(false) {}
-  void setIsRing(bool isRing, const View* parent);
+  void setIsRing(bool isRing);
 
  private:
   KDCoordinate size() const override { return k_maxSize; }

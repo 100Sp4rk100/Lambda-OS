@@ -3,12 +3,12 @@
 
 #include <SDL.h>
 #include <ion/events.h>
-#include <ion/keyboard/event_data.h>
 
 namespace Ion {
 namespace Events {
 
-constexpr static size_t sharedExternalTextBufferSize = EventData::k_maxDataSize;
+constexpr static size_t sharedExternalTextBufferSize =
+    sizeof(SDL_TextInputEvent::text);
 char* sharedExternalTextBuffer();
 
 }  // namespace Events

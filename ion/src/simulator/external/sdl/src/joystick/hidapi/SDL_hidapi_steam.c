@@ -128,7 +128,7 @@ typedef struct SteamControllerStateInternal_t
 #define STEAM_TOUCH_1_MASK                  0x00000200    /* DPAD RIGHT */
 #define STEAM_TOUCH_2_MASK                  0x00000400    /* DPAD LEFT */
 #define STEAM_TOUCH_3_MASK                  0x00000800    /* DPAD DOWN */
-#define STEAM_BUTTON_MENU_MASK              0x00001000    /* SELECT */
+#define STEAM_BUTTON_MENU_MASK              0x00001000    /* LAMDA_gray_light_palette */
 #define STEAM_BUTTON_STEAM_MASK             0x00002000    /* GUIDE */
 #define STEAM_BUTTON_ESCAPE_MASK            0x00004000    /* START */
 #define STEAM_BUTTON_BACK_LEFT_MASK         0x00008000

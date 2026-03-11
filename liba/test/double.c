@@ -1,9 +1,7 @@
-#include <assert.h>
 #include <quiz.h>
+#include <assert.h>
 
-// clang-format off
-
-QUIZ_CASE(liba_double_arithmetic) {
+QUIZ_CASE(double_arithmetic) {
   quiz_assert((float)1.123456789101112 == 1.123456789101112f);
   quiz_assert((double)1.12345f - 1.12345< 0.0000001);
   quiz_assert(3.12+2.00001 - 5.12001 < 0.0000000001);
@@ -18,5 +16,3 @@ QUIZ_CASE(liba_double_arithmetic) {
   quiz_assert(3.12345678901234567890-2.0000000000000001 == 1.1234567890123457);
   quiz_assert(1e36-1e34 - 9.9e35 < 0.0000000001);
 }
-
-// clang-format on

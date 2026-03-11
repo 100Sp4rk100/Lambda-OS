@@ -2,9 +2,9 @@
 
 #include <apps/constant.h>
 #include <escher/container.h>
-#include <omg/utf8_helper.h>
-#include <poincare/helpers/symbol.h>
+#include <poincare/comparison.h>
 #include <poincare/print.h>
+#include <poincare/serialization_helper.h>
 
 #include "column_parameter_controller.h"
 #include "poincare_helpers.h"
@@ -18,7 +18,7 @@ namespace Shared {
 
 ClearColumnHelper::ClearColumnHelper()
     : m_confirmPopUpController(Invocation::Builder<ClearColumnHelper>(
-          [](ClearColumnHelper* param, void* parent) {
+          [](ClearColumnHelper *param, void *parent) {
             param->clearSelectedColumn();
             App::app()->modalViewController()->dismissModal();
             param->table()->reloadData();
@@ -43,9 +43,9 @@ void ClearColumnHelper::setClearPopUpContent() {
 
 /* StoreColumnHelper */
 
-StoreColumnHelper::StoreColumnHelper(Escher::Responder* responder,
-                                     Context* parentContext,
-                                     ClearColumnHelper* clearColumnHelper)
+StoreColumnHelper::StoreColumnHelper(Escher::Responder *responder,
+                                     Context *parentContext,
+                                     ClearColumnHelper *clearColumnHelper)
     : m_clearColumnHelper(clearColumnHelper),
       m_templateController(responder, this),
       m_templateStackController(nullptr, &m_templateController,
@@ -76,51 +76,46 @@ void StoreColumnHelper::displayFormulaInput() {
       formulaMemoizationIndex(store()->seriesAtColumn(referencedColumn()),
                               store()->relativeColumn(referencedColumn()));
   if (!memoizedFormula(index).isUninitialized()) {
-    fillFormulaInputWithFormula(memoizedFormula(index));
+    fillFormulaInputWithTemplate(memoizedFormula(index));
     return;
   }
   App::app()->displayModalViewController(&m_templateStackController, 0.f, 0.f,
                                          Metric::PopUpMarginsNoBottom);
 }
 
-void StoreColumnHelper::fillFormulaInputWithTemplate(
-    const Layout& templateLayout) {
-  constexpr size_t k_bufferSize = ClearColumnHelper::k_maxSizeOfColumnName;
-  char formulaText[k_bufferSize];
-  size_t length = fillColumnNameFromStore(referencedColumn(), formulaText);
-  if (length < ClearColumnHelper::k_maxSizeOfColumnName - 1) {
-    UTF8Helper::WriteCodePoint(formulaText + length, k_bufferSize - length,
-                               '=');
+void StoreColumnHelper::fillFormulaInputWithTemplate(Layout templateLayout) {
+  constexpr size_t k_sizeOfBuffer = Constant::MaxSerializedExpressionSize;
+  char templateString[k_sizeOfBuffer];
+  size_t filledLength =
+      fillColumnNameFromStore(referencedColumn(), templateString);
+  if (filledLength < ClearColumnHelper::k_maxSizeOfColumnName - 1) {
+    filledLength += SerializationHelper::CodePoint(
+        templateString + filledLength, k_sizeOfBuffer - filledLength, '=');
   }
-  Layout formulaLayout = Layout::Parse(formulaText);
   if (!templateLayout.isUninitialized()) {
-    formulaLayout = Layout::Concatenate(formulaLayout, templateLayout);
+    templateLayout.serializeParsedExpression(
+        templateString + filledLength, k_sizeOfBuffer - filledLength, nullptr);
   }
-  fillFormulaInputWithFormula(formulaLayout);
-}
-
-void StoreColumnHelper::fillFormulaInputWithFormula(
-    const Layout& formulaLayout) {
-  inputViewController()->setLayout(formulaLayout);
+  inputViewController()->setTextBody(templateString);
   inputViewController()->edit(
       Ion::Events::OK, this,
-      [](void* context, void* sender) {
-        StoreColumnHelper* storeColumnHelper =
-            static_cast<StoreColumnHelper*>(context);
-        InputViewController* thisInputViewController =
-            static_cast<InputViewController*>(sender);
+      [](void *context, void *sender) {
+        StoreColumnHelper *storeColumnHelper =
+            static_cast<StoreColumnHelper *>(context);
+        InputViewController *thisInputViewController =
+            static_cast<InputViewController *>(sender);
         return storeColumnHelper->fillColumnWithFormula(
-            thisInputViewController->layout());
+            thisInputViewController->textBody());
       },
-      [](void* context, void* sender) { return true; });
+      [](void *context, void *sender) { return true; });
 }
 
-bool StoreColumnHelper::fillColumnWithFormula(
-    const Poincare::Layout& formulaLayout) {
+bool StoreColumnHelper::fillColumnWithFormula(const char *text) {
   int column = store()->relativeColumn(referencedColumn());
   int series = store()->seriesAtColumn(referencedColumn());
+  Layout formulaLayout;
   FillColumnStatus status =
-      privateFillColumnWithFormula(formulaLayout, &series, &column);
+      privateFillColumnWithFormula(text, &series, &column, &formulaLayout);
   if (status == FillColumnStatus::Success ||
       status == FillColumnStatus::NoDataToStore) {
     if (status == FillColumnStatus::Success) {
@@ -153,21 +148,23 @@ int StoreColumnHelper::formulaMemoizationIndex(int series, int column) {
 }
 
 StoreColumnHelper::FillColumnStatus
-StoreColumnHelper::privateFillColumnWithFormula(const Layout& formulaLayout,
-                                                int* series, int* column) {
+StoreColumnHelper::privateFillColumnWithFormula(const char *text, int *series,
+                                                int *column,
+                                                Layout *formulaLayout) {
   StoreContext storeContext(store(), m_parentContext);
-  UserExpression formula =
-      UserExpression::Parse(formulaLayout.tree(), &storeContext, true, true);
+  Expression formula = Expression::Parse(text, &storeContext);
   if (formula.isUninitialized()) {
     return FillColumnStatus::SyntaxError;
   }
-  if (formula.isEquality()) {
+  if (ComparisonNode::IsBinaryEquality(formula)) {
     bool isValidEquality = false;
-    const UserExpression leftOfEqual = formula.cloneChildAtIndex(0);
-    if (leftOfEqual.isUserSymbol()) {
-      const char* name = SymbolHelper::GetName(leftOfEqual);
-      if (store()->isColumnName(name, strlen(name), series, column)) {
-        formula = formula.cloneChildAtIndex(1);
+    Expression leftOfEqual = formula.childAtIndex(0);
+    if (leftOfEqual.type() == ExpressionNode::Type::Symbol) {
+      Symbol symbolLeftOfEqual = static_cast<Symbol &>(leftOfEqual);
+      if (store()->isColumnName(symbolLeftOfEqual.name(),
+                                strlen(symbolLeftOfEqual.name()), series,
+                                column)) {
+        formula = formula.childAtIndex(1);
         isValidEquality = true;
       }
     }
@@ -175,42 +172,35 @@ StoreColumnHelper::privateFillColumnWithFormula(const Layout& formulaLayout,
       return FillColumnStatus::DataNotSuitable;
     }
   }
-  Poincare::Dimension d = formula.dimension(&storeContext);
-  if (!(d.isScalar() || d.isList())) {
+
+  // Create the layout before simplifying
+  *formulaLayout = formula.createLayout(
+      Preferences::SharedPreferences()->displayMode(),
+      Preferences::SharedPreferences()->numberOfSignificantDigits(),
+      &storeContext);
+
+  PoincareHelpers::CloneAndSimplify(
+      &formula, &storeContext,
+      {.target = ReductionTarget::SystemForApproximation,
+       .symbolicComputation =
+           SymbolicComputation::ReplaceAllSymbolsWithDefinitionsOrUndefined});
+
+  if (formula.isUndefined()) {
     return FillColumnStatus::DataNotSuitable;
   }
 
-  bool reductionFailure = false;
-  SystemExpression reduced = PoincareHelpers::CloneAndReduce(
-      formula, &storeContext,
-      {.symbolicComputation = SymbolicComputation::ReplaceAllSymbols},
-      &reductionFailure);
-
-  if (reductionFailure || reduced.isUndefined()) {
-    return FillColumnStatus::DataNotSuitable;
-  }
-
-  if (reduced.hasRandomList() || !reduced.isList()) {
+  if (formula.recursivelyMatches(
+          [](const Expression e) { return e.isRandomList(); }) ||
+      formula.type() != ExpressionNode::Type::List) {
     // Sometimes the formula is a list but the reduction failed.
-    // TODO_CONTEXT: prepare for approximation ?
-    reduced = PoincareHelpers::Approximate<double>(reduced, &storeContext);
+    formula = PoincareHelpers::Approximate<double>(formula, &storeContext);
   }
 
-  if (reduced.isList()) {
-    int formulaNumberOfChildren =
-        static_cast<List&>(reduced).numberOfChildren();
-    /* List in another context may allow other types (boolean for instance) but
-     * in this context only scalar is allowed since anything else would be
-     * nonsensical */
-    if (formulaNumberOfChildren > 0 &&
-        !Poincare::Dimension(reduced.cloneChildAtIndex(0), m_parentContext)
-             .isScalar()) {
-      return FillColumnStatus::DataNotSuitable;
-    }
-
+  if (formula.type() == ExpressionNode::Type::List) {
     bool allChildrenAreUndefined = true;
+    int formulaNumberOfChildren = formula.numberOfChildren();
     for (int i = 0; i < formulaNumberOfChildren; i++) {
-      if (!reduced.cloneChildAtIndex(i).isUndefined()) {
+      if (!formula.childAtIndex(i).isUndefined()) {
         allChildrenAreUndefined = false;
         break;
       }
@@ -222,13 +212,14 @@ StoreColumnHelper::privateFillColumnWithFormula(const Layout& formulaLayout,
      * same time in the pool. We might be working with huge lists right now, so
      * it's better to get out of the scope and destroy the list before storing
      * the data of the double pair store in the storage. */
-    store()->setList(static_cast<Poincare::List&>(reduced), *series, *column,
-                     true, true);
+    store()->setList(static_cast<List &>(formula), *series, *column, true,
+                     true);
     return FillColumnStatus::Success;
   }
-  /* Formula isn't a list and has already been reduced with context, which is no
-   * longer needed. Set each cell to the same value */
-  double evaluation = reduced.approximateToRealScalar<double>();
+
+  // Formula is not a list: set each cell to the same value
+  double evaluation =
+      PoincareHelpers::ApproximateToScalar<double>(formula, &storeContext);
   if (std::isnan(evaluation)) {
     return FillColumnStatus::DataNotSuitable;
   }
@@ -238,19 +229,21 @@ StoreColumnHelper::privateFillColumnWithFormula(const Layout& formulaLayout,
   }
 
   // If formula contains a random formula, evaluate it for each pairs.
-  bool evaluateForEachPairs = formula.hasRandomNumber();
+  bool evaluateForEachPairs = formula.recursivelyMatches(
+      [](const Expression e) { return e.isRandomNumber(); });
   for (int j = 0; j < numberOfPairs; j++) {
     store()->set(evaluation, *series, *column, j, true, true);
     if (evaluateForEachPairs) {
-      evaluation = formula.approximateToRealScalar<double>();
+      evaluation =
+          PoincareHelpers::ApproximateToScalar<double>(formula, &storeContext);
     }
   }
   return FillColumnStatus::Success;
 }
 
-size_t StoreColumnHelper::clearPopUpText(int column, char* buffer,
+size_t StoreColumnHelper::clearPopUpText(int column, char *buffer,
                                          size_t bufferSize) {
-  DoublePairStore* store = this->store();
+  DoublePairStore *store = this->store();
   int series = store->seriesAtColumn(column);
   int relativeColumn = store->relativeColumn(column);
   DoublePairStore::ClearType type = store->clearType(relativeColumn);
@@ -272,9 +265,9 @@ size_t StoreColumnHelper::clearPopUpText(int column, char* buffer,
                                        I18n::translate(message), placeHolder);
 }
 
-size_t StoreColumnHelper::clearCellText(int column, char* buffer,
+size_t StoreColumnHelper::clearCellText(int column, char *buffer,
                                         size_t bufferSize) {
-  DoublePairStore* store = this->store();
+  DoublePairStore *store = this->store();
   int series = store->seriesAtColumn(column);
   int relativeColumn = store->relativeColumn(column);
   DoublePairStore::ClearType type = store->clearType(relativeColumn);

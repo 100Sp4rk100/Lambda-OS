@@ -1,12 +1,13 @@
+#include <ion/unicode/utf8_decoder.h>
+#include <ion/unicode/utf8_helper.h>
 #include <omg/ieee754.h>
-#include <omg/print.h>
-#include <omg/string.h>
-#include <omg/utf8_decoder.h>
-#include <omg/utf8_helper.h>
+#include <poincare/decimal.h>
+#include <poincare/infinity.h>
 #include <poincare/preferences.h>
 #include <poincare/print_float.h>
-#include <poincare/src/expression/builtin.h>
-#include <poincare/src/expression/infinity.h>
+#include <poincare/print_int.h>
+#include <poincare/serialization_helper.h>
+#include <poincare/undefined.h>
 extern "C" {
 #include <assert.h>
 #include <float.h>
@@ -18,10 +19,6 @@ extern "C" {
 #include <cmath>
 
 namespace Poincare {
-
-constexpr const char* k_undefName =
-    Internal::BuiltinsAliases::k_undefinedAlias.mainAlias();
-constexpr size_t k_undefNameLength = OMG::StringLength(k_undefName);
 
 constexpr size_t PrintFloat::Long::k_maxNumberOfCharsForDigit;
 
@@ -70,30 +67,32 @@ void PrintFloat::Long::MultiplySmallLongByTen(Long& smallLong) {
 }
 
 size_t PrintFloat::Long::serialize(char* buffer, size_t bufferSize) const {
-  assert(bufferSize > 0);
+  if (bufferSize == 0) {
+    return bufferSize - 1;
+  }
   if (bufferSize == 1) {
     buffer[0] = 0;
-    return 0;
+    return bufferSize - 1;
   }
   size_t numberOfChars = 0;
   if (m_negative) {
-    numberOfChars += UTF8Helper::WriteCodePoint(buffer, bufferSize, '-');
+    numberOfChars += SerializationHelper::CodePoint(buffer, bufferSize, '-');
   }
   if (m_digits[0] != 0) {
-    numberOfChars += OMG::Print::IntLeft(m_digits[0], buffer + numberOfChars,
-                                         bufferSize - numberOfChars - 1);
+    numberOfChars += PrintInt::Left(m_digits[0], buffer + numberOfChars,
+                                    bufferSize - numberOfChars - 1);
     size_t wantedNumberOfChars = numberOfChars + k_maxNumberOfCharsForDigit + 1;
     if (wantedNumberOfChars > bufferSize) {
       /* There is not enough space for serializing the second digit and the null
        * terminating char. */
       return wantedNumberOfChars;
     }
-    numberOfChars += OMG::Print::IntRight(
+    numberOfChars += PrintInt::Right(
         m_digits[1], buffer + numberOfChars,
         std::min(k_maxNumberOfCharsForDigit, bufferSize - numberOfChars - 1));
   } else {
-    numberOfChars += OMG::Print::IntLeft(m_digits[1], buffer + numberOfChars,
-                                         bufferSize - numberOfChars - 1);
+    numberOfChars += PrintInt::Left(m_digits[1], buffer + numberOfChars,
+                                    bufferSize - numberOfChars - 1);
   }
   if (numberOfChars <= bufferSize - 1) {
     buffer[numberOfChars] = 0;
@@ -101,7 +100,7 @@ size_t PrintFloat::Long::serialize(char* buffer, size_t bufferSize) const {
   return numberOfChars;
 }
 
-void PrintFloat::PrintLongWithDecimalMarker(char* buffer, size_t bufferLength,
+void PrintFloat::PrintLongWithDecimalMarker(char* buffer, int bufferLength,
                                             Long& i,
                                             int decimalMarkerPosition) {
   /* The decimal marker position is always preceded by a char, thus, it is never
@@ -115,9 +114,9 @@ void PrintFloat::PrintLongWithDecimalMarker(char* buffer, size_t bufferLength,
   /* We should use the UTF8Decoder to write code points in buffers, but it is
    * much clearer to manipulate chars directly as we know that the code point we
    * use ('.', '0, '1', '2', ...) are only one char long. */
-  for (int k = static_cast<int>(bufferLength) - 1; k >= firstDigitChar; k--) {
+  for (int k = bufferLength - 1; k >= firstDigitChar; k--) {
     if (k == decimalMarkerPosition) {
-      static_assert(UTF8Decoder::CharSizeOfCodePoint('.') == 1);
+      assert(UTF8Decoder::CharSizeOfCodePoint('.') == 1);
       buffer[k] = '.';
       continue;
     }
@@ -126,7 +125,7 @@ void PrintFloat::PrintLongWithDecimalMarker(char* buffer, size_t bufferLength,
       buffer[k] = tempBuffer[--intLength];
       continue;
     }
-    static_assert(UTF8Decoder::CharSizeOfCodePoint('0') == 1);
+    assert(UTF8Decoder::CharSizeOfCodePoint('0') == 1);
     buffer[k] = '0';
   }
   if (firstDigitChar == 1) {
@@ -137,8 +136,8 @@ void PrintFloat::PrintLongWithDecimalMarker(char* buffer, size_t bufferLength,
 
 template <class T>
 PrintFloat::TextLengths PrintFloat::ConvertFloatToText(
-    T f, char* buffer, size_t bufferSize, size_t glyphLength,
-    size_t numberOfSignificantDigits, Preferences::PrintFloatMode mode) {
+    T f, char* buffer, int bufferSize, int glyphLength,
+    int numberOfSignificantDigits, Preferences::PrintFloatMode mode) {
   assert(numberOfSignificantDigits > 0);
   assert(bufferSize > 0);
 
@@ -187,18 +186,18 @@ int PrintFloat::EngineeringExponentFromBase10Exponent(int exponent) {
 
 template <class T>
 PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
-    T f, char* buffer, size_t bufferSize, size_t glyphLength,
-    size_t numberOfSignificantDigits, Preferences::PrintFloatMode mode) {
+    T f, char* buffer, int bufferSize, int glyphLength,
+    int numberOfSignificantDigits, Preferences::PrintFloatMode mode) {
   assert(numberOfSignificantDigits > 0);
   assert(bufferSize > 0);
   assert(glyphLength > 0 && glyphLength <= k_maxFloatGlyphLength);
-  size_t availableCharLength = std::min(bufferSize - 1, glyphLength);
+  int availableCharLength = std::min(bufferSize - 1, glyphLength);
   TextLengths exceptionResult = {.CharLength = bufferSize,
                                  .GlyphLength = glyphLength + 1};
   // TODO: accelerate for f between 0 and 10 ?
   if (std::isinf(f)) {
     // Infinity
-    size_t requiredCharLength = strlen(Internal::Infinity::Name(f < 0));
+    int requiredCharLength = Infinity::NameSize(f < 0) - 1;
     TextLengths requiredTextLengths = {.CharLength = requiredCharLength,
                                        .GlyphLength = requiredCharLength};
     if (requiredCharLength > availableCharLength) {
@@ -206,20 +205,20 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
       return requiredTextLengths;
     }
     // Write inf or -inf
-    strlcpy(buffer, Internal::Infinity::Name(f < 0), bufferSize);
+    strlcpy(buffer, Infinity::Name(f < 0), bufferSize);
     return requiredTextLengths;
   }
 
   if (std::isnan(f)) {
     // Nan
-    constexpr size_t requiredCharLength = k_undefNameLength;
+    constexpr int requiredCharLength = Undefined::NameSize() - 1;
     constexpr TextLengths requiredTextLengths = {
         .CharLength = requiredCharLength, .GlyphLength = requiredCharLength};
     if (requiredCharLength > availableCharLength) {
       // We will not be able to print
       return requiredTextLengths;
     }
-    strlcpy(buffer, k_undefName, bufferSize);
+    strlcpy(buffer, Undefined::Name(), bufferSize);
     return requiredTextLengths;
   }
 
@@ -236,10 +235,9 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
    * With doubles, 0.000600000028 * 10^10 = 6000000.2849...
    * This value is then rounded into mantissa = 6000000 which yields a proper
    * display of 0.0006 */
-  double unroundedMantissa =
-      static_cast<double>(f) *
-      std::pow(10.0, (static_cast<int>(numberOfSignificantDigits) - 1 -
-                      exponentInBase10));
+  double unroundedMantissa = static_cast<double>(f) *
+                             std::pow(10.0, (double)(numberOfSignificantDigits -
+                                                     1 - exponentInBase10));
   // Round mantissa to get the right number of significant digits
   double mantissa = std::round(unroundedMantissa);
 
@@ -251,10 +249,10 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
    * small), mantissa is now inf. We handle this case by using logarithm
    * function. */
   if (std::isnan(mantissa) || std::isinf(mantissa)) {
-    mantissa = std::round(std::pow(
-        10, std::log10(std::fabs(f)) +
-                static_cast<T>(static_cast<int>(numberOfSignificantDigits) - 1 -
-                               exponentInBase10)));
+    mantissa =
+        std::round(std::pow(10, std::log10(std::fabs(f)) +
+                                    static_cast<T>(numberOfSignificantDigits -
+                                                   1 - exponentInBase10)));
     mantissa = std::copysign(mantissa, static_cast<double>(f));
   }
   /* We update the exponent in base 10 (if 0.99999999 was rounded to 1 for
@@ -266,12 +264,12 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
    */
   if (f != 0 &&
       OMG::IEEE754<double>::exponentBase10(mantissa) - exponentInBase10 !=
-          static_cast<int>(numberOfSignificantDigits) - 1 - exponentInBase10) {
+          numberOfSignificantDigits - 1 - exponentInBase10) {
     exponentInBase10++;
   }
 
   if (mode == Preferences::PrintFloatMode::Decimal &&
-      exponentInBase10 >= static_cast<int>(numberOfSignificantDigits)) {
+      exponentInBase10 >= numberOfSignificantDigits) {
     /* Exception 1: avoid inventing digits to fill the printed float: when
      * displaying 12345 with 2 significant digis in Decimal mode for instance.
      * This exception is caught by ConvertFloatToText and forces the mode to
@@ -280,17 +278,15 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
   }
 
   // Correct the number of digits in mantissa after rounding
-  if (OMG::IEEE754<T>::exponentBase10(mantissa) >=
-      static_cast<int>(numberOfSignificantDigits)) {
+  if (OMG::IEEE754<T>::exponentBase10(mantissa) >= numberOfSignificantDigits) {
     mantissa = mantissa / static_cast<T>(10.0);
   }
 
   // Number of chars for the mantissa
-  size_t numberOfCharsForMantissaWithoutSign = numberOfSignificantDigits;
+  int numberOfCharsForMantissaWithoutSign = numberOfSignificantDigits;
   if (mode == Preferences::PrintFloatMode::Decimal && exponentInBase10 < 0) {
     // Add |exponentInBase10| to count 0 added before significant digits
-    numberOfCharsForMantissaWithoutSign +=
-        static_cast<size_t>(-exponentInBase10);
+    numberOfCharsForMantissaWithoutSign -= exponentInBase10;
   }
 
   /* The number of digits in a mantissa is capped because the maximal int64_t is
@@ -302,7 +298,7 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
   Long dividend = Long((int64_t)mantissa);
 
   int exponentForEngineeringNotation = 0;
-  size_t minimalNumberOfMantissaDigits = 1;
+  int minimalNumberOfMantissaDigits = 1;
   bool removeZeroes = true;
 
   if (mode == Preferences::PrintFloatMode::Engineering) {
@@ -310,13 +306,13 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
         EngineeringExponentFromBase10Exponent(exponentInBase10);
     minimalNumberOfMantissaDigits = EngineeringMinimalNumberOfDigits(
         exponentInBase10, exponentForEngineeringNotation);
-    size_t numberOfZeroesToAdd = EngineeringNumberOfZeroesToAdd(
+    int numberOfZeroesToAdd = EngineeringNumberOfZeroesToAdd(
         minimalNumberOfMantissaDigits, numberOfCharsForMantissaWithoutSign);
     if (numberOfZeroesToAdd > 0) {
       removeZeroes = false;
-      assert(numberOfCharsForMantissaWithoutSign <
-             numberOfSignificantDigits + 3);
-      for (size_t i = 0; i < numberOfZeroesToAdd; i++) {
+      assert(numberOfCharsForMantissaWithoutSign - numberOfSignificantDigits <
+             3);
+      for (int i = 0; i < numberOfZeroesToAdd; i++) {
         assert(mantissa < 1000);
         Long::MultiplySmallLongByTen(dividend);
       }
@@ -326,18 +322,17 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
     Long digit;
     Long quotient;
     Long::DivisionByTen(dividend, &quotient, &digit);
-    size_t minimumNumberOfCharsInMantissa =
+    int minimumNumberOfCharsInMantissa =
         mode == Preferences::PrintFloatMode::Engineering
             ? minimalNumberOfMantissaDigits
             : 1;
     while (digit.isZero() &&
            numberOfCharsForMantissaWithoutSign >
                minimumNumberOfCharsInMantissa &&
-           (static_cast<int>(numberOfCharsForMantissaWithoutSign) >
-                exponentInBase10 + 1 ||
+           (numberOfCharsForMantissaWithoutSign > exponentInBase10 + 1 ||
             mode == Preferences::PrintFloatMode::Scientific ||
             mode == Preferences::PrintFloatMode::Engineering)) {
-      static_assert(UTF8Decoder::CharSizeOfCodePoint('0') == 1);
+      assert(UTF8Decoder::CharSizeOfCodePoint('0') == 1);
       numberOfCharsForMantissaWithoutSign--;
       dividend = quotient;
       Long::DivisionByTen(dividend, &quotient, &digit);
@@ -355,12 +350,11 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
       (mode == Preferences::PrintFloatMode::Scientific &&
        numberOfCharsForMantissaWithoutSign > 1) ||
       (mode == Preferences::PrintFloatMode::Decimal &&
-       static_cast<int>(numberOfCharsForMantissaWithoutSign) >
-           exponentInBase10 + 1) ||
+       numberOfCharsForMantissaWithoutSign > exponentInBase10 + 1) ||
       (mode == Preferences::PrintFloatMode::Engineering &&
        (numberOfCharsForMantissaWithoutSign > minimalNumberOfMantissaDigits));
   if (decimalMarker) {
-    static_assert(UTF8Decoder::CharSizeOfCodePoint('.') == 1);
+    assert(UTF8Decoder::CharSizeOfCodePoint('.') == 1);
     numberOfCharsForMantissaWithoutSign++;
   }
   if (numberOfCharsForMantissaWithoutSign > availableCharLength) {
@@ -376,16 +370,16 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
     decimalMarkerPosition = 1;
   } else {
     assert(mode == Preferences::PrintFloatMode::Engineering);
-    decimalMarkerPosition = static_cast<int>(minimalNumberOfMantissaDigits);
+    decimalMarkerPosition = minimalNumberOfMantissaDigits;
   }
   if (f < 0) {
     decimalMarkerPosition++;
   }
-  static_assert(UTF8Decoder::CharSizeOfCodePoint('-') == 1);
+  assert(UTF8Decoder::CharSizeOfCodePoint('-') == 1);
 
   /* Part III: Sign */
-  assert(numberOfCharsForMantissaWithoutSign >= 0);
-  size_t numberOfCharsForMantissaWithSign =
+
+  int numberOfCharsForMantissaWithSign =
       numberOfCharsForMantissaWithoutSign + (f >= 0 ? 0 : 1);
   if (numberOfCharsForMantissaWithSign > availableCharLength) {
     // Exception 2: we will overflow the buffer
@@ -404,18 +398,17 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
   if (exponent < 0) {
     // If the exponent is < 0, we need a additional char for the sign
     numberOfCharExponent++;
-    static_assert(UTF8Decoder::CharSizeOfCodePoint('-') == 1);
+    assert(UTF8Decoder::CharSizeOfCodePoint('-') == 1);
   }
-  assert(numberOfCharExponent >= 0);
 
   /* Part V: print mantissa*10^exponent */
 
-  static_assert(UTF8Decoder::CharSizeOfCodePoint('-') == 1);
+  assert(UTF8Decoder::CharSizeOfCodePoint('-') == 1);
   // Print mantissa
   bool doNotWriteExponent =
       (mode == Preferences::PrintFloatMode::Decimal) || (exponent == 0);
-  size_t neededNumberOfChars = numberOfCharsForMantissaWithSign;
-  size_t neededNumberOfGlyphs = numberOfCharsForMantissaWithSign;
+  int neededNumberOfChars = numberOfCharsForMantissaWithSign;
+  int neededNumberOfGlyphs = numberOfCharsForMantissaWithSign;
   if (!doNotWriteExponent) {
     neededNumberOfChars +=
         UTF8Decoder::CharSizeOfCodePoint(UCodePointLatinLetterSmallCapitalE) +
@@ -436,31 +429,25 @@ PrintFloat::TextLengths PrintFloat::ConvertFloatToTextPrivate(
   }
   // Print exponent
   assert(numberOfCharsForMantissaWithSign < bufferSize);
-  size_t currentNumberOfChar = numberOfCharsForMantissaWithSign;
+  int currentNumberOfChar = numberOfCharsForMantissaWithSign;
   currentNumberOfChar += UTF8Decoder::CodePointToChars(
       UCodePointLatinLetterSmallCapitalE, buffer + currentNumberOfChar,
       bufferSize - currentNumberOfChar - 1);
   dividend = Long(exponent);  // reuse dividend as it is not needed anymore
-  assert(numberOfCharExponent > 0);
   PrintLongWithDecimalMarker(buffer + currentNumberOfChar, numberOfCharExponent,
                              dividend, -1);
-  buffer[currentNumberOfChar + static_cast<size_t>(numberOfCharExponent)] = 0;
-  assert(neededNumberOfChars ==
-         currentNumberOfChar + static_cast<size_t>(numberOfCharExponent));
-
-  return {.CharLength =
-              currentNumberOfChar + static_cast<size_t>(numberOfCharExponent),
-          .GlyphLength = numberOfCharsForMantissaWithSign + 1 +
-                         static_cast<size_t>(numberOfCharExponent)};
+  buffer[currentNumberOfChar + numberOfCharExponent] = 0;
+  assert(neededNumberOfChars == currentNumberOfChar + numberOfCharExponent);
+  return {.CharLength = currentNumberOfChar + numberOfCharExponent,
+          .GlyphLength =
+              numberOfCharsForMantissaWithSign + 1 + numberOfCharExponent};
 }
 
 template PrintFloat::TextLengths PrintFloat::ConvertFloatToText<float>(
-    float, char*, size_t, size_t, size_t,
-    Preferences::Preferences::PrintFloatMode);
+    float, char*, int, int, int, Preferences::Preferences::PrintFloatMode);
 template PrintFloat::TextLengths PrintFloat::ConvertFloatToText<double>(
-    double, char*, size_t, size_t, size_t,
-    Preferences::Preferences::PrintFloatMode);
-template size_t PrintFloat::SignificantDecimalDigits<float>();
-template size_t PrintFloat::SignificantDecimalDigits<double>();
+    double, char*, int, int, int, Preferences::Preferences::PrintFloatMode);
+template int PrintFloat::SignificantDecimalDigits<float>();
+template int PrintFloat::SignificantDecimalDigits<double>();
 
 }  // namespace Poincare

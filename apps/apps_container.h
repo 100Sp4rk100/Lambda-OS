@@ -4,6 +4,7 @@
 #include <escher/blink_timer.h>
 #include <escher/container.h>
 #include <ion/events.h>
+#include <poincare/preferences.h>
 
 #include "apps_window.h"
 #include "backlight_dimming_timer.h"
@@ -13,10 +14,14 @@
 #include "hardware_test/app.h"
 #include "home/app.h"
 #include "on_boarding/app.h"
+#include "on_boarding/prompt_controller.h"
 #include "shared/global_context.h"
-#include "shared/prompt_controller.h"
 #include "suspend_timer.h"
 #include "usb/app.h"
+
+#include "off/app.h"
+#include "settings/app.h"
+#include "lambda/app.h"
 
 class AppsContainer : public Escher::Container, Ion::Storage::StorageDelegate {
  public:
@@ -24,7 +29,7 @@ class AppsContainer : public Escher::Container, Ion::Storage::StorageDelegate {
   AppsContainer();
   virtual int numberOfBuiltinApps() = 0;
   int numberOfApps() { return numberOfExternalApps() + numberOfBuiltinApps(); }
-  int numberOfExternalApps();
+  int numberOfExternalApps() { return Ion::ExternalApps::numberOfApps(); }
   virtual Escher::App::Snapshot* appSnapshotAtIndex(int index) = 0;
   Ion::ExternalApps::App externalAppAtIndex(int index);
   Escher::App::Snapshot* initialAppSnapshot();
@@ -32,6 +37,9 @@ class AppsContainer : public Escher::Container, Ion::Storage::StorageDelegate {
   Escher::App::Snapshot* onBoardingAppSnapshot();
   Escher::App::Snapshot* usbConnectedAppSnapshot();
   Home::App::Snapshot* homeAppSnapshot() { return &m_homeSnapshot; }
+  Off_screen::App::Snapshot* offAppSnapshot() { return &m_offSnapshot; }
+  Settings::App::Snapshot* settingsAppSnapshot() { return &m_settingsSnapshot; }
+  LambdaApp::App::Snapshot* lambdaAppSnapshot() { return &m_lambdaSnapshot; }
   void setExamMode(Poincare::ExamMode targetExamMode,
                    Poincare::ExamMode previousMode);
   Shared::GlobalContext* globalContext();
@@ -41,13 +49,15 @@ class AppsContainer : public Escher::Container, Ion::Storage::StorageDelegate {
   void switchToExternalApp(Ion::ExternalApps::App app);
   void run() override;
   bool updateBatteryState();
+  bool updateTime(int h, int m);
   void refreshPreferences();
   void reloadTitleBarView();
   void displayExamModePopUp(Poincare::ExamMode mode);
   void shutdownDueToLowBattery();
   void setShiftAlphaStatus(Ion::Events::ShiftAlphaStatus newStatus);
-  Shared::PromptController* promptController();
+  OnBoarding::PromptController* promptController();
   void redrawWindow();
+  void forceRedrawWindow();
   void setDFUBetweenEvents(bool active) { m_dfuBetweenEvents = active; }
 
   // Ion::Storage::StorageDelegate
@@ -55,6 +65,8 @@ class AppsContainer : public Escher::Container, Ion::Storage::StorageDelegate {
       const Ion::Storage::Record::Name recordName) const override;
   void storageDidChangeForRecord(const Ion::Storage::Record record) override;
   void storageIsFull() override;
+
+  void hide_title_bar_win();
 
 #if EPSILON_GETOPT
   void setInitialAppSnapshot(Escher::App::Snapshot* snapshot) {
@@ -83,7 +95,7 @@ class AppsContainer : public Escher::Container, Ion::Storage::StorageDelegate {
   EmptyBatteryWindow m_emptyBatteryWindow;
   Shared::GlobalContext m_globalContext;
   ExamPopUpController m_examPopUpController;
-  Shared::PromptController m_promptController;
+  OnBoarding::PromptController m_promptController;
   BatteryTimer m_batteryTimer;
   SuspendTimer m_suspendTimer;
   BacklightDimmingTimer m_backlightDimmingTimer;
@@ -92,6 +104,10 @@ class AppsContainer : public Escher::Container, Ion::Storage::StorageDelegate {
   OnBoarding::App::Snapshot m_onBoardingSnapshot;
   HardwareTest::App::Snapshot m_hardwareTestSnapshot;
   USB::App::Snapshot m_usbConnectedSnapshot;
+
+  Off_screen::App::Snapshot m_offSnapshot;
+  Settings::App::Snapshot m_settingsSnapshot;
+  LambdaApp::App::Snapshot m_lambdaSnapshot;
 #if EPSILON_GETOPT
   // Used to launch a given app on a simulator
   Escher::App::Snapshot* m_initialAppSnapshot;

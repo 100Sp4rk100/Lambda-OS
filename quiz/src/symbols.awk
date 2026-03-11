@@ -2,12 +2,11 @@ BEGIN {
   print "#include <string.h>"
   print "#include \"symbols.h\""
   print
-  pattern = "QUIZ_CASE\\((" QUIZ_TEST_FILTER "[a-z0-9_]+)\\)"
 }
 
 #FIXME: Is there a way to capture subexpression in awk? The following gsub is
 #       kind of ugly
-$0 ~ pattern { gsub(/(QUIZ_CASE\()|(\))/, "", $1); tests = tests "quiz_case_" $1 "," }
+/QUIZ_CASE\(([a-z0-9_]+)\)/ { gsub(/(QUIZ_CASE\()|(\))/, "", $1); tests = tests "quiz_case_" $1 "," }
 
 END {
   declarations = tests;

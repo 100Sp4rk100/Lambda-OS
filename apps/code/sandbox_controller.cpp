@@ -10,11 +10,11 @@ using namespace Escher;
 
 namespace Code {
 
-SandboxController::SandboxController(Responder* parentResponder)
-    : ViewController(parentResponder), m_solidColorView(KDColorWhite) {}
+SandboxController::SandboxController(Responder *parentResponder)
+    : ViewController(parentResponder), m_solidColorView(Theme::ThemeGestion::getColor("KDColorWhite")) {}
 
-StackViewController* SandboxController::stackViewController() {
-  return static_cast<StackViewController*>(parentResponder());
+StackViewController *SandboxController::stackViewController() {
+  return static_cast<StackViewController *>(parentResponder());
 }
 
 void SandboxController::reset() {
@@ -41,15 +41,6 @@ bool SandboxController::handleEvent(Ion::Events::Event event) {
 
 void SandboxController::redrawWindow() {
   AppsContainer::sharedAppsContainer()->redrawWindow();
-}
-
-void SandboxController::privateModalViewAltersFirstResponder(
-    FirstResponderAlteration alteration) {
-  if (alteration == FirstResponderAlteration::DidRestore) {
-    /* After dismissing a modal view, the screen behind the modal is lost. Go
-     * back to the console to avoid a white rectangle. */
-    handleEvent(Ion::Events::Back);
-  }
 }
 
 }  // namespace Code

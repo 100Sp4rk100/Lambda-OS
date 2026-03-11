@@ -1,16 +1,16 @@
 #include <escher/highlight_image_cell.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
-constexpr KDColor HighlightImageCell::k_unselectedBackgroundColor;
-
 HighlightImageCell::HighlightImageCell() : HighlightCell() {
-  m_contentView.setBackgroundColor(k_unselectedBackgroundColor);
+  m_contentView.setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
 }
 
 void HighlightImageCell::setHighlighted(bool highlighted) {
-  m_contentView.setBackgroundColor(highlighted ? Palette::Select
-                                               : k_unselectedBackgroundColor);
+  m_contentView.setBackgroundColor(highlighted ? Theme::ThemeGestion::getColor("Select")
+                                               : Theme::ThemeGestion::getColor("KDColorWhite"));
   HighlightCell::setHighlighted(highlighted);
 }
 

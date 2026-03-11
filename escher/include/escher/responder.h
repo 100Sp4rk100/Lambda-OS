@@ -10,24 +10,10 @@ class Responder {
   Responder(Responder* parentResponder) : m_parentResponder(parentResponder) {}
   // Default implementation does nothing
   virtual bool handleEvent(Ion::Events::Event event) { return false; };
-
-  void didBecomeFirstResponder() {
-    handleResponderChainEvent(
-        {{nullptr}, ResponderChainEventType::HasBecomeFirst});
-  }
-  void willResignFirstResponder() {
-    handleResponderChainEvent(
-        {{nullptr}, ResponderChainEventType::WillResignFirst});
-  }
-
-  void didEnterResponderChain(Responder* previousFirstResponder) {
-    handleResponderChainEvent(
-        {{previousFirstResponder}, ResponderChainEventType::HasEntered});
-  }
-  void willExitResponderChain(Responder* nextFirstResponder) {
-    handleResponderChainEvent(
-        {{nextFirstResponder}, ResponderChainEventType::WillExit});
-  }
+  virtual void didBecomeFirstResponder() {}
+  virtual void willResignFirstResponder() {}
+  virtual void didEnterResponderChain(Responder* previousFirstResponder) {}
+  virtual void willExitResponderChain(Responder* nextFirstResponder) {}
 
   enum class FirstResponderAlteration { WillSpoil, DidRestore };
   void modalViewAltersFirstResponder(FirstResponderAlteration alteration);
@@ -38,28 +24,6 @@ class Responder {
   void setParentResponder(Responder* responder) {
     m_parentResponder = responder;
   }
-
- protected:
-  /* This struct was created to reduce the size of the vtables of Responder and
-   * descendants, with this, we only have a single virtual method:
-   * handleResponderChainEvent, and the 4 methods above are no longer overridden
-   * by each children. Also the union allows writing event.nextFirstResponder
-   * when reacting to a WillExit event and event.previousFirstResponder when
-   * HasEntered : this allows easier readability of the code */
-  enum class ResponderChainEventType {
-    HasEntered,
-    WillExit,
-    WillResignFirst,
-    HasBecomeFirst
-  };
-  struct ResponderChainEvent {
-    union {
-      Responder* nextFirstResponder;
-      Responder* previousFirstResponder;
-    };
-    ResponderChainEventType type;
-  };
-  virtual void handleResponderChainEvent(ResponderChainEvent event) {}
 
  private:
   bool privateHasAncestor(Responder* responder) const;

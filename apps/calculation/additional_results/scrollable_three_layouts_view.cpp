@@ -1,5 +1,11 @@
 #include "scrollable_three_layouts_view.h"
 
+#include <poincare/exception_checkpoint.h>
+
+#include "apps/theme_gestion/themeGestion.h"
+
+#include "../app.h"
+
 using namespace Escher;
 using namespace Poincare;
 
@@ -7,8 +13,8 @@ namespace Calculation {
 
 void ScrollableThreeLayoutsView::ContentCell::reloadTextColor() {
   KDColor color = displayCenter() && !rightIsStrictlyEqual()
-                      ? Palette::GrayVeryDark
-                      : KDColorBlack;
+                      ? Theme::ThemeGestion::getColor("GrayVeryDark")
+                      : Theme::ThemeGestion::getColor("KDColorBlack");
   rightLayoutView()->setTextColor(color);
   approximateSign()->setTextColor(color);
 }

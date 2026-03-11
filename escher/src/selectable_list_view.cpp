@@ -2,16 +2,11 @@
 
 namespace Escher {
 
-void SelectableListView::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (selectedRow() < 0 && totalNumberOfRows() > 0) {
-      selectCell(0);
-    }
-    SelectableTableView::handleResponderChainEvent(event);
-  } else {
-    SelectableTableView::handleResponderChainEvent(event);
+void SelectableListView::didBecomeFirstResponder() {
+  if (selectedRow() < 0 && totalNumberOfRows() > 0) {
+    selectCell(0);
   }
+  SelectableTableView::didBecomeFirstResponder();
 }
 
 }  // namespace Escher

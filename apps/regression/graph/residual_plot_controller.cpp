@@ -8,7 +8,7 @@
 namespace Regression {
 
 ResidualPlotController::ResidualPlotController(
-    Escher::Responder* parentResponder, Store* store)
+    Escher::Responder *parentResponder, Store *store)
     : Escher::ViewController(parentResponder),
       m_store(store),
       m_cursor(FLT_MAX),
@@ -29,13 +29,13 @@ void ResidualPlotController::updateCursor() {
                         &m_curveView);
 
   const int significantDigits =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+      Poincare::Preferences::SharedPreferences()->numberOfSignificantDigits();
   Poincare::Preferences::PrintFloatMode displayMode =
-      MathPreferences::SharedPreferences()->displayMode();
+      Poincare::Preferences::SharedPreferences()->displayMode();
   constexpr size_t bufferSize =
       Shared::BannerView::BannerBufferTextView::MaxTextSize();
   constexpr static int k_maxNumberOfGlyphs =
-      Escher::Metric::MaxNumberOfSmallGlyphsInDisplayWidth;
+      Poincare::Print::k_maxNumberOfSmallGlyphsInScreenWidth;
   char buffer[bufferSize];
 
   Poincare::Print::CustomPrintf(buffer, bufferSize, "x=%*.*ed", x, displayMode,
@@ -78,11 +78,11 @@ bool ResidualPlotController::moveHorizontally(
 bool ResidualPlotController::handleEvent(Ion::Events::Event event) {
   assert(m_store->seriesIsActive(m_selectedSeriesIndex));
   if (event == Ion::Events::OK || event == Ion::Events::EXE) {
-    static_cast<Escher::StackViewController*>(parentResponder())->pop();
+    static_cast<Escher::StackViewController *>(parentResponder())->pop();
     return true;
   }
   if (event == Ion::Events::Right || event == Ion::Events::Left) {
-    return moveHorizontally(event.direction());
+    return moveHorizontally(OMG::Direction(event));
   }
   return false;
 }

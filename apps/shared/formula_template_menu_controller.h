@@ -8,7 +8,6 @@
 #include <escher/message_text_view.h>
 #include <escher/nested_menu_controller.h>
 #include <escher/selectable_list_view_controller.h>
-#include <poincare/expression.h>
 
 namespace Shared {
 
@@ -22,7 +21,7 @@ class FormulaTemplateMenuController
   FormulaTemplateMenuController(Escher::Responder* parentResponder,
                                 StoreColumnHelper* storeColumnHelper);
 
-  const char* title() const override;
+  const char* title() override;
   void viewWillAppear() override;
   void fillCellForRow(Escher::HighlightCell* cell, int row) override;
   void viewDidDisappear() override;
@@ -65,7 +64,7 @@ class FormulaTemplateMenuController
       k_templates[k_numberOfExpressionCellsWithMessage] = {
           "sequence(k,k,10)", "sequence(random(),k,10)",
           "sequence(ln(k),k,10)"};
-  // TODO: Replace with translations
+  // TODO : Replace with translations
   constexpr static I18n::Message
       k_subLabelMessages[k_numberOfExpressionCellsWithMessage +
                          k_numberOfExpressionCellsWithBuffer] = {
@@ -83,10 +82,10 @@ class FormulaTemplateMenuController
 
   int relativeCellIndex(int index, CellType type);
   bool shouldDisplayOtherAppCell() const;
-  Poincare::UserExpression templateExpressionForCell(Cell cell);
+  Poincare::Expression templateExpressionForCell(Cell cell);
   void computeUninitializedLayouts();
   void fillSubLabelBuffer(BufferTemplateCell* cell, int index);
-  void fillSumColumnNames(char* columnName1, char* columnName2) const;
+  void fillSumColumnNames(char* buffers[]) const;
   void fillOtherAppColumnName(char* buffer) const;
 
   Escher::MenuCell<Escher::MessageTextView> m_emptyTemplateCell;

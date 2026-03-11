@@ -1,9 +1,11 @@
 #include "area_between_curves_graph_controller.h"
 
 #include <assert.h>
-#include <poincare/expression.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
+#include <poincare/absolute_value.h>
+#include <poincare/absolute_value_layout.h>
+#include <poincare/integral.h>
+#include <poincare/layout_helper.h>
+#include <poincare/subtraction.h>
 #include <stdlib.h>
 
 #include <cmath>
@@ -16,13 +18,13 @@ using namespace Escher;
 
 namespace Graph {
 
-const char* AreaBetweenCurvesGraphController::title() const {
+const char *AreaBetweenCurvesGraphController::title() {
   return I18n::translate(I18n::Message::AreaBetweenCurves);
 }
 
 void AreaBetweenCurvesGraphController::viewWillAppear() {
   IntegralGraphController::viewWillAppear();
-  static_cast<GraphView*>(m_graphView)
+  static_cast<GraphView *>(m_graphView)
       ->setInterest(Solver<double>::Interest::Intersection);
 }
 
@@ -57,7 +59,7 @@ double AreaBetweenCurvesGraphController::cursorNextStep(
       App::app()
           ->graphController()
           ->pointsOfInterestForRecord(selectedRecord())
-          ->firstPointInDirection(position, nextSnap, false,
+          ->firstPointInDirection(position, nextSnap,
                                   Solver<double>::Interest::Intersection)
           .xy();
   if (std::isfinite(nextIntersection.x())) {
@@ -66,7 +68,7 @@ double AreaBetweenCurvesGraphController::cursorNextStep(
   return nextX;
 }
 
-Layout AreaBetweenCurvesGraphController::createFunctionLayout() {
+Poincare::Layout AreaBetweenCurvesGraphController::createFunctionLayout() {
   constexpr size_t bufferSize =
       Ion::Display::Width / KDFont::GlyphWidth(KDFont::Size::Small) + 1;
   char buffer[bufferSize];
@@ -94,23 +96,31 @@ Layout AreaBetweenCurvesGraphController::createFunctionLayout() {
   if (numberOfChars >= bufferSize) {
     return Layout();
   }
-  return Layout::Create(KAbsL(KA) ^ "dx"_l, {.KA = Layout::String(buffer)});
+  Poincare::Layout subtractionLayout =
+      LayoutHelper::String(buffer, strlen(buffer));
+  Poincare::Layout absoluteValue =
+      AbsoluteValueLayout::Builder(subtractionLayout);
+  const char *dx = "dx";
+  Poincare::Layout dxLayout = LayoutHelper::String(dx, strlen(dx));
+  return Poincare::HorizontalLayout::Builder(absoluteValue, dxLayout);
 }
 
-SystemExpression AreaBetweenCurvesGraphController::createSumExpression(
-    double startSum, double endSum, Context* context) {
+Poincare::Expression AreaBetweenCurvesGraphController::createSumExpression(
+    double startSum, double endSum, Poincare::Context *context) {
   // Get the expression of the first function
   ExpiringPointer<Shared::Function> function =
       FunctionApp::app()->functionStore()->modelForRecord(selectedRecord());
-  SystemExpression expressionF = function->expressionReduced(context).clone();
+  Poincare::Expression expressionF =
+      function->expressionReduced(context).clone();
   // Get the expression of the second function
   function = FunctionApp::app()->functionStore()->modelForRecord(
       secondSelectedRecord());
-  SystemExpression expressionG = function->expressionReduced(context).clone();
-  SystemExpression result = SystemExpression::CreateIntegralOfAbsOfDifference(
-      SystemExpression::Builder<double>(startSum),
-      SystemExpression::Builder<double>(endSum), expressionF, expressionG);
-  return result;
+  Poincare::Expression expressionG =
+      function->expressionReduced(context).clone();
+  return Integral::Builder(
+      AbsoluteValue::Builder(Subtraction::Builder(expressionF, expressionG)),
+      Symbol::SystemSymbol(), Float<double>::Builder(startSum),
+      Float<double>::Builder(endSum));
 }
 
 }  // namespace Graph

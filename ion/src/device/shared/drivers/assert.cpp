@@ -1,7 +1,7 @@
-#include <assert.h>
+#include <ion/assert.h>
 #include <ion/console.h>
-#include <ion/display.h>
 #include <ion/events.h>
+#include <kandinsky/ion_context.h>
 
 /* Ad hoc functions to avoid requiring Poincare::PrintInt, which also needs a
  * sizeable part of liba. */
@@ -21,9 +21,9 @@ static int printInt(int x, char* buffer, size_t bufferSize) {
   return n;
 }
 
-void __assert(const char* expression, const char* file, int line) {
+void assertionAbort(const char* expression, const char* file, int line) {
   Ion::Events::setSpinner(false);
-  Ion::Display::Context::Clear();
+  KDIonContext::Clear();
 
   Ion::Console::writeLine("ASSERTION FAILED x_x");
   Ion::Console::writeLine(expression);

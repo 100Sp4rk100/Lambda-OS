@@ -4,7 +4,7 @@
 #include <apps/shared/interactive_curve_view_range.h>
 #include <poincare/context_with_parent.h>
 #include <poincare/range.h>
-#include <poincare/src/expression/equation_solver.h>
+#include <poincare/symbol_abstract.h>
 
 #include "equation.h"
 #include "equation_store.h"
@@ -14,8 +14,8 @@ namespace Solver {
 
 /* SystemOfEquations provides an interface to solve the system described by
  * EquationStore. The two main methods are:
- * - exactSolve, which identifies and computes exact solutions of linear
- *   systems, and polynomial equations of degree 2 or 3.
+ * - exactSolve, which identify and compute exact solutions of linear systems,
+ *   and polynomial equations of degree 2 or 3.
  * - approximateSolve, which computes numerical solutions for one equation of
  *   one variable, using an implementation of Brent's algorithm.
  *
@@ -26,11 +26,21 @@ namespace Solver {
 
 class SystemOfEquations {
  public:
-  using Type = Poincare::Internal::EquationSolver::Type;
+  enum class Type : uint8_t {
+    LinearSystem,
+    PolynomialMonovariable,
+    GeneralMonovariable,
+  };
 
-  using Error = Poincare::Internal::EquationSolver::Error;
-
-  using SolutionStatus = Poincare::Internal::EquationSolver::SolutionStatus;
+  enum class Error : uint8_t {
+    NoError = 0,
+    EquationUndefined,
+    EquationNonreal,
+    TooManyVariables,
+    NonLinearSystem,
+    RequireApproximateSolution,
+    DisabledInExamMode,
+  };
 
   SystemOfEquations(EquationStore* store) : m_store(store) {}
 
@@ -42,20 +52,19 @@ class SystemOfEquations {
       std::max(k_maxNumberOfExactSolutions, k_maxNumberOfApproximateSolutions);
 
   // System analysis
-  Type type() const { return m_solverContext.type; }
-  int degree() const { return m_solverContext.degree; }
+  Type type() const { return m_type; }
+  int degree() const { return m_degree; }
   const char* variable(size_t index) const {
-    return m_solverContext.variables.variable(index);
+    assert(index < m_numberOfSolvingVariables && m_variables[index][0] != '\0');
+    return m_variables[index];
   }
-  size_t numberOfUserVariables() const {
-    return m_solverContext.userVariables.numberOfVariables();
-  }
+  size_t numberOfUserVariables() const { return m_numberOfUserVariables; }
   const char* userVariable(size_t index) const {
-    return m_solverContext.userVariables.variable(index);
+    assert(index < m_numberOfUserVariables &&
+           m_userVariables[index][0] != '\0');
+    return m_userVariables[index];
   }
-  bool overrideUserVariables() const {
-    return m_solverContext.overrideUserVariables;
-  }
+  bool overrideUserVariables() const { return m_overrideUserVariables; }
 
   // Approximate range
   Poincare::Range1D<double> approximateSolvingRange() const {
@@ -71,59 +80,67 @@ class SystemOfEquations {
   // Solving methods
   Error exactSolve(Poincare::Context* context);
   void approximateSolve(Poincare::Context* context);
-  /* Cancel intermediate results of setApproximateSolvingRange and
-   * approximateSolve */
-  void cancelApproximateSolve(
-      bool autoApproximate = false,
-      Poincare::Range1D<double> range = k_fallbackRange);
+
   // Solutions getters
   size_t numberOfSolutions() const { return m_numberOfSolutions; }
   const Solution* solution(size_t index) const {
     assert(index < m_numberOfSolutions);
     return m_solutions + index;
   }
-  SolutionStatus solutionStatus() const {
-    return m_solverContext.solutionStatus;
-  }
+  bool hasMoreSolutions() const { return m_hasMoreSolutions; }
 
-  void tidy(Poincare::PoolObject* treePoolCursor = nullptr);
+  void tidy(Poincare::TreeNode* treePoolCursor = nullptr);
 
  private:
   constexpr static char k_parameterPrefix = 't';
-  constexpr static Poincare::Range1D<double> k_fallbackRange =
-      Poincare::Range1D<double>(-10.0, 10.0);
 
   class ContextWithoutT : public Poincare::ContextWithParent {
    public:
     using Poincare::ContextWithParent::ContextWithParent;
 
    private:
-    const Poincare::Internal::Tree* expressionForUserNamed(
-        const Poincare::Internal::Tree* symbol) override;
+    const Poincare::Expression protectedExpressionForSymbolAbstract(
+        const Poincare::SymbolAbstract& symbol, bool clone,
+        Poincare::ContextWithParent* lastDescendantContext) override;
   };
 
-  Poincare::Internal::Tree* prepareEquationForApproximateSolve(
+  Poincare::Expression equationStandardFormForApproximateSolve(
       Poincare::Context* context);
+  Error privateExactSolve(Poincare::Context* context);
+  Error simplifyAndFindVariables(Poincare::Context* context,
+                                 Poincare::Expression* simplifiedEquations);
   Error solveLinearSystem(Poincare::Context* context,
-                          Poincare::SystemExpression* simplifiedEquations);
+                          Poincare::Expression* simplifiedEquations);
   Error solvePolynomial(Poincare::Context* context,
-                        Poincare::SystemExpression* simplifiedEquations);
+                        Poincare::Expression* simplifiedEquations);
+  uint32_t tagParametersUsedAsVariables() const;
+  void tagVariableIfParameter(const char* name, uint32_t* tags) const;
 
   enum class SolutionType : uint8_t {
     Exact,
     Approximate,
     Formal,
   };
-  Error registerSolution(Poincare::UserExpression e, Poincare::Context* context,
+  Error registerSolution(Poincare::Expression e, Poincare::Context* context,
                          SolutionType type);
   void registerSolution(double f);
 
   Solution m_solutions[k_maxNumberOfSolutions];
+  size_t m_numberOfSolvingVariables;
+  size_t m_numberOfUserVariables;
   size_t m_numberOfSolutions;
   EquationStore* m_store;
+  int m_degree;
   Poincare::Range1D<double> m_approximateSolvingRange;
+  char m_variables[Poincare::Expression::k_maxNumberOfVariables]
+                  [Poincare::SymbolAbstractNode::k_maxNameSize];
+  char m_userVariables[Poincare::Expression::k_maxNumberOfVariables]
+                      [Poincare::SymbolAbstractNode::k_maxNameSize];
+  Type m_type;
+  Poincare::Preferences::ComplexFormat m_complexFormat;
+  bool m_overrideUserVariables;
+  bool m_hasMoreSolutions;
   bool m_autoApproximateSolvingRange;
-  Poincare::Internal::EquationSolver::Context m_solverContext;
 };
 
 }  // namespace Solver

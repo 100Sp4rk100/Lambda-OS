@@ -11,15 +11,13 @@ class EditorView : public Escher::Responder,
                    public Escher::View,
                    public Escher::ScrollViewDataSourceDelegate {
  public:
-  EditorView(Escher::Responder* parentResponder, App* pythonDelegate,
-             StorageEditorDelegate* storageDelegate);
+  EditorView(Escher::Responder* parentResponder, App* pythonDelegate);
   bool isAutocompleting() const;
   void resetSelection();
   void removeAutocompletionText();
   const char* text() const { return m_textArea.text(); }
-  void setText(char* textBuffer, size_t textBufferSize,
-               bool resetCursor = true) {
-    m_textArea.setText(textBuffer, textBufferSize, resetCursor);
+  void setText(char* textBuffer, size_t textBufferSize) {
+    m_textArea.setText(textBuffer, textBufferSize);
   }
   const char* cursorLocation() { return m_textArea.cursorLocation(); }
   bool setCursorLocation(const char* location) {
@@ -29,9 +27,7 @@ class EditorView : public Escher::Responder,
   void unloadSyntaxHighlighter() { m_textArea.unloadSyntaxHighlighter(); };
   void scrollViewDidChangeOffset(
       Escher::ScrollViewDataSource* scrollViewDataSource) override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  void didBecomeFirstResponder() override;
 
  private:
   int numberOfSubviews() const override { return 2; }
@@ -47,7 +43,7 @@ class EditorView : public Escher::Responder,
 
    private:
     constexpr static KDCoordinate k_margin = 2;
-    constexpr static int k_lineNumberCharLength = 2;
+    constexpr static int k_lineNumberCharLength = 3;
     KDFont::Size m_font;
     KDCoordinate m_offset;
   };

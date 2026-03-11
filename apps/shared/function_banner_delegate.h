@@ -1,7 +1,6 @@
 #ifndef SHARED_FUNCTION_BANNER_DELEGATE_H
 #define SHARED_FUNCTION_BANNER_DELEGATE_H
 
-#include <apps/math_preferences.h>
 #include <poincare/preferences.h>
 
 #include "curve_view_cursor.h"
@@ -33,13 +32,13 @@ class FunctionBannerDelegate {
   constexpr static int k_cappedNumberOfSignificantDigits =
       Poincare::Preferences::VeryLargeNumberOfSignificantDigits;
   virtual void reloadBannerViewForCursorOnFunction(
-      double cursorT, double cursorX, double cursorY,
-      Ion::Storage::Record record, FunctionStore* functionStore,
-      Poincare::Context* context, bool cappedNumberOfSignificantDigits = false);
+      CurveViewCursor* cursor, Ion::Storage::Record record,
+      FunctionStore* functionStore, Poincare::Context* context,
+      bool cappedNumberOfSignificantDigits = false);
   virtual XYBannerView* bannerView() = 0;
   virtual int numberOfSignificantDigits(bool capped = false) const {
     int userDigits =
-        MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+        Poincare::Preferences::SharedPreferences()->numberOfSignificantDigits();
     return capped && userDigits > k_cappedNumberOfSignificantDigits
                ? k_cappedNumberOfSignificantDigits
                : userDigits;

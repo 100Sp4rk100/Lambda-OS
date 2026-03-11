@@ -3,9 +3,9 @@
 #include <assert.h>
 #include <ion.h>
 #include <ion/storage/file_system.h>
-#include <omg/list.h>
-#include <omg/memory.h>
-#include <omg/utf8_helper.h>
+#include <poincare/helpers.h>
+#include <poincare/list.h>
+#include <poincare/serialization_helper.h>
 #include <stddef.h>
 
 #include <algorithm>
@@ -19,8 +19,8 @@ using namespace Ion::Storage;
 
 namespace Shared {
 
-DoublePairStore::DoublePairStore(GlobalContext* context,
-                                 DoublePairStorePreferences* preferences)
+DoublePairStore::DoublePairStore(GlobalContext *context,
+                                 DoublePairStorePreferences *preferences)
     : m_storePreferences(preferences), m_context(context) {}
 
 void DoublePairStore::initListsInPool() {
@@ -44,12 +44,12 @@ void DoublePairStore::initListsFromStorage(bool delayUpdate) {
       if (listData.size == 0) {
         continue;
       }
-      UserExpression e =
-          UserExpression::ExpressionFromAddress(listData.buffer, listData.size);
-      if (!e.isList()) {
+      Expression e =
+          Expression::ExpressionFromAddress(listData.buffer, listData.size);
+      if (e.type() != ExpressionNode::Type::List) {
         continue;
       }
-      setList(static_cast<List&>(e), s, i, true);
+      setList(static_cast<List &>(e), s, i, true);
     }
     updateSeries(s, delayUpdate);
   }
@@ -64,7 +64,7 @@ void DoublePairStore::tidy() {
 }
 
 size_t DoublePairStore::fillColumnName(int series, int column,
-                                       char* buffer) const {
+                                       char *buffer) const {
   assert(series >= 0 && series < k_numberOfSeries);
   assert(column >= 0 && column < k_numberOfColumnsPerSeries);
   buffer[0] = columnNamePrefixAtIndex(column);
@@ -73,8 +73,8 @@ size_t DoublePairStore::fillColumnName(int series, int column,
   return 2;
 }
 
-bool DoublePairStore::isColumnName(const char* name, int nameLen,
-                                   int* returnSeries, int* returnColumn) {
+bool DoublePairStore::isColumnName(const char *name, int nameLen,
+                                   int *returnSeries, int *returnColumn) {
   if (nameLen != 2 || name[1] < '1' || name[1] >= '1' + k_numberOfSeries) {
     return false;
   }
@@ -92,11 +92,11 @@ bool DoublePairStore::isColumnName(const char* name, int nameLen,
   return false;
 }
 
-size_t DoublePairStore::tableName(int series, char* buffer,
+size_t DoublePairStore::tableName(int series, char *buffer,
                                   size_t bufferSize) const {
   size_t length = fillColumnName(series, 0, buffer);
   length +=
-      UTF8Helper::WriteCodePoint(buffer + length, bufferSize - length, '/');
+      SerializationHelper::CodePoint(buffer + length, bufferSize - length, '/');
   length += fillColumnName(series, 1, buffer + length);
   return length;
 }
@@ -128,7 +128,7 @@ bool DoublePairStore::set(double f, int series, int i, int j, bool delayUpdate,
   return updateSeries(series, delayUpdate);
 }
 
-bool DoublePairStore::setList(List& list, int series, int i, bool delayUpdate,
+bool DoublePairStore::setList(List &list, int series, int i, bool delayUpdate,
                               bool setOtherColumnToDefaultIfEmpty) {
   /* Approximate the list to turn it into list of doubles since we do not
    * want to work with exact expressions in Regression and Statistics.*/
@@ -141,10 +141,8 @@ bool DoublePairStore::setList(List& list, int series, int i, bool delayUpdate,
       m_dataLists[series][i].removeValueAtIndex(list.numberOfChildren());
       continue;
     }
-    double evaluation =
-        list.cloneChildAtIndex(j).approximateToRealScalar<double>(
-            MathPreferences::SharedPreferences()->angleUnit(),
-            MathPreferences::SharedPreferences()->complexFormat(), m_context);
+    double evaluation = PoincareHelpers::ApproximateToScalar<double>(
+        list.childAtIndex(j), m_context);
     set(evaluation, series, i, j, true, setOtherColumnToDefaultIfEmpty);
   }
   return updateSeries(series, delayUpdate);
@@ -290,11 +288,11 @@ int DoublePairStore::activeSeriesIndexFromSeriesIndex(
   return activeSeriesCount;
 }
 
-static void swapRows(int a, int b, void* ctx, int numberOfElements) {
+static void swapRows(int a, int b, void *ctx, int numberOfElements) {
   // Swap X and Y values
-  void** pack = reinterpret_cast<void**>(ctx);
-  DoublePairStore* store = reinterpret_cast<DoublePairStore*>(pack[0]);
-  int* series = reinterpret_cast<int*>(pack[1]);
+  void **pack = reinterpret_cast<void **>(ctx);
+  DoublePairStore *store = reinterpret_cast<DoublePairStore *>(pack[0]);
+  int *series = reinterpret_cast<int *>(pack[1]);
   double dataAx = store->get(*series, 0, a);
   double dataAy = store->get(*series, 1, a);
   store->set(store->get(*series, 0, b), *series, 0, a, true);
@@ -303,23 +301,57 @@ static void swapRows(int a, int b, void* ctx, int numberOfElements) {
   store->set(dataAy, *series, 1, b, true);
 };
 
-static bool compare(int a, int b, void* ctx, int numberOfElements) {
-  void** pack = reinterpret_cast<void**>(ctx);
-  const DoublePairStore* store =
-      reinterpret_cast<const DoublePairStore*>(pack[0]);
-  int* series = reinterpret_cast<int*>(pack[1]);
-  int* column = reinterpret_cast<int*>(pack[2]);
+static bool compare(int a, int b, void *ctx, int numberOfElements) {
+  void **pack = reinterpret_cast<void **>(ctx);
+  const DoublePairStore *store =
+      reinterpret_cast<const DoublePairStore *>(pack[0]);
+  int *series = reinterpret_cast<int *>(pack[1]);
+  int *column = reinterpret_cast<int *>(pack[2]);
   double dataA = store->get(*series, *column, a);
   double dataB = store->get(*series, *column, b);
   return dataA >= dataB || std::isnan(dataA);
 };
 
+double DoublePairStore::CalculationOptions::transformValue(double value,
+                                                           int i) const {
+  value *= oppositeOfValue(i) ? -1.0 : 1.0;
+  return lnOfValue(i) ? std::log(value) : value;
+}
+
 void DoublePairStore::sortColumn(int series, int column, bool delayUpdate) {
   assert(column == 0 || column == 1);
 
-  void* context[] = {const_cast<DoublePairStore*>(this), &series, &column};
-  OMG::List::Sort(swapRows, compare, context, numberOfPairsOfSeries(series));
+  void *context[] = {const_cast<DoublePairStore *>(this), &series, &column};
+  Poincare::Helpers::Sort(swapRows, compare, context,
+                          numberOfPairsOfSeries(series));
   updateSeries(series, delayUpdate);
+}
+
+void DoublePairStore::sortIndexByColumn(uint8_t *sortedIndex, int series,
+                                        int column, int startIndex,
+                                        int endIndex) const {
+  assert(startIndex < endIndex);
+  void *pack[] = {const_cast<DoublePairStore *>(this), sortedIndex + startIndex,
+                  &series, &column};
+  Poincare::Helpers::Sort(
+      [](int i, int j, void *ctx, int n) {  // Swap method
+        void **pack = reinterpret_cast<void **>(ctx);
+        uint8_t *sortedIndex = reinterpret_cast<uint8_t *>(pack[1]);
+        uint8_t t = sortedIndex[i];
+        sortedIndex[i] = sortedIndex[j];
+        sortedIndex[j] = t;
+      },
+      [](int i, int j, void *ctx, int n) {  // Comparison method
+        void **pack = reinterpret_cast<void **>(ctx);
+        const DoublePairStore *store =
+            reinterpret_cast<const DoublePairStore *>(pack[0]);
+        uint8_t *sortedIndex = reinterpret_cast<uint8_t *>(pack[1]);
+        int series = *reinterpret_cast<int *>(pack[2]);
+        int column = *reinterpret_cast<int *>(pack[3]);
+        return store->get(series, column, sortedIndex[i]) >=
+               store->get(series, column, sortedIndex[j]);
+      },
+      pack, endIndex - startIndex);
 }
 
 double DoublePairStore::sumOfColumn(int series, int i,
@@ -341,6 +373,18 @@ uint32_t DoublePairStore::storeChecksum() const {
   return Ion::crc32DoubleWord(checkSumPerSeries, k_numberOfSeries);
 }
 
+/* TODO: This function is temporary. We want to create a function with a
+ * similar behaviour in Ion in a near future.
+ * This was copy pasted from the crc32EatByte function in the kernel. */
+constexpr uint32_t polynomialForCrc = 0x04C11DB7;
+uint32_t crc32EatByte(uint32_t crc, uint8_t data) {
+  crc ^= data << 24;
+  for (int i = 8; i--;) {
+    crc = crc & 0x80000000 ? ((crc << 1) ^ polynomialForCrc) : (crc << 1);
+  }
+  return crc;
+}
+
 uint32_t DoublePairStore::storeChecksumForSeries(int series) const {
   /* Since the pool is not packed, it's noisy and we cannot just compute
    * the CRC32 of the expressionNode in the pool.
@@ -356,8 +400,7 @@ uint32_t DoublePairStore::storeChecksumForSeries(int series) const {
       double value = get(series, i, j);
       for (size_t index = 0; index < sizeof(double) / sizeof(uint8_t);
            index++) {
-        crc = OMG::Memory::crc32EatByte(
-            crc, *(reinterpret_cast<uint8_t*>(&value) + index));
+        crc = crc32EatByte(crc, *(reinterpret_cast<uint8_t *>(&value) + index));
       }
     }
   }
@@ -396,12 +439,9 @@ bool DoublePairStore::storeColumn(int series, int i) const {
     Record(name, listExtension).destroy();
     return true;
   }
-  UserExpression listSymbol = SymbolHelper::BuildSymbol(name, nameLength);
-  /* TODO: add a flag to tell setExpressionForUserNamed not to reduce the
-   * float list since there is nothing to reduce and it may be long. Break in
-   * regression_trigonometric_4 to see the performance issue. */
-  return m_context->setExpressionForUserNamed(m_dataLists[series][i],
-                                              listSymbol);
+  Symbol listSymbol = Symbol::Builder(name, nameLength);
+  return m_context->setExpressionForSymbolAbstract(m_dataLists[series][i],
+                                                   listSymbol);
 }
 
 void DoublePairStore::deleteTrailingUndef(int series, int i) {

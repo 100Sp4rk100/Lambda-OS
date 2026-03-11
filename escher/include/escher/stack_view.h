@@ -13,7 +13,7 @@ class StackView : public View {
 
   using Mask = uint16_t;
 
-  constexpr static uint8_t k_maxDepth = sizeof(Mask) * 8;
+  static constexpr uint8_t k_maxDepth = sizeof(Mask) * 8;
 
   StackView(Style style, bool extendVertically,
             OMG::AbstractStack<StackHeaderView>* headerViewStack);
@@ -22,7 +22,7 @@ class StackView : public View {
   void setupHeadersBorderOverlaping(bool headersOverlapHeaders,
                                     bool headersOverlapContent,
                                     KDColor headersContentBorderColor);
-  void pushStack(const ViewController* controller);
+  void pushStack(ViewController* controller);
   void reload() { markWholeFrameAsDirty(); }
   void resetStack() { m_stackHeaderViews->reset(); }
 

@@ -5,12 +5,14 @@ extern "C" {
 #include <assert.h>
 }
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 TabViewCell::TabViewCell()
     : View(), m_active(false), m_selected(false), m_controller(nullptr) {}
 
-void TabViewCell::setTabController(TabViewController* controller,
+void TabViewCell::setTabController(TabViewController *controller,
                                    uint8_t tabNumber) {
   m_tabNumber = tabNumber;
   m_controller = controller;
@@ -32,14 +34,14 @@ KDSize TabViewCell::minimalSizeForOptimalDisplay() const {
       ->stringSize(m_controller->tabName(m_tabNumber));
 }
 
-void TabViewCell::drawRect(KDContext* ctx, KDRect rect) const {
+void TabViewCell::drawRect(KDContext *ctx, KDRect rect) const {
   KDCoordinate height = bounds().height();
   KDCoordinate width = bounds().width();
   // choose the background color
-  KDColor text = m_active ? Palette::PurpleBright : KDColorWhite;
+  KDColor text = m_active ? Theme::ThemeGestion::getColor("PurpleBright") : Theme::ThemeGestion::getColor("KDColorWhite");
   KDColor inactiveBackground = m_controller->tabBackgroundColor();
-  KDColor background = m_active ? KDColorWhite : inactiveBackground;
-  KDColor selection = m_active ? Palette::Select : Palette::SelectDark;
+  KDColor background = m_active ? Theme::ThemeGestion::getColor("KDColorWhite") : inactiveBackground;
+  KDColor selection = m_active ? Theme::ThemeGestion::getColor("Select") : Theme::ThemeGestion::getColor("SelectDark");
   background = m_selected ? selection : background;
   // Color the background according to the state of the tab cell
   if (m_active || m_selected) {
@@ -58,9 +60,9 @@ void TabViewCell::drawRect(KDContext* ctx, KDRect rect) const {
 }
 
 #if ESCHER_VIEW_LOGGING
-const char* TabViewCell::className() const { return "TabViewCell"; }
+const char *TabViewCell::className() const { return "TabViewCell"; }
 
-void TabViewCell::logAttributes(std::ostream& os) const {
+void TabViewCell::logAttributes(std::ostream &os) const {
   View::logAttributes(os);
   os << " active=\"" << m_active << "\"";
   os << " name=\"" << m_controller->tabName(m_tabNumber) << "\"";

@@ -76,9 +76,7 @@ constexpr
         0x5d,  // ] // RIGHT SQUARE BRACKET
         0x5e,  // ^ // CIRCUMFLEX ACCENT
         0x5f,  // _ // LOW LINE
-#if !KANDINSKY_CODEPOINTS_SCANDIUM
         0x60,  // ` // GRAVE ACCENT
-#endif
         0x61,  // a // LATIN SMALL LETTER A
         0x62,  // b // LATIN SMALL LETTER B
         0x63,  // c // LATIN SMALL LETTER C
@@ -134,9 +132,7 @@ constexpr
         0x303,  //  ̃ // COMBINING TILDE
         0x305,  //  ̅ // COMBINING OVERLINE
         0x308,  //  ̈ // COMBINING DIAERESIS
-#if !KANDINSKY_CODEPOINTS_SCANDIUM
         0x30a,  //  ̊ // COMBINING RING ABOVE
-#endif
         0x327,  //  ̧ // COMBINING CEDILLA
         0x338,  // ◌̸ // COMBINING LONG SOLIDUS OVERLAY
 
@@ -170,7 +166,6 @@ constexpr
         0x2248,  // ≈ // ALMOST EQUAL TO
         0x2264,  // ≤ // LESS-THAN OR EQUAL TO
         0x2265,  // ≥ // GREATER-THAN OR EQUAL TO
-        0x22a6,  // ⊦ // ASSERTION
         0x27E8,  // ⟨ // LEFT ANGLE BRACKET
         0x27E9,  // ⟩ // RIGHT ANGLE BRACKET
         0xFFFD,  // � // REPLACEMENT CHARACTER

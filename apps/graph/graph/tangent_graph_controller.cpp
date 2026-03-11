@@ -14,15 +14,15 @@ using namespace Escher;
 namespace Graph {
 
 TangentGraphController::TangentGraphController(
-    Responder* parentResponder, GraphView* graphView, BannerView* bannerView,
-    InteractiveCurveViewRange* curveViewRange, CurveViewCursor* cursor)
+    Responder *parentResponder, GraphView *graphView, BannerView *bannerView,
+    InteractiveCurveViewRange *curveViewRange, CurveViewCursor *cursor)
     : SimpleInteractiveCurveViewController(parentResponder, cursor),
       m_graphView(graphView),
       m_bannerView(bannerView),
       m_graphRange(curveViewRange),
       m_drawTangent(false) {}
 
-const char* TangentGraphController::title() const {
+const char *TangentGraphController::title() {
   I18n::Message message = m_drawTangent ? I18n::Message::Tangent
                                         : I18n::Message::CartesianSlopeFormula;
   return I18n::translate(message);
@@ -42,21 +42,16 @@ void TangentGraphController::viewWillAppear() {
   SimpleInteractiveCurveViewController::viewWillAppear();
 }
 
-void TangentGraphController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (curveView()->hasFocus()) {
-      m_bannerView->abscissaValue()->setParentResponder(this);
-      m_bannerView->abscissaValue()->setDelegate(this);
-      App::app()->setFirstResponder(m_bannerView->abscissaValue());
-    }
-  } else {
-    SimpleInteractiveCurveViewController::handleResponderChainEvent(event);
+void TangentGraphController::didBecomeFirstResponder() {
+  if (curveView()->hasFocus()) {
+    m_bannerView->abscissaValue()->setParentResponder(this);
+    m_bannerView->abscissaValue()->setDelegate(this);
+    App::app()->setFirstResponder(m_bannerView->abscissaValue());
   }
 }
 
 bool TangentGraphController::textFieldDidFinishEditing(
-    AbstractTextField* textField, Ion::Events::Event event) {
+    AbstractTextField *textField, Ion::Events::Event event) {
   /* TODO: factorise with
    * InteractiveCurveViewController::textFieldDidFinishEditing */
   double floatBody = ParseInputFloatValue<double>(textField->draftText());
@@ -83,8 +78,7 @@ void TangentGraphController::reloadBannerView() {
     return;
   }
   FunctionBannerDelegate::reloadBannerViewForCursorOnFunction(
-      m_cursor->t(), m_cursor->x(), m_cursor->y(), m_record,
-      FunctionApp::app()->functionStore(),
+      m_cursor, m_record, FunctionApp::app()->functionStore(),
       AppsContainerHelper::sharedAppsContainerGlobalContext());
 
   constexpr size_t bufferSize = FunctionBannerDelegate::k_textBufferSize;
@@ -93,10 +87,10 @@ void TangentGraphController::reloadBannerView() {
 
   double coefficientA;
   if (m_bannerView->showFirstDerivative()) {
-    PointOrRealScalar<double> derivative =
+    Evaluation<double> derivative =
         reloadDerivativeInBannerViewForCursorOnFunction(m_cursor, m_record, 1);
-    assert(derivative.isRealScalar());
-    coefficientA = derivative.toRealScalar();
+    assert(derivative.type() == EvaluationNode<double>::Type::Complex);
+    coefficientA = derivative.toScalar();
   } else {
     assert(m_bannerView->showSlope());
     coefficientA =
@@ -104,13 +98,13 @@ void TangentGraphController::reloadBannerView() {
   }
 
   Print::CustomPrintf(buffer, bufferSize, "a=%*.*ed", coefficientA,
-                      MathPreferences::SharedPreferences()->displayMode(),
+                      Preferences::SharedPreferences()->displayMode(),
                       precision);
   m_bannerView->aView()->setText(buffer);
 
   double coefficientB = -coefficientA * m_cursor->x() + m_cursor->y();
   Print::CustomPrintf(buffer, bufferSize, "b=%*.*ed", coefficientB,
-                      MathPreferences::SharedPreferences()->displayMode(),
+                      Preferences::SharedPreferences()->displayMode(),
                       precision);
   m_bannerView->bView()->setText(buffer);
   m_bannerView->reload();
@@ -124,8 +118,8 @@ bool TangentGraphController::moveCursorHorizontally(
 }
 
 bool TangentGraphController::handleEnter() {
-  StackViewController* stack =
-      static_cast<StackViewController*>(parentResponder());
+  StackViewController *stack =
+      static_cast<StackViewController *>(parentResponder());
   stack->pop();
   return true;
 }

@@ -44,7 +44,7 @@ struct SDL_PrivateAudioData
     /* The audio file descriptor */
     int audio_fd;
 
-    /* Select timeout status */
+    /* LAMDA_gray_light_palette timeout status */
     uint32_t timeout_on_wait;
 
     /* Raw mixing buffer */

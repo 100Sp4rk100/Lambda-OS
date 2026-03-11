@@ -36,12 +36,15 @@ class InteractiveCurveViewController
 
   // Responder
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
+  void willExitResponderChain(Responder* nextFirstResponder) override;
 
   // ViewController
-  ViewController::TitlesDisplay titlesDisplay() const override {
+  ViewController::TitlesDisplay titlesDisplay() override {
     return ViewController::TitlesDisplay::NeverDisplayOwnTitle;
   }
   void viewWillAppear() override;
+  TELEMETRY_ID("Graph");
 
   // TextFieldDelegate
   bool textFieldDidReceiveEvent(Escher::AbstractTextField* textField,
@@ -115,9 +118,6 @@ class InteractiveCurveViewController
 
   int* m_selectedCurveIndex;
   int m_selectedSubCurveIndex;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   constexpr static KDFont::Size k_buttonFont = KDFont::Size::Small;

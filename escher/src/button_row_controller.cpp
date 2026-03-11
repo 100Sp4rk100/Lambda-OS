@@ -6,12 +6,12 @@
 
 namespace Escher {
 
-ButtonRowDelegate::ButtonRowDelegate(ButtonRowController* header,
-                                     ButtonRowController* footer)
+ButtonRowDelegate::ButtonRowDelegate(ButtonRowController *header,
+                                     ButtonRowController *footer)
     : m_header(header), m_footer(footer) {}
 
 ButtonRowController::ContentView::ContentView(
-    ViewController* mainViewController, ButtonRowDelegate* delegate,
+    ViewController *mainViewController, ButtonRowDelegate *delegate,
     Position position, Style style, Size size, KDCoordinate verticalMargin)
     : View(),
       m_mainViewController(mainViewController),
@@ -26,7 +26,7 @@ int ButtonRowController::ContentView::numberOfButtons() const {
   return m_delegate->numberOfButtons(m_position);
 }
 
-ButtonCell* ButtonRowController::ContentView::buttonAtIndex(int index) const {
+ButtonCell *ButtonRowController::ContentView::buttonAtIndex(int index) const {
   return m_delegate->buttonAtIndex(index, m_position);
 }
 
@@ -36,7 +36,7 @@ int ButtonRowController::ContentView::numberOfSubviews() const {
   return numberOfButtons() + 1;
 }
 
-View* ButtonRowController::ContentView::subviewAtIndex(int index) {
+View *ButtonRowController::ContentView::subviewAtIndex(int index) {
   /* Warning: the order of the subviews is important for drity tracking.
    * Indeed, when a child is redrawn, the redrawn area is the smallest
    * rectangle unioniong the dirty rectangle and the previous redrawn area.
@@ -103,7 +103,7 @@ void ButtonRowController::ContentView::layoutSubviews(bool force) {
                              : bounds().height() - rowHeight + fullHeightMargin;
   int currentXOrigin = widthMargin;
   for (int i = 0; i < nbOfButtons; i++) {
-    ButtonCell* button = buttonAtIndex(i);
+    ButtonCell *button = buttonAtIndex(i);
     KDSize buttonSize = button->minimalSizeForOptimalDisplay();
     KDRect buttonFrame(currentXOrigin, yOrigin, buttonSize.width(),
                        buttonSize.height());
@@ -112,7 +112,7 @@ void ButtonRowController::ContentView::layoutSubviews(bool force) {
   }
 }
 
-void ButtonRowController::ContentView::drawRowFrame(KDContext* ctx,
+void ButtonRowController::ContentView::drawRowFrame(KDContext *ctx,
                                                     KDCoordinate innerHeight,
                                                     KDColor backgroundColor,
                                                     KDColor borderColor) const {
@@ -131,21 +131,21 @@ void ButtonRowController::ContentView::drawRowFrame(KDContext* ctx,
   return;
 }
 
-void ButtonRowController::ContentView::drawRect(KDContext* ctx,
+void ButtonRowController::ContentView::drawRect(KDContext *ctx,
                                                 KDRect rect) const {
   if (numberOfButtons() == 0) {
     if (m_position == Position::Top) {
-      ctx->fillRect(KDRect(0, 0, bounds().width(), 1), Palette::GrayWhite);
+      ctx->fillRect(KDRect(0, 0, bounds().width(), 1), Theme::ThemeGestion::getColor("GrayWhite"));
     }
     return;
   }
   KDCoordinate rowHeight = buttonRowHeight();
   if (m_style == Style::PlainWhite) {
-    drawRowFrame(ctx, rowHeight, KDColorWhite, Palette::GrayWhite);
+    drawRowFrame(ctx, rowHeight, Theme::ThemeGestion::getColor("KDColorWhite"), Theme::ThemeGestion::getColor("GrayWhite"));
     return;
   }
   assert(m_style == Style::EmbossedGray);
-  drawRowFrame(ctx, rowHeight, Palette::GrayWhite, Palette::GrayMiddle);
+  drawRowFrame(ctx, rowHeight, Theme::ThemeGestion::getColor("GrayWhite"), Theme::ThemeGestion::getColor("GrayMiddle"));
 }
 
 bool ButtonRowController::ContentView::setSelectedButton(int selectedButton) {
@@ -167,12 +167,12 @@ bool ButtonRowController::ContentView::setSelectedButton(int selectedButton) {
     return false;
   }
   if (m_selectedButton >= 0) {
-    ButtonCell* button = buttonAtIndex(m_selectedButton);
+    ButtonCell *button = buttonAtIndex(m_selectedButton);
     button->setHighlighted(false);
   }
   m_selectedButton = selectedButton;
   if (m_selectedButton >= 0) {
-    ButtonCell* button = buttonAtIndex(selectedButton);
+    ButtonCell *button = buttonAtIndex(selectedButton);
     button->setHighlighted(true);
     App::app()->setFirstResponder(button);
     return true;
@@ -180,32 +180,30 @@ bool ButtonRowController::ContentView::setSelectedButton(int selectedButton) {
   return false;
 }
 
-ButtonRowController::ButtonRowController(Responder* parentResponder,
-                                         ViewController* mainViewController,
-                                         ButtonRowDelegate* delegate,
+ButtonRowController::ButtonRowController(Responder *parentResponder,
+                                         ViewController *mainViewController,
+                                         ButtonRowDelegate *delegate,
                                          Position position, Style style,
                                          Size size, KDCoordinate verticalMargin)
     : ViewController(parentResponder),
       m_contentView(mainViewController, delegate, position, style, size,
                     verticalMargin) {}
 
-const char* ButtonRowController::title() const {
+const char *ButtonRowController::title() {
   return m_contentView.mainViewController()->title();
 }
 
-ViewController::TitlesDisplay ButtonRowController::titlesDisplay() const {
+ViewController::TitlesDisplay ButtonRowController::titlesDisplay() {
   return m_contentView.mainViewController()->titlesDisplay();
 }
 
-void ButtonRowController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(m_contentView.mainViewController());
-  } else if (event.type == ResponderChainEventType::WillExit) {
-    setSelectedButton(-1);
-  } else {
-    ViewController::handleResponderChainEvent(event);
-  }
+void ButtonRowController::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(m_contentView.mainViewController());
+}
+
+void ButtonRowController::willExitResponderChain(
+    Responder *nextFirstResponder) {
+  setSelectedButton(-1);
 }
 
 int ButtonRowController::selectedButton() {
@@ -262,9 +260,9 @@ void ButtonRowController::privateModalViewAltersFirstResponder(
     return;
   }
   int n = m_contentView.numberOfButtons();
-  Responder* firstResponder = App::app()->firstResponder();
+  Responder *firstResponder = App::app()->firstResponder();
   for (int i = 0; i < n; i++) {
-    if (static_cast<Responder*>(m_contentView.buttonAtIndex(i)) ==
+    if (static_cast<Responder *>(m_contentView.buttonAtIndex(i)) ==
         firstResponder) {
       setSelectedButton(i);
       return;

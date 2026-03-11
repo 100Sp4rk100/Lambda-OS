@@ -2,7 +2,8 @@
 #define GRAPH_POINTS_OF_INTEREST_CACHE
 
 #include <ion/storage/record.h>
-#include <poincare/solver/point_of_interest_list.h>
+#include <poincare/point_of_interest.h>
+#include <poincare/range.h>
 
 namespace Graph {
 
@@ -18,7 +19,9 @@ class PointsOfInterestCache {
         m_interestingPointsOverflowPool(false) {}
   PointsOfInterestCache() : PointsOfInterestCache(Ion::Storage::Record()) {}
 
+  Poincare::List list() { return m_list.list(); }
   Ion::Storage::Record record() const { return m_record; }
+  PointsOfInterestCache clone() const;
 
   void setBounds(float start, float end);
   bool isFullyComputed() const {
@@ -37,7 +40,7 @@ class PointsOfInterestCache {
   bool computeNextStep(bool allowUserInterruptions);
 
   Poincare::PointOfInterest firstPointInDirection(
-      double start, double end, bool stretch,
+      double start, double end,
       Poincare::Solver<double>::Interest interest =
           Poincare::Solver<double>::Interest::None,
       int subCurveIndex = 0);
@@ -50,16 +53,12 @@ class PointsOfInterestCache {
       Poincare::Solver<double>::Interest interest =
           Poincare::Solver<double>::Interest::None,
       bool allInterestsAreDisplayed = true) const;
-  bool hasDisplayableUnreachedInterestAtCoordinates(double x, double y) const;
 
   bool canDisplayPoints(Poincare::Solver<double>::Interest interest =
                             Poincare::Solver<double>::Interest::None) const {
     return !m_interestingPointsOverflowPool &&
            (numberOfPoints(interest) <= k_maxNumberOfDisplayablePoints);
   }
-
-  static bool PointFitInterest(Poincare::PointOfInterest poi,
-                               Poincare::Solver<double>::Interest interest);
 
  private:
   constexpr static int k_maxNumberOfDisplayablePoints = 64;
@@ -68,8 +67,10 @@ class PointsOfInterestCache {
   float step() const;
 
   void stripOutOfBounds();
-  Poincare::Expression computeBetween(float start, float end);
-  void tidyDownstreamPoolFrom(const Poincare::PoolObject* treePoolCursor) const;
+  void computeBetween(float start, float end);
+  void append(double x, double y, Poincare::Solver<double>::Interest,
+              uint32_t data = 0, int subCurveIndex = 0);
+  void tidyDownstreamPoolFrom(Poincare::TreeNode* treePoolCursor) const;
 
   Ion::Storage::Record
       m_record;  // This is not const because of the copy constructor

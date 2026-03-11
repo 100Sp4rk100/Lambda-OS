@@ -3,6 +3,7 @@
 
 #include <apps/i18n.h>
 #include <apps/shared/statistics_store.h>
+#include <poincare/range.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -16,7 +17,7 @@ class Store : public Shared::StatisticsStore {
  public:
   constexpr static int k_numberOfQuantiles = 5;
 
-  Store(Shared::GlobalContext* context, UserPreferences* userPreferences);
+  Store(Shared::GlobalContext *context, UserPreferences *userPreferences);
 
   bool graphViewHasBeenInvalidated() const { return m_graphViewInvalidated; }
   void graphViewHasBeenSelected() { m_graphViewInvalidated = false; }
@@ -116,19 +117,22 @@ class Store : public Shared::StatisticsStore {
 
   // DoublePairStore
   void updateSeriesValidity(int series) override;
+  bool deleteValueAtIndex(int series, int i, int j,
+                          bool authorizeNonEmptyRowDeletion = true,
+                          bool delayUpdate = false) override;
   bool updateSeries(int series, bool delayUpdate = false) override;
 
   typedef double (Store::*CalculPointer)(int) const;
   static bool ActiveSeriesAndValidTotalNormalProbabilities(
-      const DoublePairStore* store, int series) {
+      const DoublePairStore *store, int series) {
     // SumOfOccurrencesUnderMax checks for validity
     return SumOfOccurrencesUnderMax(store, series) &&
-           static_cast<const Store*>(store)->columnIsIntegersOnly(series, 1);
+           static_cast<const Store *>(store)->columnIsIntegersOnly(series, 1);
   }
-  static bool SumOfOccurrencesUnderMax(const DoublePairStore* store,
+  static bool SumOfOccurrencesUnderMax(const DoublePairStore *store,
                                        int series) {
     return store->seriesIsActive(series) &&
-           static_cast<const Store*>(store)->sumOfOccurrences(series) <=
+           static_cast<const Store *>(store)->sumOfOccurrences(series) <=
                k_maxNumberOfPairs;
   }
 
@@ -147,19 +151,19 @@ class Store : public Shared::StatisticsStore {
    * higher than DBL_EPSILON wouldn't be effective. */
   constexpr static double k_precision = 1e-15;
 
-  int computeRelativeColumnAndSeries(int* i) const;
+  int computeRelativeColumnAndSeries(int *i) const;
 
   /* Find the i-th distinct value (if i is -1, browse the entire series) from
    * start to end (ordered by value).
    * Retrieve the i-th value and the number distinct values encountered.
    * If not handleNullFrequencies, ignore values with null frequency. */
   void countDistinctValues(int series, int start, int end, int i,
-                           bool handleNullFrequencies, double* value,
-                           int* distinctValues) const;
+                           bool handleNullFrequencies, double *value,
+                           int *distinctValues) const;
   /* Find the i-th mode (ordered by value). Also retrieve the total number of
    * modes and the mode frequency. */
-  double computeModes(int series, int i, double* modeFreq,
-                      int* modesTotal) const;
+  double computeModes(int series, int i, double *modeFreq,
+                      int *modesTotal) const;
   double sortedElementAtCumulatedFrequency(
       int series, double k, bool createMiddleElement = false) const;
   double sortedElementAtCumulatedPopulation(
@@ -169,8 +173,8 @@ class Store : public Shared::StatisticsStore {
   // Return the value index from its sorted index (a 0 sorted index is the min)
   uint8_t valueIndexAtSortedIndex(int series, int i) const;
   bool frequenciesAreValid(int series) const;
-  UserPreferences* userPreferences() const {
-    return static_cast<UserPreferences*>(m_storePreferences);
+  UserPreferences *userPreferences() const {
+    return static_cast<UserPreferences *>(m_storePreferences);
   }
 
   /* Memoizing the max number of modes because the CalculationControllers needs

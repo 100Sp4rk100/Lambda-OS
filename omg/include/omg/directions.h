@@ -1,10 +1,15 @@
 #ifndef OMG_DIRECTIONS_H
 #define OMG_DIRECTIONS_H
 
+#include <assert.h>
+#include <ion/events.h>
+
 namespace OMG {
 
 class Direction {
  public:
+  Direction(Ion::Events::Event event);
+
   bool isLeft() const { return m_tag == Tag::Left; }
   bool isRight() const { return m_tag == Tag::Right; }
   bool isUp() const { return m_tag == Tag::Up; }
@@ -23,8 +28,8 @@ class Direction {
   constexpr static Direction Up() { return Direction(Tag::Up); }
   constexpr static Direction Down() { return Direction(Tag::Down); }
 
-  bool operator==(const Direction& other) const { return m_tag == other.m_tag; }
-  bool operator!=(const Direction& other) const { return m_tag != other.m_tag; }
+  bool operator==(const Direction &other) const { return m_tag == other.m_tag; }
+  bool operator!=(const Direction &other) const { return m_tag != other.m_tag; }
 
  private:
   enum class Tag { Left, Right, Up, Down };

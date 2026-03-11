@@ -9,7 +9,7 @@
 namespace OMG {
 
 /* TODO:
- * - merge IntLeft & IntRight into OMG::UInt32(Base::Decimal),
+ * - merge Poincare::PrintInt into OMG::UInt32(Base::Decimal),
  * - move Poincare::PrintFloat here
  * - move Poincare::Print here
  */
@@ -26,7 +26,7 @@ inline char CharacterForDigit(Base base, uint8_t d) {
   return d + '0';
 }
 
-inline constexpr uint8_t DigitForCharacter(char c) {
+inline uint8_t DigitForCharacter(char c) {
   assert(c >= '0');
   if (c <= '9') {
     return c - '0';
@@ -39,11 +39,7 @@ inline constexpr uint8_t DigitForCharacter(char c) {
   return c - 'a' + 10;
 }
 
-uint32_t ParseDecimalInt(const char* text, int maxNumberOfDigits);
-
 constexpr size_t MaxLengthOfUInt32(Base base) {
-  assert(OMG::BitHelper::numberOfBitsToCountUpTo(static_cast<uint8_t>(base)) >
-         0);
   return OMG::BitHelper::numberOfBitsIn<uint32_t>() /
          OMG::BitHelper::numberOfBitsToCountUpTo(static_cast<uint8_t>(base));
 }
@@ -58,12 +54,6 @@ constexpr size_t LengthOfUInt32(Base base, uint32_t integer) {
 
 int UInt32(Base base, uint32_t integer, LeadingZeros printLeadingZeros,
            char* buffer, int bufferSize);
-int IntLeft(uint32_t integer, char* buffer, int bufferLength);
-int IntRight(uint32_t integer, char* buffer, int bufferLength);
-
-inline constexpr bool IsLowercaseLetter(char c) { return 'a' <= c && c <= 'z'; }
-
-inline constexpr bool IsDigit(char c) { return '0' <= c && c <= '9'; }
 
 }  // namespace Print
 

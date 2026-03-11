@@ -11,6 +11,8 @@
 #include "elements_view_data_source.h"
 #include "suggestion_text_field.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Elements {
 
 class BannerView : public Escher::View {
@@ -27,11 +29,8 @@ class BannerView : public Escher::View {
   void reload();
   SuggestionTextField* textField() { return &m_textField; }
 
+
  private:
-  constexpr static KDColor k_backgroundColor = Escher::Palette::GrayWhite;
-  constexpr static KDColor k_borderColor = Escher::Palette::GrayMiddle;
-  constexpr static KDColor k_legendColor = Escher::Palette::GrayVeryDark;
-  constexpr static KDColor k_selectedButtonColor = Escher::Palette::Select;
   constexpr static KDCoordinate k_dotLeftMargin = 16;
   constexpr static KDCoordinate k_dotDiameter = 8;
   constexpr static KDCoordinate k_bannerHeight = 25;
@@ -42,7 +41,7 @@ class BannerView : public Escher::View {
 
   class DotView : public Escher::View {
    public:
-    DotView() : m_color(k_backgroundColor) {}
+    DotView() : m_color(Theme::ThemeGestion::getColor("GrayWhite")) {}
 
     // Escher::View
     void drawRect(KDContext* ctx, KDRect rect) const override;

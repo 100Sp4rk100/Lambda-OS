@@ -11,9 +11,9 @@ namespace Regression {
 class ResidualPlotBannerView : public Shared::BannerView {
  public:
   ResidualPlotBannerView()
-      : m_abscissaView(k_bannerFieldFormat),
-        m_ordinateView(k_bannerFieldFormat),
-        m_stddevView(k_bannerFieldFormat) {}
+      : m_abscissaView(k_bannerFieldFormat()),
+        m_ordinateView(k_bannerFieldFormat()),
+        m_stddevView(k_bannerFieldFormat()) {}
   Escher::AbstractBufferTextView* abscissaView() { return &m_abscissaView; }
   Escher::AbstractBufferTextView* ordinateView() { return &m_ordinateView; }
   Escher::AbstractBufferTextView* stddevView() { return &m_stddevView; }

@@ -70,34 +70,34 @@ const uint8_t minusMask[KeyView::k_keySize][KeyView::k_keySize] = {
 
 KeyView::KeyView(Type type) : m_type(type) {}
 
-void KeyView::drawRect(KDContext* ctx, KDRect rect) const {
+void KeyView::drawRect(KDContext *ctx, KDRect rect) const {
   /* Draw the key centered on the view. */
   KDCoordinate width = bounds().width();
   KDCoordinate height = bounds().height();
   KDRect frame((width - k_keySize) / 2, (height - k_keySize) / 2, k_keySize,
                k_keySize);
   KDColor keyWorkingBuffer[KeyView::k_keySize * KeyView::k_keySize];
-  ctx->blendRectWithMask(frame, KDColorBlack, mask(), keyWorkingBuffer);
+  ctx->blendRectWithMask(frame, Theme::ThemeGestion::getColor("KDColorBlack"), mask(), keyWorkingBuffer);
 }
 
 KDSize KeyView::minimalSizeForOptimalDisplay() const {
   return KDSize(k_keySize, k_keySize);
 }
 
-const uint8_t* KeyView::mask() const {
+const uint8_t *KeyView::mask() const {
   switch (m_type) {
     case Type::Up:
-      return (const uint8_t*)upMask;
+      return (const uint8_t *)upMask;
     case Type::Down:
-      return (const uint8_t*)downMask;
+      return (const uint8_t *)downMask;
     case Type::Left:
-      return (const uint8_t*)leftMask;
+      return (const uint8_t *)leftMask;
     case Type::Right:
-      return (const uint8_t*)rightMask;
+      return (const uint8_t *)rightMask;
     case Type::Plus:
-      return (const uint8_t*)plusMask;
+      return (const uint8_t *)plusMask;
     case Type::Minus:
-      return (const uint8_t*)minusMask;
+      return (const uint8_t *)minusMask;
     default:
       return nullptr;
   }

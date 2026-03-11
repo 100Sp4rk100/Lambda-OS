@@ -1,180 +1,210 @@
-#ifndef POINCAREJ_TEST_HELPER_H
-#define POINCAREJ_TEST_HELPER_H
+#ifndef POINCARE_TEST_HELPER_H
+#define POINCARE_TEST_HELPER_H
 
-#include <poincare/context.h>
-#include <poincare/preferences.h>
-#include <poincare/src/expression/approximation.h>
-#include <poincare/src/expression/projection.h>
-#include <poincare/src/expression/simplification.h>
-#include <poincare/src/memory/tree.h>
-#include <poincare/src/memory/tree_ref.h>
-#include <poincare/src/memory/tree_stack.h>
+#include <poincare/expression_node.h>
+#include <poincare/float.h>
+#include <poincare/helpers.h>
+#include <poincare/print_float.h>
 #include <quiz.h>
 
-#include <span>
+#include <algorithm>
+#include <cmath>
 
-#if POINCARE_TREE_LOG
-#include <iostream>
-#endif
-
-typedef void (*ProcessTree)(
-    Poincare::Internal::Tree*,
-    Poincare::Internal::ProjectionContext projectionContext);
-void process_tree_and_compare(
-    const char* input, const char* output, ProcessTree process,
-    Poincare::Internal::ProjectionContext projectionContext);
-
-void quiz_tolerate_print_if_failure(bool test, const char* input,
-                                    const char* expected = "",
-                                    const char* observed = "");
-void quiz_assert_print_if_failure(bool test, const char* information,
-                                  const char* expected = nullptr,
-                                  const char* observed = nullptr);
-
-void remove_system_codepoints(char* buffer);
-
-inline void assert_tree_equals_blocks(
-    const Poincare::Internal::Tree* tree,
-    std::initializer_list<Poincare::Internal::Block> blocks) {
-  const Poincare::Internal::Block* block = tree->block();
-  for (Poincare::Internal::Block b : blocks) {
-    quiz_assert(*block == b);
-    block = block->next();
-  }
-  quiz_assert(tree->treeSize() == blocks.size());
-}
-
-inline void assert_trees_are_equal(const Poincare::Internal::Tree* tree0,
-                                   const Poincare::Internal::Tree* tree1) {
-  quiz_assert((tree0 == nullptr) == (tree1 == nullptr));
-  if (!tree0->treeIsIdenticalTo(tree1)) {
-#if POINCARE_TREE_LOG
-    tree0->logDiffWith(tree1);
-#endif
-    quiz_assert(false);
-  }
-}
-
-inline void flush_stack() { Poincare::Internal::SharedTreeStack->flush(); }
-
-inline void assert_tree_stack_contains(
-    std::initializer_list<const Poincare::Internal::Tree*> trees) {
-  quiz_assert(Poincare::Internal::SharedTreeStack->size() > 0);
-  Poincare::Internal::Tree* tree = Poincare::Internal::Tree::FromBlocks(
-      Poincare::Internal::SharedTreeStack->firstBlock());
-  for (const Poincare::Internal::Tree* t : trees) {
-    assert_trees_are_equal(t, tree);
-    tree = tree->nextTree();
-  }
-  quiz_assert(tree->block() ==
-              Poincare::Internal::SharedTreeStack->lastBlock());
-}
-
-#if PLATFORM_DEVICE
-#define QUIZ_ASSERT(test) quiz_assert(test)
-#else
-#include <chrono>
-#include <iomanip>
-#include <iostream>
-#define QUIZ_ASSERT(test)                                                     \
-  if (!(test)) {                                                              \
-    std::cerr << __FILE__ << ':' << __LINE__ << ": test failed" << std::endl; \
-    abort();                                                                  \
-  }
-
-inline void assertionsWarn() {
-#if ASSERTIONS
-  std::cout << "Compile with DEBUG=0 and ASSERTIONS=0 for more precise results"
-            << std::endl;
-#endif
-}
-
-#if POINCARE_METRICS
-#define METRICS(F)                                                        \
-  {                                                                       \
-    Poincare::Internal::Tree::nextNodeCount = 0;                          \
-    Poincare::Internal::Tree::nextNodeInTreeStackCount = 0;               \
-    int refId;                                                            \
-    {                                                                     \
-      Poincare::Internal::TreeRef r =                                     \
-          Poincare::Internal::SharedTreeStack->pushZero();                \
-      refId = r.identifier();                                             \
-      r->removeNode();                                                    \
-    }                                                                     \
-    auto startTime = std::chrono::high_resolution_clock::now();           \
-    F;                                                                    \
-    auto elapsed = std::chrono::high_resolution_clock::now() - startTime; \
-    {                                                                     \
-      Poincare::Internal::TreeRef r =                                     \
-          Poincare::Internal::SharedTreeStack->pushZero();                \
-      refId = r.identifier() - refId;                                     \
-      r->removeNode();                                                    \
-    }                                                                     \
-    if (refId != 0) {                                                     \
-      std::cout << "WARNING ! " << refId << " references have leaked.\n"; \
-    }                                                                     \
-    std::cout << "Metrics [" << #F << "]\n"                               \
-              << "  nextNode:      " << std::right << std::setw(6)        \
-              << Poincare::Internal::Tree::nextNodeCount                  \
-              << "\n  nextNodeInTreeStack:" << std::right << std::setw(6) \
-              << Poincare::Internal::Tree::nextNodeInTreeStackCount       \
-              << "\n  nextNodeOutOfStack:" << std::right << std::setw(6)  \
-              << Poincare::Internal::Tree::nextNodeCount -                \
-                     Poincare::Internal::Tree::nextNodeInTreeStackCount   \
-              << "\n  microseconds:  " << std::right << std::setw(6)      \
-              << std::chrono::duration_cast<std::chrono::microseconds>(   \
-                     elapsed)                                             \
-                     .count()                                             \
-              << std::endl;                                               \
-    assertionsWarn();                                                     \
-  }
-#endif
-#endif
-
-// Integer
-
-const char* MaxIntegerString();            // (2^8)^k_maxNumberOfDigits-1
-const char* AlmostMaxIntegerString();      // (2^8)^k_maxNumberOfDigits-2
-const char* OverflowedIntegerString();     // (2^8)^k_maxNumberOfDigits
-const char* BigOverflowedIntegerString();  // OverflowedIntegerString with a 2
-                                           // on first digit
+const char* MaxIntegerString();         // (2^32)^k_maxNumberOfDigits-1
+const char* OverflowedIntegerString();  // (2^32)^k_maxNumberOfDigits
+// OverflowedIntegerString with a 2 on first digit
+const char* BigOverflowedIntegerString();
 const char* MaxParsedIntegerString();
 const char* ApproximatedParsedIntegerString();
 
+/* TODO: With C++20, these can be simplified with:
+ * using enum Poincare::ReductionTarget;
+ * using enum Poincare::SymbolicComputation;
+ * ...
+ */
+
+constexpr Poincare::ReductionTarget SystemForApproximation =
+    Poincare::ReductionTarget::SystemForApproximation;
+constexpr Poincare::ReductionTarget SystemForAnalysis =
+    Poincare::ReductionTarget::SystemForAnalysis;
+constexpr Poincare::ReductionTarget User = Poincare::ReductionTarget::User;
+constexpr Poincare::SymbolicComputation ReplaceAllDefinedSymbolsWithDefinition =
+    Poincare::SymbolicComputation::ReplaceAllDefinedSymbolsWithDefinition;
+constexpr Poincare::SymbolicComputation
+    ReplaceAllSymbolsWithDefinitionsOrUndefined = Poincare::
+        SymbolicComputation::ReplaceAllSymbolsWithDefinitionsOrUndefined;
+constexpr Poincare::SymbolicComputation ReplaceDefinedFunctionsWithDefinitions =
+    Poincare::SymbolicComputation::ReplaceDefinedFunctionsWithDefinitions;
+constexpr Poincare::SymbolicComputation ReplaceAllSymbolsWithUndefined =
+    Poincare::SymbolicComputation::ReplaceAllSymbolsWithUndefined;
+constexpr Poincare::SymbolicComputation DoNotReplaceAnySymbol =
+    Poincare::SymbolicComputation::DoNotReplaceAnySymbol;
+constexpr Poincare::UnitConversion NoUnitConversion =
+    Poincare::UnitConversion::None;
+constexpr Poincare::UnitConversion DefaultUnitConversion =
+    Poincare::UnitConversion::Default;
+constexpr Poincare::UnitConversion InternationalSystemUnitConversion =
+    Poincare::UnitConversion::InternationalSystem;
+constexpr Poincare::Preferences::AngleUnit Radian =
+    Poincare::Preferences::AngleUnit::Radian;
+constexpr Poincare::Preferences::AngleUnit Degree =
+    Poincare::Preferences::AngleUnit::Degree;
+constexpr Poincare::Preferences::AngleUnit Gradian =
+    Poincare::Preferences::AngleUnit::Gradian;
+constexpr Poincare::Preferences::UnitFormat MetricUnitFormat =
+    Poincare::Preferences::UnitFormat::Metric;
+constexpr Poincare::Preferences::UnitFormat Imperial =
+    Poincare::Preferences::UnitFormat::Imperial;
+constexpr Poincare::Preferences::ComplexFormat Cartesian =
+    Poincare::Preferences::ComplexFormat::Cartesian;
+constexpr Poincare::Preferences::ComplexFormat Polar =
+    Poincare::Preferences::ComplexFormat::Polar;
+constexpr Poincare::Preferences::ComplexFormat Real =
+    Poincare::Preferences::ComplexFormat::Real;
+constexpr Poincare::Preferences::PrintFloatMode DecimalMode =
+    Poincare::Preferences::PrintFloatMode::Decimal;
+constexpr Poincare::Preferences::PrintFloatMode ScientificMode =
+    Poincare::Preferences::PrintFloatMode::Scientific;
+constexpr Poincare::Preferences::PrintFloatMode EngineeringMode =
+    Poincare::Preferences::PrintFloatMode::Engineering;
+
+void quiz_assert_print_if_failure(bool test, const char* information);
+void quiz_assert_log_if_failure(bool test, Poincare::TreeHandle tree);
+
+typedef Poincare::Expression (*ProcessExpression)(
+    Poincare::Expression, Poincare::ReductionContext reductionContext);
+
+void assert_parsed_expression_process_to(
+    const char* expression, const char* result,
+    Poincare::ReductionTarget target,
+    Poincare::Preferences::ComplexFormat complexFormat,
+    Poincare::Preferences::AngleUnit angleUnit,
+    Poincare::Preferences::UnitFormat unitFormat,
+    Poincare::SymbolicComputation symbolicComputation,
+    Poincare::UnitConversion unitConversion, ProcessExpression process,
+    int numberOfSignificantDigits =
+        Poincare::PrintFloat::k_maxNumberOfSignificantDigits);
+
 // Parsing
 
-Poincare::Internal::Tree* parse(const char* input,
-                                Poincare::Context* context = nullptr,
-                                bool parseForAssignment = false);
-
-Poincare::Internal::Tree* parse_and_reduce(const char* input,
-                                           bool beautify = false);
-
-void assert_text_not_parsable(const char* input,
-                              Poincare::Context* context = nullptr);
-void assert_parse_to_integer_overflow(const char* input,
-                                      Poincare::Context* context = nullptr);
-
-void store(const char* storeExpression, Poincare::Context* ctx);
-
-inline Poincare::Internal::Tree* parseAndPrepareForApproximation(
-    const char* function, Poincare::Internal::ProjectionContext ctx = {}) {
-  constexpr const char* k_symbol = "x";
-  Poincare::Internal::Tree* e = parse(function, ctx.m_context);
-  Poincare::Internal::Simplification::ToSystem(e, &ctx);
-  Poincare::Internal::Approximation::PrepareFunctionForApproximation(
-      e, k_symbol, ctx.m_complexFormat);
-  return e;
-}
-
-// Serialization
-
-void serialize_expression(const Poincare::Internal::Tree* expression,
-                          std::span<char> buffer);
+Poincare::Expression parse_expression(const char* expression,
+                                      Poincare::Context* context,
+                                      bool addParentheses,
+                                      bool parseForAssignment = false);
+void assert_parsed_expression_is(
+    const char* expression, Poincare::Expression r, bool addParentheses = false,
+    bool parseForAssignment = false,
+    Poincare::Preferences::MixedFractions mixedFractionsParameter =
+        Poincare::Preferences::MixedFractions::Enabled);
+void assert_parse_to_same_expression(const char* expression1,
+                                     const char* expression2);
 
 // Simplification
-void simplify(Poincare::Internal::Tree* e,
-              const Poincare::Internal::ProjectionContext& ctx,
-              bool beautify = true);
+
+void assert_reduce_and_store(
+    const char* expression, Poincare::Preferences::AngleUnit angleUnit = Radian,
+    Poincare::Preferences::UnitFormat unitFormat = MetricUnitFormat,
+    Poincare::Preferences::ComplexFormat complexFormat = Cartesian,
+    Poincare::ReductionTarget target = User);
+
+void assert_expression_reduce(
+    Poincare::Expression expression,
+    Poincare::Preferences::AngleUnit angleUnit = Radian,
+    Poincare::Preferences::UnitFormat unitFormat = MetricUnitFormat,
+    Poincare::Preferences::ComplexFormat complexFormat = Cartesian,
+    Poincare::ReductionTarget target = User,
+    const char* printIfFailure = "Error");
+
+void assert_parsed_expression_simplify_to(
+    const char* expression, const char* simplifiedExpression,
+    Poincare::ReductionTarget target = User,
+    Poincare::Preferences::AngleUnit angleUnit = Radian,
+    Poincare::Preferences::UnitFormat unitFormat = MetricUnitFormat,
+    Poincare::Preferences::ComplexFormat complexFormat = Cartesian,
+    Poincare::SymbolicComputation symbolicComputation =
+        ReplaceAllDefinedSymbolsWithDefinition,
+    Poincare::UnitConversion unitConversion = DefaultUnitConversion);
+
+// Approximation
+
+/* Return true if observed and expected are approximately equal, according to
+ * threshold and acceptNAN parameters. */
+template <typename T>
+bool inline roughly_equal(T observed, T expected,
+                          T threshold = Poincare::Float<T>::Epsilon(),
+                          bool acceptNAN = false,
+                          T nullExpectedThreshold = NAN) {
+  if (std::isnan(observed) || std::isnan(expected)) {
+    return acceptNAN && std::isnan(observed) && std::isnan(expected);
+  }
+  T max = std::max(std::fabs(observed), std::fabs(expected));
+  if (max == INFINITY) {
+    return observed == expected;
+  }
+  if (expected == 0.0) {
+    if (std::isnan(nullExpectedThreshold)) {
+      nullExpectedThreshold = threshold;
+    }
+    return max <= nullExpectedThreshold;
+  }
+  return Poincare::Helpers::RelativelyEqual<T>(observed, expected, threshold);
+}
+
+template <typename T>
+void inline assert_roughly_equal(T observed, T expected,
+                                 T threshold = Poincare::Float<T>::Epsilon(),
+                                 bool acceptNAN = false,
+                                 T nullExpectedThreshold = NAN) {
+  quiz_assert(roughly_equal<T>(observed, expected, threshold, acceptNAN,
+                               nullExpectedThreshold));
+}
+
+template <typename T>
+void assert_expression_approximates_to(
+    const char* expression, const char* approximation,
+    Poincare::Preferences::AngleUnit angleUnit = Degree,
+    Poincare::Preferences::UnitFormat unitFormat = MetricUnitFormat,
+    Poincare::Preferences::ComplexFormat complexFormat = Cartesian,
+    int numberOfSignificantDigits =
+        Poincare::PrintFloat::SignificantDecimalDigits<T>());
+
+void assert_expression_approximates_keeping_symbols_to(
+    const char* expression, const char* simplifiedExpression,
+    Poincare::Preferences::AngleUnit angleUnit = Degree,
+    Poincare::Preferences::UnitFormat unitFormat = MetricUnitFormat,
+    Poincare::Preferences::ComplexFormat complexFormat = Cartesian,
+    int numberOfSignificantDigits = 10);
+
+template <typename T>
+void assert_expression_simplifies_approximates_to(
+    const char* expression, const char* approximation,
+    Poincare::Preferences::AngleUnit angleUnit = Degree,
+    Poincare::Preferences::UnitFormat unitFormat = MetricUnitFormat,
+    Poincare::Preferences::ComplexFormat complexFormat = Cartesian,
+    int numberOfSignificantDigits =
+        Poincare::PrintFloat::SignificantDecimalDigits<T>());
+
+// Expression serializing
+
+void assert_expression_serializes_to(
+    Poincare::Expression expression, const char* serialization,
+    Poincare::Preferences::PrintFloatMode mode = ScientificMode,
+    int numberOfSignificantDigits = 7);
+
+void assert_expression_serializes_and_parses_to_itself(
+    Poincare::Expression expression);
+void assert_expression_parses_and_serializes_to(const char* expression,
+                                                const char* result);
+void assert_expression_parses_and_serializes_to_itself(const char* expression);
+
+// Layout serializing
+
+void assert_layout_serializes_to(Poincare::Layout layout,
+                                 const char* serialization);
+
+// Expression layouting
+
+void assert_expression_layouts_as(Poincare::Expression expression,
+                                  Poincare::Layout layout);
 
 #endif

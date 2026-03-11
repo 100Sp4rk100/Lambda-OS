@@ -2,16 +2,17 @@
 
 #include <apps/apps_container.h>
 #include <apps/i18n.h>
+#include <poincare/comparison.h>
 #include <poincare/preferences.h>
 
-#include "solver_icon.h"
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Shared;
 using namespace Escher;
 
 namespace Solver {
 
-const Image* App::Descriptor::icon() const { return ImageStore::SolverIcon; }
+const Image* App::Descriptor::icon() const { return Theme::ThemeGestion::getIconImage("SolverIcon"); }
 
 constexpr static App::Descriptor sDescriptor;
 

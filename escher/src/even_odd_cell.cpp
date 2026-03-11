@@ -1,7 +1,16 @@
 #include <escher/even_odd_cell.h>
 #include <escher/palette.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
+
+KDGlyph::Format EvenOddCell::k_smallCellDefaultFormat(){
+  return{
+      .style = {.font = KDFont::Size::Small},
+      .horizontalAlignment = KDGlyph::k_alignRight};
+  }
+
 
 EvenOddCell::EvenOddCell() : HighlightCell(), m_even(false) {}
 
@@ -28,11 +37,11 @@ void EvenOddCell::setHighlighted(bool highlighted) {
 
 KDColor EvenOddCell::backgroundColor() const {
   if (!isVisible()) {
-    return k_hideColor;
+    return Theme::ThemeGestion::getColor("WallScreenDark");
   } else if (isHighlighted()) {
-    return Palette::Select;
+    return Theme::ThemeGestion::getColor("Select");
   }
-  return m_even ? KDColorWhite : Palette::WallScreen;
+  return m_even ? Theme::ThemeGestion::getColor("KDColorWhite") : Theme::ThemeGestion::getColor("WallScreen");
 }
 
 void EvenOddCell::drawRect(KDContext* ctx, KDRect rect) const {

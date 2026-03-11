@@ -1,9 +1,10 @@
 #include "graph_controller_helper.h"
 
-#include <apps/math_preferences.h>
 #include <apps/shared/function_banner_delegate.h>
 #include <apps/shared/poincare_helpers.h>
 #include <omg/ieee754.h>
+#include <poincare/point_evaluation.h>
+#include <poincare/preferences.h>
 #include <poincare/print.h>
 
 #include <algorithm>
@@ -27,6 +28,7 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
   double tMin = function->tMin();
   double tMax = function->tMax();
   int functionsCount = -1;
+  bannerView()->emptyInterestMessages(graphView()->cursorView());
 
   if (((direction.isRight() && std::abs(tCursor - tMax) < DBL_EPSILON) ||
        (direction.isLeft() && std::abs(tCursor - tMin) < DBL_EPSILON)) &&
@@ -38,7 +40,6 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
   Context* context = App::app()->localContext();
   // Reload the expiring pointer
   function = App::app()->functionStore()->modelForRecord(record);
-  bool isStrictInequality = function->properties().isStrictInequality();
   double dir = (direction.isRight() ? 1.0 : -1.0);
 
   bool specialConicCursorMove = false;
@@ -57,20 +58,19 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
   double step;
   double t = tCursor;
   if (function->properties().isCartesian()) {
-    step = PoincareHelpers::ToFloat<double>(range->xGridUnit()) /
-           numberOfStepsInGradUnit;
+    step = static_cast<double>(range->xGridUnit()) / numberOfStepsInGradUnit;
     double slopeMultiplicator = 1.0;
     if (function->canDisplayDerivative()) {
       // Use the local derivative to slow down the cursor's step if needed
-      double slope = function->approximateDerivative<double>(tCursor, context)
-                         .toRealScalar();
+      double slope =
+          function->approximateDerivative<double>(tCursor, context).toScalar();
       if ((!subCurveIndex || *subCurveIndex == 0) && std::isnan(slope)) {
         /* If the derivative could not bet computed, compute the derivative one
          * step further. */
         slope = function
                     ->approximateDerivative<double>(
                         tCursor + dir * step * pixelWidth, context)
-                    .toRealScalar();
+                    .toScalar();
         if (std::isnan(slope)) {
           /* If the derivative is still NAN, it might mean that it's NAN
            * everywhere, so just set slope to a default value */
@@ -78,8 +78,7 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
         }
       }
       // If yGridUnit is twice xGridUnit, visible slope is halved
-      slope *= PoincareHelpers::ToFloat<double>(range->xGridUnit()) /
-               PoincareHelpers::ToFloat<double>(range->yGridUnit());
+      slope *= range->xGridUnit() / range->yGridUnit();
       /* Assuming the curve is a straight line of slope s. To move the cursor at
        * a fixed distance d along the line, the actual x-axis distance needed is
        * d' = d * cos(θ) with θ the angle between the line and the x-axis.
@@ -96,14 +95,13 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
     double tStep = dir * std::max(step * slopeMultiplicator *
                                       static_cast<double>(scrollSpeed),
                                   minimalAbsoluteStep * 2);
-    if (snapToInterestAndUpdateCursor(
-            cursor, tCursor, tCursor + tStep * k_snapFactor,
-            subCurveIndex ? *subCurveIndex : 0, isStrictInequality)) {
+    if (snapToInterestAndUpdateCursor(cursor, tCursor,
+                                      tCursor + tStep * k_snapFactor,
+                                      subCurveIndex ? *subCurveIndex : 0)) {
       // Cursor should have been updated by snapToInterest
       assert(tCursor != cursor->t());
       return true;
     }
-    setCursorIsRing(false);
     t += tStep;
     /* assert that it moved at least of 1 pixel.
      * round(t/pxWidth) is used by CurveView to compute the cursor's position.
@@ -123,7 +121,7 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
       // Also round t so that f(x) matches f evaluated at displayed x
       t = FunctionBannerDelegate::GetValueDisplayedOnBanner(
           t, context,
-          MathPreferences::SharedPreferences()->numberOfSignificantDigits(),
+          Preferences::SharedPreferences()->numberOfSignificantDigits(),
           pixelWidth, false);
     }
     // Snap to interest could have corrupted ExpiringPointer
@@ -149,7 +147,7 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
     // If possible, round t so that f(x) matches f evaluated at displayed x
     t = FunctionBannerDelegate::GetValueDisplayedOnBanner(
         t, App::app()->localContext(),
-        MathPreferences::SharedPreferences()->numberOfSignificantDigits(),
+        Preferences::SharedPreferences()->numberOfSignificantDigits(),
         0.05 * step, true);
   }
   // t must have changed
@@ -165,8 +163,8 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
       // Hyperbolas have an undefined section along-side the x axis.
       double previousT = t;
       int tries = 0;
-      int maxTries =
-          numberOfStepsInGradUnit * CurveViewRange::k_maxNumberOfXGridUnits;
+      int maxTries = std::ceil(numberOfStepsInGradUnit *
+                               CurveViewRange::k_maxNumberOfXGridUnits);
       do {
         // Try to jump out of the undefined section
         t += dir * step;
@@ -191,14 +189,30 @@ bool GraphControllerHelper::privateMoveCursorHorizontally(
   return true;
 }
 
-PointOrRealScalar<double>
+Evaluation<double>
 GraphControllerHelper::reloadDerivativeInBannerViewForCursorOnFunction(
     CurveViewCursor* cursor, Ion::Storage::Record record, int derivationOrder) {
   ExpiringPointer<ContinuousFunction> function =
       App::app()->functionStore()->modelForRecord(record);
-  PointOrRealScalar<double> derivative =
-      function->approximateDerivative<double>(
-          cursor->t(), App::app()->localContext(), derivationOrder);
+  Evaluation<double> derivative = function->approximateDerivative<double>(
+      cursor->t(), App::app()->localContext(), derivationOrder);
+  double derivativeScalar = derivative.toScalar();
+
+  /* Force derivative to 0 if cursor is at an extremum where the function is
+   * differentiable. */
+  if (derivationOrder == 1) {
+    PointsOfInterestCache* pointsOfInterest =
+        App::app()->graphController()->pointsOfInterestForRecord(record);
+    if (std::isfinite(derivativeScalar) &&
+        (pointsOfInterest->hasInterestAtCoordinates(
+             cursor->x(), cursor->y(),
+             Solver<double>::Interest::LocalMaximum) ||
+         pointsOfInterest->hasInterestAtCoordinates(
+             cursor->x(), cursor->y(),
+             Solver<double>::Interest::LocalMinimum))) {
+      derivativeScalar = 0.;
+    }
+  }
 
   constexpr size_t bufferSize = FunctionBannerDelegate::k_textBufferSize;
   char buffer[bufferSize];
@@ -206,34 +220,19 @@ GraphControllerHelper::reloadDerivativeInBannerViewForCursorOnFunction(
       function->nameWithArgument(buffer, bufferSize, derivationOrder);
   assert(function->canDisplayDerivative());
   Preferences::PrintFloatMode mode =
-      MathPreferences::SharedPreferences()->displayMode();
-  int precision =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+      Preferences::SharedPreferences()->displayMode();
+  int precision = Preferences::SharedPreferences()->numberOfSignificantDigits();
   if (function->properties().isParametric()) {
-    assert(derivative.isPoint());
-    Coordinate2D<double> xy = derivative.toPoint();
+    assert(derivative.type() == EvaluationNode<double>::Type::PointEvaluation);
+    Coordinate2D<double> xy =
+        static_cast<PointEvaluation<double>&>(derivative).xy();
     Print::CustomPrintf(buffer + numberOfChar, bufferSize - numberOfChar,
                         "=(%*.*ed;%*.*ed)", xy.x(), mode, precision, xy.y(),
                         mode, precision);
   } else {
-    assert(derivative.isRealScalar());
-    /* Force derivative to 0 if cursor is at an extremum where the function is
-     * differentiable. */
-    if (derivationOrder == 1) {
-      PointsOfInterestCache* pointsOfInterest =
-          App::app()->graphController()->pointsOfInterestForRecord(record);
-      if (std::isfinite(derivative.toRealScalar()) &&
-          (pointsOfInterest->hasInterestAtCoordinates(
-               cursor->x(), cursor->y(),
-               Solver<double>::Interest::LocalMaximum) ||
-           pointsOfInterest->hasInterestAtCoordinates(
-               cursor->x(), cursor->y(),
-               Solver<double>::Interest::LocalMinimum))) {
-        derivative = PointOrRealScalar<double>(0.);
-      }
-    }
+    assert(derivative.type() == EvaluationNode<double>::Type::Complex);
     Print::CustomPrintf(buffer + numberOfChar, bufferSize - numberOfChar,
-                        "=%*.*ed", derivative.toRealScalar(), mode, precision);
+                        "=%*.*ed", derivativeScalar, mode, precision);
   }
   if (derivationOrder == 1) {
     bannerView()->firstDerivativeView()->setText(buffer);
@@ -257,34 +256,27 @@ double GraphControllerHelper::reloadSlopeInBannerViewForCursorOnFunction(
   Print::CustomPrintf(
       buffer, bufferSize, "%s=%*.*ed",
       I18n::translate(I18n::Message::CartesianSlopeFormula), slope,
-      MathPreferences::SharedPreferences()->displayMode(),
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits());
+      Preferences::SharedPreferences()->displayMode(),
+      Preferences::SharedPreferences()->numberOfSignificantDigits());
   bannerView()->slopeView()->setText(buffer);
   bannerView()->reload();
   return slope;
 }
 
 bool GraphControllerHelper::snapToInterestAndUpdateCursor(
-    CurveViewCursor* cursor, double start, double end, int subCurveIndex,
-    bool forceRing) {
+    CurveViewCursor* cursor, double start, double end, int subCurveIndex) {
   PointOfInterest nextPointOfInterest =
       App::app()
           ->graphController()
           ->pointsOfInterestForSelectedRecord()
-          ->firstPointInDirection(
-              start, end, false, Solver<double>::Interest::None, subCurveIndex);
+          ->firstPointInDirection(start, end, Solver<double>::Interest::None,
+                                  subCurveIndex);
   Coordinate2D<double> nextPointOfInterestXY = nextPointOfInterest.xy();
   if (!std::isfinite(nextPointOfInterestXY.x())) {
     return false;
   }
-  cursor->moveTo(nextPointOfInterest.abscissa, nextPointOfInterestXY.x(),
+  cursor->moveTo(nextPointOfInterest.abscissa(), nextPointOfInterestXY.x(),
                  nextPointOfInterestXY.y());
-  setCursorIsRing(forceRing ||
-                  nextPointOfInterest.interest ==
-                      Solver<double>::Interest::UnreachedDiscontinuity ||
-                  nextPointOfInterest.interest ==
-                      Solver<double>::Interest::UnreachedIntersection);
-
   return true;
 }
 

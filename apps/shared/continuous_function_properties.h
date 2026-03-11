@@ -3,11 +3,10 @@
 
 #include <apps/i18n.h>
 #include <omg/bit_helper.h>
-#include <omg/troolean.h>
-#include <poincare/code_points.h>
-#include <poincare/comparison_operator.h>
-#include <poincare/expression.h>
-#include <poincare/function_properties/conic.h>
+#include <poincare/comparison.h>
+#include <poincare/conic.h>
+#include <poincare/helpers.h>
+#include <poincare/symbol.h>
 
 /* ContinuousFunctionProperties is an object containing:
  *  - A pointer to a const function type
@@ -18,8 +17,16 @@ namespace Shared {
 
 class ContinuousFunctionProperties {
  public:
-  constexpr static char k_ordinateName[2] = {
-      Poincare::CodePoints::k_ordinateSymbol, '\0'};
+  // === Symbols ===
+  constexpr static CodePoint k_cartesianSymbol =
+      Poincare::Symbol::k_cartesianSymbol;
+  constexpr static CodePoint k_parametricSymbol =
+      Poincare::Symbol::k_parametricSymbol;
+  constexpr static CodePoint k_polarSymbol = Poincare::Symbol::k_polarSymbol;
+  constexpr static CodePoint k_radiusSymbol = Poincare::Symbol::k_radiusSymbol;
+  constexpr static CodePoint k_ordinateSymbol =
+      Poincare::Symbol::k_ordinateSymbol;
+  constexpr static char k_ordinateName[2] = {k_ordinateSymbol, '\0'};
 
   /* Units are not handled when plotting function. The default unit does not
    * matter */
@@ -36,8 +43,8 @@ class ContinuousFunctionProperties {
   };
   /* Use LastStatus instead of the usual NumberOfStatuses to have all values fit
    * on two bits. */
-  constexpr static uint8_t k_numberOfStatuses =
-      static_cast<uint8_t>(Status::LastStatus) + 1;
+  constexpr static int k_numberOfStatuses =
+      static_cast<int>(Status::LastStatus) + 1;
 
   // Order impact order of columns in Graph/Values
   enum class SymbolType : uint8_t {
@@ -68,8 +75,8 @@ class ContinuousFunctionProperties {
 
   constexpr static I18n::Message k_defaultCaption = (I18n::Message)0;
   constexpr static Status k_defaultStatus = Status::Enabled;
-  constexpr static Poincare::ComparisonJunior::Operator k_defaultEquationType =
-      Poincare::ComparisonJunior::Operator::Equal;
+  constexpr static Poincare::ComparisonNode::OperatorType
+      k_defaultEquationType = Poincare::ComparisonNode::OperatorType::Equal;
   constexpr static SymbolType k_defaultSymbolType = SymbolType::X;
   constexpr static CurveParameterType k_defaultCurveParameterType =
       CurveParameterType::Default;
@@ -92,7 +99,7 @@ class ContinuousFunctionProperties {
     assert(m_isInitialized);
     return m_propertiesBitField.m_status;
   }
-  Poincare::ComparisonJunior::Operator equationType() const {
+  Poincare::ComparisonNode::OperatorType equationType() const {
     assert(m_isInitialized);
     return m_propertiesBitField.m_equationType;
   }
@@ -123,11 +130,11 @@ class ContinuousFunctionProperties {
 
   // Update
   void reset();
-  void update(const Poincare::SystemExpression reducedEquation,
-              const Poincare::UserExpression inputEquation,
+  void update(const Poincare::Expression reducedEquation,
+              const Poincare::Expression inputEquation,
               Poincare::Context* context,
               Poincare::Preferences::ComplexFormat complexFormat,
-              Poincare::ComparisonJunior::Operator precomputedOperatorType,
+              Poincare::ComparisonNode::OperatorType precomputedOperatorType,
               SymbolType precomputedFunctionSymbol, bool isCartesianEquation);
 
   // Properties
@@ -138,11 +145,7 @@ class ContinuousFunctionProperties {
   bool isPolar() const { return symbolType() == SymbolType::Theta; }
   bool isInversePolar() const { return symbolType() == SymbolType::Radius; }
   bool isEquality() const {
-    return equationType() == Poincare::ComparisonJunior::Operator::Equal;
-  }
-  bool isStrictInequality() const {
-    return equationType() == Poincare::ComparisonJunior::Operator::Superior ||
-           equationType() == Poincare::ComparisonJunior::Operator::Inferior;
+    return equationType() == Poincare::ComparisonNode::OperatorType::Equal;
   }
   bool isEnabledParametric() const { return isEnabled() && isParametric(); }
 
@@ -194,19 +197,13 @@ class ContinuousFunctionProperties {
 
   // Wether to draw a dotted or solid line (Strict inequalities).
   bool plotIsDotted() const {
-    return equationType() == Poincare::ComparisonJunior::Operator::Superior ||
-           equationType() == Poincare::ComparisonJunior::Operator::Inferior;
+    return equationType() == Poincare::ComparisonNode::OperatorType::Superior ||
+           equationType() == Poincare::ComparisonNode::OperatorType::Inferior;
   }
 
-  int numberOfCurveParameters() const {
-    return isParametric() ? 3 : isPolar() ? 4 : 2;
-  }
-
-  enum class EditableParametersType : uint8_t { Abscissa, Image, Both, None };
-
-  EditableParametersType editableParameters() const;
-
-  bool canHavePreimage() const;
+  int numberOfCurveParameters() const { return isParametric() ? 3 : 2; }
+  bool parameterAtIndexIsEditable(int index) const;
+  bool parameterAtIndexIsPreimage(int index) const;
 
   CodePoint symbol() const;
 
@@ -221,37 +218,49 @@ class ContinuousFunctionProperties {
   };
 
   AreaType areaType() const;
-  static SymbolType SymbolTypeForCodePoint(CodePoint symbol);
   static I18n::Message MessageForSymbolType(SymbolType symbolType);
   I18n::Message symbolMessage() const {
     return MessageForSymbolType(symbolType());
   }
 
   const char* equationSymbol() const {
-    return Poincare::ComparisonJunior::OperatorString(equationType());
+    return Poincare::ComparisonNode::ComparisonOperatorString(equationType());
   }
 
  private:
   // Update
-  I18n::Message captionForCartesianFunction(
-      const Poincare::SystemExpression& analyzedExpression);
+  void setCartesianFunctionProperties(
+      const Poincare::Expression& analyzedExpression,
+      Poincare::Context* context);
   void setCartesianEquationProperties(
-      const Poincare::SystemExpression& analyzedExpression, int xDeg, int yDeg,
-      OMG::Troolean highestCoefficientIsPositive);
-  I18n::Message captionForPolarFunction(
-      const Poincare::SystemExpression& analyzedExpression);
-  I18n::Message captionForParametricFunction(
-      const Poincare::SystemExpression& analyzedExpression);
+      const Poincare::Expression& analyzedExpression,
+      Poincare::Context* context,
+      Poincare::Preferences::ComplexFormat complexFormat, int xDeg, int yDeg,
+      Poincare::TrinaryBoolean highestCoefficientIsPositive);
+  void setPolarFunctionProperties(
+      const Poincare::Expression& analyzedExpression,
+      Poincare::Context* context,
+      Poincare::Preferences::ComplexFormat complexFormat);
+  void setParametricFunctionProperties(
+      const Poincare::Expression& analyzedExpression,
+      Poincare::Context* context,
+      Poincare::Preferences::ComplexFormat complexFormat);
 
+  // If equation has a NonNull coeff. Can also compute last coeff sign.
+  static bool HasNonNullCoefficients(
+      const Poincare::Expression equation, const char* symbolName,
+      Poincare::Context* context,
+      Poincare::Preferences::ComplexFormat complexFormat,
+      Poincare::TrinaryBoolean* highestDegreeCoefficientIsPositive);
   // If equation should be allowed when implicit plots are forbidden.
-  static bool IsExplicitEquation(const Poincare::SystemExpression equation,
+  static bool IsExplicitEquation(const Poincare::Expression equation,
                                  CodePoint symbol);
 
   // Setters
   void setCaption(I18n::Message caption) { m_caption = caption; }
   void setStatus(Status status) { m_propertiesBitField.m_status = status; }
   void setErrorStatusAndUpdateCaption(Status status);
-  void setEquationType(Poincare::ComparisonJunior::Operator type) {
+  void setEquationType(Poincare::ComparisonNode::OperatorType type) {
     m_propertiesBitField.m_equationType = type;
   }
   void setSymbolType(SymbolType type) {
@@ -276,8 +285,8 @@ class ContinuousFunctionProperties {
   constexpr static size_t k_numberOfBitsForStatus =
       OMG::BitHelper::numberOfBitsToCountUpTo(k_numberOfStatuses);
   constexpr static size_t k_numberOfBitsForEquationType =
-      OMG::BitHelper::numberOfBitsToCountUpTo(static_cast<uint8_t>(
-          Poincare::ComparisonJunior::Operator::NumberOfOperators));
+      OMG::BitHelper::numberOfBitsToCountUpTo(static_cast<unsigned int>(
+          Poincare::ComparisonNode::OperatorType::NumberOfTypes));
   constexpr static size_t k_numberOfBitsForSymbolType =
       OMG::BitHelper::numberOfBitsToCountUpTo(
           static_cast<unsigned int>(SymbolType::NumberOfSymbolTypes));
@@ -290,7 +299,7 @@ class ContinuousFunctionProperties {
 
   struct PropertiesBitField {
     Status m_status : k_numberOfBitsForStatus;
-    Poincare::ComparisonJunior::Operator m_equationType
+    Poincare::ComparisonNode::OperatorType m_equationType
         : k_numberOfBitsForEquationType;
     SymbolType m_symbolType : k_numberOfBitsForSymbolType;
     CurveParameterType m_curveParameterType

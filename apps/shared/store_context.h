@@ -12,10 +12,10 @@ class StoreContext : public Poincare::ContextWithParent {
   StoreContext(Shared::DoublePairStore* store, Context* parentContext)
       : Poincare::ContextWithParent(parentContext), m_store(store) {}
 
-  Poincare::Context::UserNamedType expressionTypeForIdentifier(
+  Poincare::Context::SymbolAbstractType expressionTypeForIdentifier(
       const char* identifier, int length) override {
     return m_store->isColumnName(identifier, length)
-               ? Poincare::Context::UserNamedType::List
+               ? Poincare::Context::SymbolAbstractType::List
                : Poincare::ContextWithParent::expressionTypeForIdentifier(
                      identifier, length);
   }

@@ -20,6 +20,7 @@ class App : public Shared::SharedApp {
     App* unpack(Escher::Container* container) override;
     const Descriptor* descriptor() const override;
   };
+  TELEMETRY_ID("Settings");
 
  private:
   App(Snapshot* snapshot);

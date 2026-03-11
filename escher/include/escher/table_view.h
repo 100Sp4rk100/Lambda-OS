@@ -10,9 +10,9 @@ namespace Escher {
 
 class TableView : public ScrollView {
  public:
-  TableView(TableViewDataSource* dataSource,
-            ScrollViewDataSource* scrollDataSource,
-            Escher::ScrollViewDelegate* scrollViewDelegate = nullptr);
+  TableView(TableViewDataSource *dataSource,
+            ScrollViewDataSource *scrollDataSource,
+            Escher::ScrollViewDelegate *scrollViewDelegate = nullptr);
 
   void setHorizontalCellOverlap(KDCoordinate o) {
     m_contentView.setHorizontalCellOverlap(o);
@@ -33,7 +33,7 @@ class TableView : public ScrollView {
   }
   int totalNumberOfRows() const { return dataSource()->numberOfRows(); }
   int totalNumberOfColumns() const { return dataSource()->numberOfColumns(); }
-  const TableViewDataSource* dataSource() const {
+  const TableViewDataSource *dataSource() const {
     return m_contentView.dataSource();
   }
 
@@ -44,7 +44,7 @@ class TableView : public ScrollView {
     scrollToContentRect(m_contentView.cellFrame(col, row));
   }
   void scrollToBottom();
-  HighlightCell* cellAtLocation(int col, int row) {
+  HighlightCell *cellAtLocation(int col, int row) {
     return m_contentView.cellAtLocation(col, row);
   }
   void reloadCellAtLocation(int col, int row, bool forceSetFrame = false) {
@@ -52,7 +52,7 @@ class TableView : public ScrollView {
   }
   void reloadVisibleCellsAtColumn(int column);
   void hideScrollBars() { m_decorator.setVisibility(false); }
-  BarDecorator* decorator() override { return &m_decorator; }
+  BarDecorator *decorator() override { return &m_decorator; }
 
   void resetSizeAndOffsetMemoization();
   void resetMemoizedColumnAndRowOffsets() {
@@ -68,13 +68,13 @@ class TableView : public ScrollView {
 
  protected:
 #if ESCHER_VIEW_LOGGING
-  const char* className() const override { return "TableView"; }
+  const char *className() const override { return "TableView"; }
 #endif
-  TableViewDataSource* dataSource() { return m_contentView.dataSource(); }
+  TableViewDataSource *dataSource() { return m_contentView.dataSource(); }
   int numberOfDisplayableCells() {
     return m_contentView.numberOfDisplayableCells();
   }
-  HighlightCell* reusableCellAtIndex(int index) {
+  HighlightCell *reusableCellAtIndex(int index) {
     return m_contentView.reusableCellAtIndex(index);
   }
   void layoutSubviews(bool force = false) override;
@@ -83,13 +83,13 @@ class TableView : public ScrollView {
 
   class ContentView : public View {
    public:
-    ContentView(TableView* tableView, TableViewDataSource* dataSource,
+    ContentView(TableView *tableView, TableViewDataSource *dataSource,
                 KDCoordinate horizontalCellOverlap,
                 KDCoordinate verticalCellOverlap);
     KDSize minimalSizeForOptimalDisplay() const override {
       return KDSize(width(), height());
     }
-    void drawRect(KDContext* ctx, KDRect rect) const override;
+    void drawRect(KDContext *ctx, KDRect rect) const override;
 
     void setHorizontalCellOverlap(KDCoordinate o) {
       m_horizontalCellOverlap = o;
@@ -97,12 +97,9 @@ class TableView : public ScrollView {
     void setVerticalCellOverlap(KDCoordinate o) { m_verticalCellOverlap = o; }
 
     void reloadCellAtLocation(int col, int row, bool forceSetFrame);
-
-    // TODO: cellAtLocation should have a const and a non-const version
-    HighlightCell* cellAtLocation(int row, int col);
-
-    TableViewDataSource* dataSource() { return m_dataSource; }
-    const TableViewDataSource* dataSource() const { return m_dataSource; }
+    HighlightCell *cellAtLocation(int row, int col);
+    TableViewDataSource *dataSource() { return m_dataSource; }
+    const TableViewDataSource *dataSource() const { return m_dataSource; }
     KDCoordinate invisibleHeight() const {
       return m_tableView->invisibleHeight();
     }
@@ -122,11 +119,11 @@ class TableView : public ScrollView {
     int numberOfDisplayableCells() const {
       return numberOfDisplayableRows() * numberOfDisplayableColumns();
     }
-    HighlightCell* reusableCellAtIndex(int index);
+    HighlightCell *reusableCellAtIndex(int index);
 
    protected:
 #if ESCHER_VIEW_LOGGING
-    const char* className() const override { return "TableView::ContentView"; }
+    const char *className() const override { return "TableView::ContentView"; }
 #endif
    private:
     KDCoordinate height() const {
@@ -137,30 +134,28 @@ class TableView : public ScrollView {
     KDCoordinate width() const;
 
     int numberOfSubviews() const override { return numberOfDisplayableCells(); }
-    View* subviewAtIndex(int index) override;
-    HighlightCell* cellAtRelativeLocation(int relativeColumn, int relativeRow) {
+    View *subviewAtIndex(int index) override;
+    HighlightCell *cellAtRelativeLocation(int relativeColumn, int relativeRow) {
       return cellAtLocation(relativeColumn + columnsScrollingOffset(),
                             relativeRow + rowsScrollingOffset());
     }
     /* These two methods transform a positive index (of subview for instance)
      * into coordinates that refer to the data source entire table */
     int absoluteColumnFromSubviewIndex(int index) const {
-      int nb = numberOfDisplayableColumns();
-      assert(nb > 0);
-      return (index % nb) + columnsScrollingOffset();
+      assert(numberOfDisplayableColumns() > 0);
+      return (index % numberOfDisplayableColumns()) + columnsScrollingOffset();
     }
     int absoluteRowFromSubviewIndex(int index) const {
-      int nb = numberOfDisplayableColumns();
-      assert(nb > 0);
-      return (index / nb) + rowsScrollingOffset();
+      assert(numberOfDisplayableColumns() > 0);
+      return (index / numberOfDisplayableColumns()) + rowsScrollingOffset();
     }
     int typeOfSubviewAtIndex(int index) const;
     /* This method transform a index (of subview for instance) into an index
      * refering to the set of cells of type "type". */
     int typeIndexFromSubviewIndex(int index, int type) const;
 
-    TableView* m_tableView;
-    TableViewDataSource* m_dataSource;
+    TableView *m_tableView;
+    TableViewDataSource *m_dataSource;
     KDCoordinate m_horizontalCellOverlap;
     KDCoordinate m_verticalCellOverlap;
     mutable int m_rowsScrollingOffset;

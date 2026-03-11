@@ -23,6 +23,10 @@ class KDContext {
                              KDGlyph::Format format = {}, int maxLength = -1,
                              KDCoordinate lineSpacing = 0);
 
+  KDPoint drawTransparentString(const char* text, KDPoint p, KDGlyph::Style style, int maxByteLength);
+  KDPoint drawTransparentStringAligned(const char* text, KDPoint p, KDSize frame, 
+                                                 KDGlyph::Format format, int maxLength, KDCoordinate lineSpacing);
+
   // Line. Not anti-aliased.
   void drawLine(KDPoint p1, KDPoint p2, KDColor c);
   void drawAntialiasedLine(KDPoint p1, KDPoint p2, KDColor c,
@@ -37,8 +41,7 @@ class KDContext {
   void fillRectWithPixels(KDRect rect, const KDColor* pixels,
                           KDColor* workingBuffer);
   void fillRectWithMask(KDRect rect, KDColor color, KDColor background,
-                        const uint8_t* mask, KDColor* workingBuffer,
-                        bool horizontalFlip = false, bool verticalFlip = false);
+                        const uint8_t* mask, KDColor* workingBuffer);
   void blendRectWithMask(KDRect rect, KDColor color, const uint8_t* mask,
                          KDColor* workingBuffer);
   void strokeRect(KDRect rect, KDColor color);

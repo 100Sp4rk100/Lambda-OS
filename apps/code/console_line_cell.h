@@ -9,6 +9,8 @@
 #include <escher/scroll_view_data_source.h>
 #include <escher/scrollable_view.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 #include "console_line.h"
 
 namespace Code {
@@ -28,9 +30,8 @@ class ConsoleLineCell : public Escher::HighlightCell, public Escher::Responder {
   Escher::View* subviewAtIndex(int index) override;
   void layoutSubviews(bool force = false) override;
 
- protected:
   /* Responder */
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  void didBecomeFirstResponder() override;
 
  private:
   class ScrollableConsoleLineView
@@ -55,8 +56,8 @@ class ConsoleLineCell : public Escher::HighlightCell, public Escher::Responder {
     ConsoleLineView m_consoleLineView;
   };
   static KDColor textColor(ConsoleLine* line) {
-    return line->isFromCurrentSession() ? KDColorBlack
-                                        : Escher::Palette::GrayDark;
+    return line->isFromCurrentSession() ? Theme::ThemeGestion::getColor("KDColorBlack")
+                                        : Theme::ThemeGestion::getColor("GrayDark");
   }
   Escher::MessageTextView m_promptView;
   ScrollableConsoleLineView m_scrollableView;

@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <escher/palette.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Escher;
 
 namespace Code {
@@ -10,14 +12,14 @@ namespace Code {
 SubtitleCell::SubtitleCell()
     : Bordered(),
       HighlightCell(),
-      m_textView({.style = {.glyphColor = k_textColor,
-                            .backgroundColor = k_backgroundColor,
+      m_textView({.style = {.glyphColor = Theme::ThemeGestion::getColor("BlueishGray"),
+                            .backgroundColor = Theme::ThemeGestion::getColor("WallScreen"),
                             .font = KDFont::Size::Small}}) {}
 
-void SubtitleCell::drawRect(KDContext* ctx, KDRect rect) const {
-  KDColor backColor = isHighlighted() ? Palette::Select : k_backgroundColor;
+void SubtitleCell::drawRect(KDContext *ctx, KDRect rect) const {
+  KDColor backColor = isHighlighted() ? Theme::ThemeGestion::getColor("Select") : Theme::ThemeGestion::getColor("WallScreen");
   drawInnerRect(ctx, bounds(), backColor);
-  drawBorderOfRect(ctx, bounds(), Palette::GrayBright);
+  drawBorderOfRect(ctx, bounds(), Theme::ThemeGestion::getColor("GrayBright"));
 }
 
 void SubtitleCell::layoutSubviews(bool force) {

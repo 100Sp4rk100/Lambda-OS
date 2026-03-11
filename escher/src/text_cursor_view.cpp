@@ -1,6 +1,4 @@
 #include <escher/blink_timer.h>
-#include <escher/scroll_view.h>
-#include <escher/scrollable_view.h>
 #include <escher/text_cursor_view.h>
 
 namespace Escher {
@@ -27,7 +25,7 @@ View* TextCursorView::CursorFieldView::subviewAtIndex(int index) {
 void TextCursorView::drawRect(KDContext* ctx, KDRect rect) const {
   if (m_visible) {
     KDCoordinate height = bounds().height();
-    ctx->fillRect(KDRect(0, 0, k_width, height), KDColorBlack);
+    ctx->fillRect(KDRect(0, 0, k_width, height), Theme::ThemeGestion::getColor("KDColorBlack"));
   }
 }
 
@@ -65,24 +63,5 @@ void TextCursorView::setVisible(bool visible) {
     m_field->markAbsoluteRectAsDirty(absoluteFrame());
   }
 }
-
-template <typename ResponderType>
-void TextCursorView::WithBlinkingCursor<ResponderType>::
-    handleResponderChainEvent(Responder::ResponderChainEvent event) {
-  if (event.type == Responder::ResponderChainEventType::HasBecomeFirst) {
-    TextCursorView::sharedTextCursor->setInField(cursorCursorFieldView());
-    ResponderType::handleResponderChainEvent(event);
-  } else if (event.type ==
-             Responder::ResponderChainEventType::WillResignFirst) {
-    TextCursorView::sharedTextCursor->setInField(nullptr);
-    ResponderType::handleResponderChainEvent(event);
-  } else {
-    ResponderType::handleResponderChainEvent(event);
-  }
-}
-
-template void TextCursorView::WithBlinkingCursor<
-    Escher::ScrollableView<Escher::ScrollView::Decorator>>::
-    handleResponderChainEvent(Responder::ResponderChainEvent);
 
 }  // namespace Escher

@@ -7,6 +7,8 @@
 
 #include "function_cell.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Graph {
 
 class EditableFunctionCell
@@ -47,12 +49,12 @@ class EditableFunctionCell
         : Escher::ButtonCell(parentResponder, I18n::Message::FunctionTemplates,
                              invocation, Style::EmbossedGray,
                              KDFont::Size::Small,
-                             Escher::Palette::PurpleBright) {}
+                             Theme::ThemeGestion::getColor("PurpleBright")) {}
     bool handleEvent(Ion::Events::Event event) override;
   };
 
-  constexpr static KDCoordinate k_expressionMargin = 5;
-  constexpr static KDCoordinate k_templateButtonMargin = 5;
+  static constexpr KDCoordinate k_expressionMargin = 5;
+  static constexpr KDCoordinate k_templateButtonMargin = 5;
   TemplateButtonCell m_templateButton;
 };
 

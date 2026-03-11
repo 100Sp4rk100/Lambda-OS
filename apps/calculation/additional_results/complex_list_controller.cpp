@@ -1,9 +1,14 @@
 #include "complex_list_controller.h"
 
 #include <apps/shared/poincare_helpers.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
-#include <poincare/src/expression/projection.h>
+#include <poincare/absolute_value.h>
+#include <poincare/complex_argument.h>
+#include <poincare/imaginary_part.h>
+#include <poincare/layout_helper.h>
+#include <poincare/real_part.h>
+#include <poincare/symbol.h>
+#include <poincare/variable_context.h>
+#include <poincare_layouts.h>
 
 #include "../app.h"
 #include "complex_list_controller.h"
@@ -14,43 +19,41 @@ using namespace Shared;
 namespace Calculation {
 
 void ComplexListController::computeAdditionalResults(
-    const UserExpression input, const UserExpression exactOutput,
-    const UserExpression approximateOutput) {
-  Context* context = App::app()->localContext();
+    const Expression input, const Expression exactOutput,
+    const Expression approximateOutput) {
   /* TODO:
    * - save values of re(z), im(z) during setLineAtIndex to directly use them in
    * setComplex ?
    * - do the same for abs(z) and arg(z) for exponential form ? */
   assert(AdditionalResultsType::HasComplex(approximateOutput,
-                                           m_calculationPreferences, context));
-  assert(complexFormat() != Preferences::ComplexFormat::Real);
-  Internal::ProjectionContext ctx = {
-      .m_complexFormat = Preferences::ComplexFormat::Cartesian,
-      .m_angleUnit = angleUnit(),
-      .m_symbolic = SymbolicComputation::ReplaceAllSymbols,
-      .m_context = context};
+                                           m_calculationPreferences));
+  ComputationContext computationContext(App::app()->localContext(),
+                                        Preferences::ComplexFormat::Cartesian,
+                                        angleUnit());
+  ApproximationContext approximationContext(computationContext);
 
   // Fill Calculation Store
-  constexpr KTree k_symbol = "z"_e;
+  Expression e = exactOutput.clone();
+  Expression z = Symbol::Builder(k_symbol);
   size_t index = 0;
-  ctx.m_complexFormat = complexFormToDisplay();
-  setLineAtIndex(index++, UserExpression::Builder(k_symbol), exactOutput, &ctx);
-  ctx.m_complexFormat = Preferences::ComplexFormat::Cartesian;
-  setLineAtIndex(index++, UserExpression::Builder(KAbs(k_symbol)),
-                 UserExpression::Create(KAbs(KA), {.KA = exactOutput}), &ctx);
-  setLineAtIndex(index++, UserExpression::Builder(KArg(k_symbol)),
-                 UserExpression::Create(KArg(KA), {.KA = exactOutput}), &ctx);
-  setLineAtIndex(index++, UserExpression::Builder(KRe(k_symbol)),
-                 UserExpression::Create(KRe(KA), {.KA = exactOutput}), &ctx);
-  setLineAtIndex(index++, UserExpression::Builder(KIm(k_symbol)),
-                 UserExpression::Create(KIm(KA), {.KA = exactOutput}), &ctx);
+  computationContext.setComplextFormat(complexFormToDisplay());
+  setLineAtIndex(index++, z, e, computationContext);
+  computationContext.setComplextFormat(Preferences::ComplexFormat::Cartesian);
+  setLineAtIndex(index++, AbsoluteValue::Builder(z), AbsoluteValue::Builder(e),
+                 computationContext);
+  setLineAtIndex(index++, ComplexArgument::Builder(z),
+                 ComplexArgument::Builder(e), computationContext);
+  setLineAtIndex(index++, RealPart::Builder(z), RealPart::Builder(e),
+                 computationContext);
+  setLineAtIndex(index++, ImaginaryPart::Builder(z), ImaginaryPart::Builder(e),
+                 computationContext);
 
   // Set Complex illustration
   double realPart;
   double imagPart;
   bool hasComplexApprox =
       approximateOutput.hasDefinedComplexApproximation<double>(
-          ctx.m_angleUnit, ctx.m_complexFormat, context, &realPart, &imagPart);
+          approximationContext, &realPart, &imagPart);
 
   assert(hasComplexApprox);
   (void)hasComplexApprox;  // Silence the compiler;

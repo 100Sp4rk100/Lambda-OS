@@ -6,10 +6,10 @@
 namespace Escher {
 
 WarningController::ContentView::ContentView()
-    : SolidColorView(KDColorBlack),
+    : SolidColorView(Theme::ThemeGestion::getColor("KDColorBlack")),
       m_textView((I18n::Message)0,
-                 {.style = {.glyphColor = KDColorWhite,
-                            .backgroundColor = KDColorBlack,
+                 {.style = {.glyphColor = Theme::ThemeGestion::getColor("KDColorWhite"),
+                            .backgroundColor = Theme::ThemeGestion::getColor("KDColorBlack"),
                             .font = KDFont::Size::Small},
                   .horizontalAlignment = KDGlyph::k_alignCenter,
                   .verticalAlignment = KDGlyph::k_alignCenter},

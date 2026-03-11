@@ -3,8 +3,8 @@
 
 #include <escher/chevron_view.h>
 #include <escher/container.h>
+#include <escher/editable_fiel_help_box.h>
 #include <escher/editable_field.h>
-#include <escher/editable_field_help_box.h>
 #include <escher/highlight_cell.h>
 #include <escher/list_view_data_source.h>
 #include <escher/menu_cell.h>
@@ -13,7 +13,7 @@
 #include <escher/selectable_list_view.h>
 #include <escher/stack_view_controller.h>
 #include <ion.h>
-#include <omg/ring_buffer.h>
+#include <ion/ring_buffer.h>
 
 namespace Escher {
 
@@ -29,6 +29,9 @@ class NestedMenuController : public StackViewController::Custom<5>,
 
   // StackViewController
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override {
+    App::app()->setFirstResponder(&m_listController);
+  }
   void viewWillAppear() override;
 
   // MemoizedListViewDataSource
@@ -38,8 +41,6 @@ class NestedMenuController : public StackViewController::Custom<5>,
 
  protected:
   using NodeCell = MenuCell<MessageTextView, EmptyCellWidget, ChevronView>;
-
-  void handleResponderChainEvent(Responder::ResponderChainEvent event) override;
 
   class StackState {
    public:
@@ -66,7 +67,7 @@ class NestedMenuController : public StackViewController::Custom<5>,
   virtual NodeCell* nodeCellAtIndex(int index) = 0;
   virtual I18n::Message subTitle() = 0;
   SelectableListView m_selectableListView;
-  OMG::RingBuffer<StackState, k_maxModelTreeDepth>* stack() { return &m_stack; }
+  Ion::RingBuffer<StackState, k_maxModelTreeDepth>* stack() { return &m_stack; }
   virtual int controlChecksum() const { return 0; }
   virtual bool isToolbox() const { return false; }
 
@@ -79,7 +80,7 @@ class NestedMenuController : public StackViewController::Custom<5>,
           m_selectableListView(tableView),
           m_titleCount(0),
           m_titleBuffer("") {}
-    const char* title() const override { return m_titleBuffer; }
+    const char* title() override { return m_titleBuffer; }
     void popTitle();
     void pushTitle(I18n::Message title);
     void resetTitle();
@@ -106,10 +107,10 @@ class NestedMenuController : public StackViewController::Custom<5>,
         : ViewController(parentResponder),
           m_selectableListView(tableView),
           m_title(title) {}
-    const char* title() const override { return I18n::translate(m_title); }
+    const char* title() override { return I18n::translate(m_title); }
     void setTitle(I18n::Message title) { m_title = title; }
     View* view() override { return m_selectableListView; }
-    void handleResponderChainEvent(ResponderChainEvent event) override;
+    void didBecomeFirstResponder() override;
 
    private:
     SelectableListView* m_selectableListView;
@@ -125,7 +126,7 @@ class NestedMenuController : public StackViewController::Custom<5>,
   void willOpenPage(ViewController* controller) const override {}
   BreadcrumbController m_breadcrumbController;
   ListController m_listController;
-  OMG::RingBuffer<StackState, k_maxModelTreeDepth> m_stack;
+  Ion::RingBuffer<StackState, k_maxModelTreeDepth> m_stack;
   int m_savedChecksum;
   constexpr static int k_nestedMenuStackDepth = 1;
 };

@@ -30,7 +30,7 @@ bool SimpleInteractiveCurveViewController::textFieldDidReceiveEvent(
 
 bool SimpleInteractiveCurveViewController::handleLeftRightEvent(
     Ion::Events::Event event) {
-  if (moveCursorHorizontally(event.direction(),
+  if (moveCursorHorizontally(OMG::Direction(event),
                              Ion::Events::longPressFactor())) {
     reloadBannerView();
     bool moved = panToMakeCursorVisible();

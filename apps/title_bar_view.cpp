@@ -1,14 +1,14 @@
 #include "title_bar_view.h"
 
 #include <escher/palette.h>
-#include <omg/unreachable.h>
+#include <poincare/preferences.h>
 #include <poincare/print.h>
+
+#include "clock_timer.h"
 
 #include <array>
 
 #include "exam_icon.h"
-#include "math_preferences.h"
-
 extern "C" {
 #include <assert.h>
 }
@@ -16,19 +16,56 @@ extern "C" {
 using namespace Poincare;
 using namespace Escher;
 
+
+
+KDGlyph::Format TitleBarView::k_glyphsFormat(){
+  return {.style = {
+    .glyphColor = Theme::ThemeGestion::getColor("KDColorWhite"),
+    .backgroundColor = Theme::ThemeGestion::getColor("YellowDark"),
+    .font = KDFont::Size::Small
+  },
+  .horizontalAlignment = KDGlyph::k_alignCenter,
+  .verticalAlignment = KDGlyph::k_alignCenter};
+}
+
 TitleBarView::TitleBarView()
     : View(),
-      m_titleView(I18n::Message::Default, k_glyphsFormat),
-      m_preferenceView(k_glyphsFormat),
-      m_examModeTextView(I18n::Message::Default, k_glyphsFormat) {
+      m_titleView(I18n::Message::Default, k_glyphsFormat()),
+      m_preferenceView(k_glyphsFormat()),
+      m_clockView(k_glyphsFormat()),
+      m_examModeTextView(I18n::Message::Default, k_glyphsFormat()) {
+
+  m_clockView.setAlignment(KDGlyph::k_alignRight, KDGlyph::k_alignCenter);
   m_preferenceView.setAlignment(KDGlyph::k_alignRight, KDGlyph::k_alignCenter);
+
   m_examModeIconView.setImage(ImageStore::ExamIcon);
 }
 
 void TitleBarView::drawRect(KDContext* ctx, KDRect rect) const {
   /* As we cheated to layout the title view, we have to fill a very thin
    * rectangle at the top with the background color. */
-  ctx->fillRect(KDRect(0, 0, bounds().width(), 2), k_backgroundColor);
+  ctx->fillRect(KDRect(0, 0, bounds().width(), 2), Theme::ThemeGestion::getColor("YellowDark"));
+}
+
+bool TitleBarView::setTime(int hour, int minute) {
+  if (ClockTimer::ClockTimer::isEnabled()){
+      char buf[6], *ptr = buf;
+      *ptr++ = (hour / 10) + '0';
+      *ptr++ = (hour % 10) + '0';
+      *ptr++ = ':';
+      *ptr++ = (minute / 10) + '0';
+      *ptr++ = (minute % 10) + '0';
+      *ptr   = '\0';
+
+    m_clockView.setText(buf);
+
+  }else{
+    m_clockView.setText("");
+  }
+
+  markWholeFrameAsDirty(); 
+
+  return true;
 }
 
 void TitleBarView::setTitle(I18n::Message title) {
@@ -56,12 +93,12 @@ void TitleBarView::updateBatteryAnimation() {
   m_batteryView.updateBatteryAnimation();
 }
 
-int TitleBarView::numberOfSubviews() const { return 6; }
+int TitleBarView::numberOfSubviews() const { return 7; }
 
 View* TitleBarView::subviewAtIndex(int index) {
   View* views[] = {&m_titleView,          &m_preferenceView,
                    &m_examModeIconView,   &m_examModeTextView,
-                   &m_shiftAlphaLockView, &m_batteryView};
+                   &m_shiftAlphaLockView, &m_batteryView, &m_clockView};
   assert(0 <= index && index < static_cast<int>(std::size(views)));
   return views[index];
 }
@@ -89,7 +126,15 @@ void TitleBarView::layoutSubviews(bool force) {
                  Metric::TitleBarExternHorizontalMargin,
              (bounds().height() - batterySize.height()) / 2, batterySize),
       force);
-  if (MathPreferences::SharedPreferences()->examMode().isActive()) {
+
+  setChildFrame(&m_clockView,
+                KDRect(Metric::TitleBarExternHorizontalMargin + (m_preferenceView.minimalSizeForOptimalDisplay().width())*2, 
+                0, 
+                m_clockView.minimalSizeForOptimalDisplay().width(), 
+                bounds().height()),
+                force);
+
+  if (Preferences::SharedPreferences()->examMode().isActive()) {
     setChildFrame(
         &m_examModeIconView,
         KDRect(k_examIconMargin, (bounds().height() - k_examIconHeight) / 2,
@@ -100,7 +145,7 @@ void TitleBarView::layoutSubviews(bool force) {
                          k_examTextWidth, bounds().height() - k_verticalShift),
                   force);
     I18n::Message examModeMessage;
-    switch (MathPreferences::SharedPreferences()->examMode().ruleset()) {
+    switch (Preferences::SharedPreferences()->examMode().ruleset()) {
       case ExamMode::Ruleset::English:
         examModeMessage = I18n::Message::ExamModeTitleBarUK;
         break;
@@ -125,9 +170,6 @@ void TitleBarView::layoutSubviews(bool force) {
       case ExamMode::Ruleset::NorthCarolina:
         examModeMessage = I18n::Message::ExamModeTitleBarNorthCarolina;
         break;
-      case ExamMode::Ruleset::SAT:
-        examModeMessage = I18n::Message::ExamModeTitleBarSAT;
-        break;
       default:
         examModeMessage = I18n::Message::Default;
     }
@@ -149,7 +191,7 @@ void TitleBarView::layoutSubviews(bool force) {
 
 void TitleBarView::refreshPreferences() {
   char buffer[k_preferenceTextSize];
-  const MathPreferences* preferences = MathPreferences::SharedPreferences();
+  Preferences* preferences = Preferences::SharedPreferences();
   // Display Sci/ or Eng/ if the print float mode is not decimal
   const Preferences::PrintFloatMode printFloatMode = preferences->displayMode();
   I18n::Message floatModeMessage =
@@ -160,20 +202,11 @@ void TitleBarView::refreshPreferences() {
                  : I18n::Message::Eng);
   // Display the angle unit
   const Preferences::AngleUnit angleUnit = preferences->angleUnit();
-  I18n::Message angleMessage;
-  switch (angleUnit) {
-    case Preferences::AngleUnit::Degree:
-      angleMessage = I18n::Message::Deg;
-      break;
-    case Preferences::AngleUnit::Radian:
-      angleMessage = I18n::Message::Rad;
-      break;
-    case Preferences::AngleUnit::Gradian:
-      angleMessage = I18n::Message::Gon;
-      break;
-    default:
-      OMG::unreachable();
-  }
+  I18n::Message angleMessage =
+      angleUnit == Preferences::AngleUnit::Degree
+          ? I18n::Message::Deg
+          : (angleUnit == Preferences::AngleUnit::Radian ? I18n::Message::Rad
+                                                         : I18n::Message::Gon);
   Poincare::Print::CustomPrintf(buffer, k_preferenceTextSize, "%s%s",
                                 I18n::translate(floatModeMessage),
                                 I18n::translate(angleMessage));
@@ -183,6 +216,19 @@ void TitleBarView::refreshPreferences() {
 }
 
 void TitleBarView::reload() {
+
+
+
+  k_glyphsFormat().style.glyphColor =
+      Theme::ThemeGestion::getColor("KDColorWhite");
+
+  k_glyphsFormat().style.backgroundColor = Theme::ThemeGestion::getColor("YellowDark");
+
+  m_preferenceView.setBackgroundColor(Theme::ThemeGestion::getColor("YellowDark"));
+  m_examModeTextView.setBackgroundColor(Theme::ThemeGestion::getColor("YellowDark"));
+  m_titleView.setBackgroundColor(Theme::ThemeGestion::getColor("YellowDark"));
+  m_clockView.setBackgroundColor(Theme::ThemeGestion::getColor("YellowDark"));
+
   refreshPreferences();
   markWholeFrameAsDirty();
 }

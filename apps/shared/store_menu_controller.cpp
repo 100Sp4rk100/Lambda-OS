@@ -2,11 +2,11 @@
 
 #include <escher/clipboard.h>
 #include <escher/invocation.h>
-#include <poincare/cas.h>
-#include <poincare/helpers/store.h>
-#include <poincare/k_tree.h>
+#include <poincare/store.h>
 
 #include "app_with_store_menu.h"
+#include "expression_display_permissions.h"
+#include "poincare_helpers.h"
 
 using namespace Poincare;
 using namespace Escher;
@@ -21,14 +21,9 @@ StoreMenuController::InnerListController::InnerListController(
   m_selectableListView.hideScrollBars();
 }
 
-void StoreMenuController::InnerListController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    m_selectableListView.selectCell(0);
-    m_selectableListView.reloadData();
-  } else {
-    ViewController::handleResponderChainEvent(event);
-  }
+void StoreMenuController::InnerListController::didBecomeFirstResponder() {
+  m_selectableListView.selectCell(0);
+  m_selectableListView.reloadData();
 }
 
 StoreMenuController::StoreMenuController()
@@ -66,22 +61,17 @@ StoreMenuController::StoreMenuController()
       m_savedDraftTextBuffer, AbstractTextField::MaxBufferSize());
 }
 
-void StoreMenuController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    App::app()->setFirstResponder(&m_listController);
-    m_cell.layoutField()->reload();
-  } else {
-    ModalViewController::handleResponderChainEvent(event);
-  }
+void StoreMenuController::didBecomeFirstResponder() {
+  App::app()->setFirstResponder(&m_listController);
+  m_cell.layoutField()->reload();
 }
 
-void StoreMenuController::setLayout(Poincare::Layout layout) {
+void StoreMenuController::setText(const char* text) {
   m_preventReload = true;
   m_cell.layoutField()->clearAndSetEditing(true);
-  m_cell.layoutField()->handleEventWithLayout(layout, true);
+  m_cell.layoutField()->handleEventWithText(text, false, true);
   m_cell.layoutField()->handleEventWithText("→");
-  if (layout.isUninitialized() || layout.tree()->treeIsIdenticalTo(""_l)) {
+  if (text[0] == 0) {
     m_cell.layoutField()->putCursorOnOneSide(OMG::Direction::Left());
   }
   m_stackViewController.setupActiveView();
@@ -127,21 +117,37 @@ void StoreMenuController::openAbortWarning() {
   App::app()->modalViewController()->reloadModal();
 }
 
-bool StoreMenuController::store(Layout layout) {
+bool StoreMenuController::parseAndStore(const char* text) {
   AppWithStoreMenu* app = static_cast<AppWithStoreMenu*>(App::app());
   Context* context = app->localContext();
-  UserExpression input = UserExpression::Parse(layout, context);
-  if (input.isUninitialized() || !input.isStore()) {
+  Expression input = Expression::Parse(text, context);
+  if (input.isUninitialized()) {
     openAbortWarning();
     return false;
   }
-  UserExpression value = StoreHelper::Value(input);
-  UserExpression symbol = StoreHelper::Symbol(input);
+  Expression reducedExp = input;
+  PoincareHelpers::CloneAndSimplify(&reducedExp, context);
+  if (reducedExp.type() != ExpressionNode::Type::Store) {
+    openAbortWarning();
+    return false;
+  }
+  bool isVariable =
+      reducedExp.childAtIndex(1).type() == ExpressionNode::Type::Symbol;
+  Expression leftHandSideApproximation =
+      PoincareHelpers::ApproximateKeepingUnits<double>(
+          reducedExp.childAtIndex(0), context);
+  if (isVariable &&
+      ExpressionDisplayPermissions::ShouldOnlyDisplayApproximation(
+          input, reducedExp.childAtIndex(0), leftHandSideApproximation,
+          context)) {
+    reducedExp.replaceChildAtIndexInPlace(0, leftHandSideApproximation);
+  }
+  Store store = static_cast<Store&>(reducedExp);
   close();
   app->prepareForIntrusiveStorageChange();
-  bool stored = StoreHelper::StoreValueForSymbol(context, value, symbol);
+  bool storeImpossible = !store.storeValueForSymbol(context);
   app->concludeIntrusiveStorageChange();
-  if (!stored) {
+  if (storeImpossible) {
     /* TODO: we could detect this before the close and open the warning over the
      * store menu */
     app->displayWarning(I18n::Message::VariableCantBeEdited);
@@ -153,7 +159,11 @@ bool StoreMenuController::layoutFieldDidFinishEditing(
     Escher::LayoutField* layoutField, Ion::Events::Event event) {
   assert(layoutField == m_cell.layoutField());
   assert(!layoutField->isEditing());
-  if (store(layoutField->layout())) {
+  constexpr size_t bufferSize = TextField::MaxBufferSize();
+  char buffer[bufferSize];
+  Layout layout = layoutField->layout();
+  layout.serializeForParsing(buffer, bufferSize);
+  if (parseAndStore(buffer)) {
     layoutField->clearLayout();
     return true;
   }

@@ -4,4 +4,6 @@
 
 #undef nearbyint
 
-double nearbyint(double x) { return round(x); }
+double nearbyint(double x) {
+  return round(x);
+}

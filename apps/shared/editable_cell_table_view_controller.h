@@ -36,6 +36,7 @@ class EditableCellTableViewController
       Poincare::Preferences::PrintFloatMode mode,
       uint8_t numberOfSignificantDigits);
   void viewWillAppear() override;
+  void didBecomeFirstResponder() override;
 
   bool handleEvent(Ion::Events::Event event) override;
 
@@ -97,9 +98,6 @@ class EditableCellTableViewController
   }
 
   Escher::SelectableTableView m_selectableTableView;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   virtual void didChangeCell(int column, int row) {}

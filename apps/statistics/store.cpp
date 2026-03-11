@@ -4,7 +4,8 @@
 #include <assert.h>
 #include <float.h>
 #include <limits.h>
-#include <poincare/statistics/distribution.h>
+#include <poincare/helpers.h>
+#include <poincare/normal_distribution.h>
 #include <string.h>
 
 #include <algorithm>
@@ -13,6 +14,9 @@
 using namespace Shared;
 
 namespace Statistics {
+
+static_assert(Store::k_numberOfSeries == 3,
+              "The constructor of Statistics::Store should be changed");
 
 constexpr I18n::Message Store::k_quantilesName[Store::k_numberOfQuantiles];
 constexpr Store::CalculPointer
@@ -96,7 +100,7 @@ int Store::numberOfBars(int series) const {
   double maxVal = maxValue(series);
   int nBars = static_cast<int>(
       std::floor((maxVal - firstBarAbscissa) / barWidth()) + 1);
-  if (OMG::Float::RelativelyEqual<double>(
+  if (Poincare::Helpers::RelativelyEqual<double>(
           maxVal, firstBarAbscissa + nBars * barWidth(), k_precision)) {
     /* If the maxValue is on the upper bound of the last bar, we need to add
      * one bar to be consistent with sumOfValuesBetween. */
@@ -449,6 +453,17 @@ double Store::computeModes(int series, int i, double* modeFreq,
   return ithValue;
 }
 
+bool Store::deleteValueAtIndex(int series, int i, int j,
+                               bool authorizeNonEmptyRowDeletion,
+                               bool delayUpdate) {
+  if (authorizeNonEmptyRowDeletion) {
+    deletePairOfSeriesAtIndex(series, j, delayUpdate);
+    return true;
+  }
+  return DoublePairStore::deleteValueAtIndex(
+      series, i, j, authorizeNonEmptyRowDeletion, delayUpdate);
+}
+
 /* Private methods */
 
 int Store::computeRelativeColumnAndSeries(int* i) const {
@@ -482,12 +497,13 @@ double Store::sumOfValuesBetween(int series, double x1, double x2,
   for (int k = 0; k < numberOfPairs; k++) {
     int sortedIndex = valueIndexAtSortedIndex(series, k);
     double value = get(series, 0, sortedIndex);
-    if (value > x2 || (stopIfEqual && OMG::Float::RelativelyEqual<double>(
-                                          value, x2, k_precision))) {
+    if (value > x2 ||
+        (stopIfEqual &&
+         Poincare::Helpers::RelativelyEqual<double>(value, x2, k_precision))) {
       break;
     }
     if (value >= x1 ||
-        OMG::Float::RelativelyEqual<double>(value, x1, k_precision)) {
+        Poincare::Helpers::RelativelyEqual<double>(value, x1, k_precision)) {
       result += get(series, 1, sortedIndex);
     }
   }
@@ -615,10 +631,9 @@ double Store::normalProbabilityResultAtIndex(int series, int i) const {
   assert(i >= 0 && total > 0.0 && static_cast<double>(i) < total);
   // invnorm((i-0.5)/total,0,1)
   double plottingPosition = (static_cast<double>(i) + 0.5) / total;
-  constexpr Poincare::Distribution::ParametersArray<double> k_distribParams = {
-      0.0, 1.0};
-  return Poincare::Distribution::CumulativeDistributiveInverseForProbability(
-      Poincare::Distribution::Type::Normal, plottingPosition, k_distribParams);
+  return Poincare::NormalDistribution::
+      CumulativeDistributiveInverseForProbability<double>(plottingPosition, 0.0,
+                                                          1.0);
 }
 
 uint8_t Store::valueIndexAtSortedIndex(int series, int i) const {

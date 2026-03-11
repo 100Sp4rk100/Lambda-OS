@@ -19,6 +19,9 @@ class CalculationController : public Shared::DoublePairTableController {
   CalculationController(Escher::Responder* parentResponder,
                         Escher::ButtonRowController* header, Store* store);
 
+  // View Controller
+  TELEMETRY_ID("Calculation");
+
   // TableViewDataSource
   int numberOfRows() const override;
   void fillCellForLocation(Escher::HighlightCell* cell, int column,
@@ -115,10 +118,10 @@ class CalculationController : public Shared::DoublePairTableController {
   Escher::SmallFontEvenOddBufferTextCell
       m_calculationCells[k_numberOfCalculationCells];
   Store* m_store;
-  double m_memoizedDoubleCalculationCells[Store::k_numberOfSeries][2]
+  double m_memoizedDoubleCalculationCells[k_numberOfSeriesTitleCells][2]
                                          [k_numberOfDoubleBufferCalculations];
   double m_memoizedSimpleCalculationCells
-      [Store::k_numberOfSeries][k_numberOfMemoizedSingleBufferCalculations];
+      [k_numberOfSeriesTitleCells][k_numberOfMemoizedSingleBufferCalculations];
 };
 
 }  // namespace Regression

@@ -3,7 +3,6 @@
 #include <apps/i18n.h>
 #include <float.h>
 #include <limits.h>
-#include <poincare/solver/zoom.h>
 
 #include <algorithm>
 #include <cmath>
@@ -16,12 +15,12 @@ using namespace Escher;
 
 namespace Sequence {
 
-GraphController::GraphController(Responder* parentResponder,
-                                 Escher::ButtonRowController* header,
-                                 CurveViewRange* interactiveRange,
-                                 CurveViewCursor* cursor,
-                                 int* selectedCurveIndex,
-                                 SequenceStore* sequenceStore)
+GraphController::GraphController(Responder *parentResponder,
+                                 Escher::ButtonRowController *header,
+                                 CurveViewRange *interactiveRange,
+                                 CurveViewCursor *cursor,
+                                 int *selectedCurveIndex,
+                                 SequenceStore *sequenceStore)
     : FunctionGraphController(parentResponder, header, interactiveRange,
                               &m_view, cursor, selectedCurveIndex),
       m_bannerView(this, this),
@@ -60,7 +59,7 @@ float GraphController::interestingXMin() const {
   int nmin = INT_MAX;
   int nbOfActiveModels = functionStore()->numberOfActiveFunctions();
   for (int i = 0; i < nbOfActiveModels; i++) {
-    Shared::Sequence* s =
+    Shared::Sequence *s =
         functionStore()->modelForRecord(recordAtCurveIndex(i));
     nmin = std::min(nmin, s->initialRank());
   }
@@ -68,7 +67,7 @@ float GraphController::interestingXMin() const {
   return nmin;
 }
 
-bool GraphController::textFieldDidFinishEditing(AbstractTextField* textField,
+bool GraphController::textFieldDidFinishEditing(AbstractTextField *textField,
                                                 Ion::Events::Event event) {
   double floatBody = ParseInputFloatValue<double>(textField->draftText());
   if (HasUndefinedValue(floatBody)) {
@@ -97,12 +96,11 @@ Range2D<float> GraphController::optimalRange(
     *result.x() = *originalRange.x();
   }
   if (computeY) {
-    Poincare::Context* context = App::app()->localContext();
+    Poincare::Context *context = App::app()->localContext();
     Zoom zoom(result.xMin(), result.xMax(),
-              InteractiveCurveViewRange::NormalYXRatio(), k_maxFloat);
+              InteractiveCurveViewRange::NormalYXRatio(), context, k_maxFloat);
     int nbOfActiveModels = functionStore()->numberOfActiveFunctions();
-    assert(nbOfActiveModels <= Shared::SequenceStore::k_maxNumberOfSequences);
-    Shared::Sequence* sequences[Shared::SequenceStore::k_maxNumberOfSequences];
+    Shared::Sequence *sequences[nbOfActiveModels];
     for (int i = 0; i < nbOfActiveModels; i++) {
       sequences[i] = functionStore()->modelForRecord(recordAtCurveIndex(i));
     }
@@ -117,18 +115,18 @@ Range2D<float> GraphController::optimalRange(
     }
     *result.y() = *zoom.range(true, false).y();
   }
-  return Zoom<float>::Sanitize(
-      result, InteractiveCurveViewRange::NormalYXRatio(), k_maxFloat);
+  return Zoom::Sanitize(result, InteractiveCurveViewRange::NormalYXRatio(),
+                        k_maxFloat);
 }
 
-const Layout GraphController::SequenceSelectionController::nameLayoutAtIndex(
+Layout GraphController::SequenceSelectionController::nameLayoutAtIndex(
     int j) const {
-  GraphController* graphController =
-      static_cast<GraphController*>(m_graphController);
-  SequenceStore* store = graphController->functionStore();
+  GraphController *graphController =
+      static_cast<GraphController *>(m_graphController);
+  SequenceStore *store = graphController->functionStore();
   ExpiringPointer<Shared::Sequence> sequence =
       store->modelForRecord(store->activeRecordAtIndex(j));
-  return sequence->definitionName();
+  return sequence->definitionName().clone();
 }
 
 void GraphController::openMenuForCurveAtIndex(int curveIndex) {
@@ -139,7 +137,7 @@ void GraphController::openMenuForCurveAtIndex(int curveIndex) {
 bool GraphController::moveCursorHorizontally(OMG::HorizontalDirection direction,
                                              int scrollSpeed) {
   int xCursorPosition = std::round(m_cursor->x());
-  Shared::Sequence* s =
+  Shared::Sequence *s =
       functionStore()->modelForRecord(recordAtSelectedCurveIndex());
   int x = m_view.nextDotIndex(s, xCursorPosition, direction, scrollSpeed);
   if (x == xCursorPosition) {

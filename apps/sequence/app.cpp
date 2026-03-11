@@ -3,11 +3,10 @@
 #include <apps/apps_container.h>
 #include <apps/global_preferences.h>
 #include <apps/shared/global_context.h>
-#include <poincare/helpers/sequence.h>
 
 #include <array>
 
-#include "sequence_icon.h"
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Poincare;
 using namespace Escher;
@@ -22,7 +21,7 @@ I18n::Message App::Descriptor::upperName() const {
   return I18n::Message::SequenceAppCapital;
 }
 
-const Image* App::Descriptor::icon() const { return ImageStore::SequenceIcon; }
+const Image *App::Descriptor::icon() const { return Theme::ThemeGestion::getIconImage("SequenceIcon"); }
 
 App::Snapshot::Snapshot()
     : Shared::FunctionApp::Snapshot::Snapshot(),
@@ -30,11 +29,12 @@ App::Snapshot::Snapshot()
   // Register u, v and w as reserved names to the sharedStorage.
   Ion::Storage::FileSystem::sharedFileSystem->recordNameVerifier()
       ->registerArrayOfReservedNames(
-          SequenceHelper::k_sequenceNames, Ion::Storage::sequenceExtension, 0,
-          std::size(SequenceHelper::k_sequenceNames));
+          Shared::SequenceStore::k_sequenceNames,
+          Ion::Storage::sequenceExtension, 0,
+          std::size(Shared::SequenceStore::k_sequenceNames));
 }
 
-App* App::Snapshot::unpack(Container* container) {
+App *App::Snapshot::unpack(Container *container) {
   return new (container->currentAppBuffer()) App(this);
 }
 
@@ -66,7 +66,7 @@ void App::Snapshot::reset() {
 
 constexpr static App::Descriptor sDescriptor;
 
-const App::Descriptor* App::Snapshot::descriptor() const {
+const App::Descriptor *App::Snapshot::descriptor() const {
   return &sDescriptor;
 }
 

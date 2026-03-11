@@ -3,24 +3,12 @@ extern "C" {
 #include <kandinsky/fonts/code_points.h>
 }
 #include <assert.h>
-#include <omg/memory.h>
-#include <omg/utf8_decoder.h>
+#include <ion.h>
+#include <ion/unicode/utf8_decoder.h>
 
 #include <algorithm>
 
 constexpr static int k_tabCharacterWidth = 4;
-
-#if KANDINSKY_FONT_VARIABLE_WIDTH
-KDCoordinate KDFont::GlyphWidth(Size size, CodePoint codePoint) {
-  int index = Font(size)->indexForCodePoint(codePoint);
-#if KANDINSKY_FONT_LARGE_FONT
-  return size == Size::Small ? privateSmallFont.m_glyphWidths[index]
-                             : privateLargeFont.m_glyphWidths[index];
-#else
-  return privateSmallFont.m_glyphWidths[index];
-#endif
-}
-#endif
 
 KDSize KDFont::stringSizeUntil(const char* text, const char* limit,
                                KDCoordinate lineSpacing) const {
@@ -33,7 +21,6 @@ KDSize KDFont::stringSizeUntil(const char* text, const char* limit,
   KDCoordinate stringHeight = m_glyphSize.height();
   KDCoordinate stringWidth = 0;
   KDCoordinate lineStringWidth = 0;
-  Size fontSize = this == &privateSmallFont ? Size::Small : Size::Large;
   while (codePoint != UCodePointNull &&
          (limit == nullptr || currentStringPosition < limit)) {
     if (codePoint == UCodePointLineFeed) {
@@ -41,9 +28,9 @@ KDSize KDFont::stringSizeUntil(const char* text, const char* limit,
       lineStringWidth = 0;
       stringHeight += m_glyphSize.height() + lineSpacing;
     } else if (codePoint == UCodePointTabulation) {
-      lineStringWidth += k_tabCharacterWidth * GlyphWidth(fontSize, ' ');
+      lineStringWidth += k_tabCharacterWidth * m_glyphSize.width();
     } else if (!codePoint.isCombining()) {
-      lineStringWidth += GlyphWidth(fontSize, codePoint);
+      lineStringWidth += m_glyphSize.width();
     }
     currentStringPosition = decoder.stringPosition();
     codePoint = decoder.nextCodePoint();
@@ -79,7 +66,7 @@ void KDFont::accumulateGlyphGrayscalesForCodePoint(
 
 void KDFont::fetchGrayscaleGlyphAtIndex(KDFont::GlyphIndex index,
                                         uint8_t* grayscaleBuffer) const {
-  OMG::Memory::Decompress(
+  Ion::decompress(
       compressedGlyphData(index), grayscaleBuffer,
       compressedGlyphDataSize(index),
       m_glyphSize.width() * m_glyphSize.height() * k_grayscaleBitsPerPixel / 8);
@@ -148,11 +135,8 @@ bool KDFont::CanBeWrittenWithGlyphs(const char* text) {
   UTF8Decoder decoder(text);
   CodePoint cp = decoder.nextCodePoint();
   while (cp != UCodePointNull) {
-    if (
-#if KANDINSKY_FONT_LARGE_FONT
-        privateLargeFont.indexForCodePoint(cp) ==
+    if (privateLargeFont.indexForCodePoint(cp) ==
             k_indexForReplacementCharacterCodePoint ||
-#endif
         privateSmallFont.indexForCodePoint(cp) ==
             k_indexForReplacementCharacterCodePoint) {
       return false;

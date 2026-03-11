@@ -2,7 +2,7 @@
 #define PYTHON_CLIPBOARD_H
 
 #include <escher/clipboard.h>
-#include <omg/utf8_helper.h>
+#include <ion/unicode/utf8_helper.h>
 
 namespace Code {
 
@@ -14,8 +14,8 @@ class Clipboard : public Escher::Clipboard {
   static const UTF8Helper::TextPair* PythonTextPairs();
   static bool ShouldReplaceLetterE(const char* text, size_t length,
                                    size_t position);
-  void enterPython();
-  void exitPython();
+  void enterPython() { replaceCharForPython(true); }
+  void exitPython() { replaceCharForPython(false); }
 
  private:
   static int s_replacementRuleStartingPoint;

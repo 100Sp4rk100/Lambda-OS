@@ -2,20 +2,15 @@
 
 #include <assert.h>
 #include <ion.h>
+#include <math.h>
+#include <omg/comparison.h>
 #include <omg/ieee754.h>
-#include <omg/numeric_comparison.h>
 #include <poincare/circuit_breaker_checkpoint.h>
-#include <poincare/k_tree.h>
-#include <poincare/pool_object.h>
 #include <poincare/preferences.h>
-#include <poincare/solver/zoom.h>
-#include <poincare/src/expression/projection.h>
+#include <poincare/zoom.h>
 #include <stddef.h>
 
 #include <algorithm>
-#include <cmath>
-
-#include "poincare_helpers.h"
 
 using namespace Poincare;
 
@@ -59,13 +54,13 @@ float InteractiveCurveViewRange::roundLimit(float y, float range, bool isMin) {
 }
 
 void InteractiveCurveViewRange::setXRange(float min, float max) {
-  assert(!m_zoomAuto.x || m_delegate == nullptr);
+  assert(!m_isAuto.x || m_delegate == nullptr);
   MemoizedCurveViewRange::protectedSetXRange(min, max, k_maxFloat);
   computeRanges();
 }
 
 void InteractiveCurveViewRange::setYRange(float min, float max) {
-  assert(!m_zoomAuto.y || m_delegate == nullptr);
+  assert(!m_isAuto.y || m_delegate == nullptr);
   MemoizedCurveViewRange::protectedSetYRange(min, max, k_maxFloat);
   setZoomNormalize(isOrthonormal());
 }
@@ -79,41 +74,32 @@ void InteractiveCurveViewRange::setOffscreenYAxis(float f) {
   MemoizedCurveViewRange::protectedSetYRange(yMin(), yMax() + d, k_maxFloat);
 }
 
-ExpressionOrFloat InteractiveCurveViewRange::computeGridUnit(OMG::Axis axis) {
-  if (!gridUnitAuto(axis)) {
-    return computeGridUnitFromUserParameter(axis);
-  }
-  ExpressionOrFloat computedGridUnit =
-      MemoizedCurveViewRange::computeGridUnit(axis);
+float InteractiveCurveViewRange::xGridUnit() const {
   if (m_zoomNormalize) {
-    if (axis == OMG::Axis::Horizontal) {
-      ExpressionOrFloat yUnit = yGridUnit();
-      if (((xMax() - xMin()) / PoincareHelpers::ToFloat(yUnit)) <=
-          static_cast<float>(k_maxNumberOfXGridUnits)) {
-        return yUnit;
-      }
-    } else {
-      assert(axis == OMG::Axis::Vertical);
-      /* When m_zoomNormalize is active, both xGridUnit and yGridUnit will be
-       * the same. To declutter the X axis, we try a unit twice as large. We
-       * check that it allows enough graduations on the Y axis, but if the
-       * standard unit would lead to too many graduations on the X axis, we
-       * force the larger unit anyways. */
-      float numberOfYUnits = (yMax() - yMin() + offscreenYAxis()) /
-                             PoincareHelpers::ToFloat(computedGridUnit);
-      float numberOfXUnits =
-          (xMax() - xMin()) / PoincareHelpers::ToFloat(computedGridUnit);
-      if (numberOfXUnits > static_cast<float>(k_maxNumberOfXGridUnits) ||
-          numberOfYUnits / 2.f > static_cast<float>(k_minNumberOfYGridUnits)) {
-        return ExpressionOrFloat::Builder(
-            UserExpression::Create(KMult(2_e, KA),
-                                   {.KA = computedGridUnit.expression()})
-                .cloneAndTrySimplify({}),
-            PoincareHelpers::ApproximateToRealScalar);
-      }
+    float yUnit = yGridUnit();
+    if ((xMax() - xMin()) / yUnit <= k_maxNumberOfXGridUnits) {
+      return yUnit;
     }
   }
-  return computedGridUnit;
+  return MemoizedCurveViewRange::xGridUnit();
+}
+
+float InteractiveCurveViewRange::yGridUnit() const {
+  float res = MemoizedCurveViewRange::yGridUnit();
+  if (m_zoomNormalize) {
+    /* When m_zoomNormalize is active, both xGridUnit and yGridUnit will be the
+     * same. To declutter the X axis, we try a unit twice as large. We check
+     * that it allows enough graduations on the Y axis, but if the standard
+     * unit would lead to too many graduations on the X axis, we force the
+     * larger unit anyways. */
+    float numberOfYUnits = (yMax() - yMin() + offscreenYAxis()) / res;
+    float numberOfXUnits = (xMax() - xMin()) / res;
+    if (numberOfXUnits > k_maxNumberOfXGridUnits ||
+        numberOfYUnits / 2.f > k_minNumberOfYGridUnits) {
+      return 2 * res;
+    }
+  }
+  return res;
 }
 
 void InteractiveCurveViewRange::zoom(float ratio, float x, float y) {
@@ -176,18 +162,17 @@ void InteractiveCurveViewRange::panWithVector(float x, float y) {
 void InteractiveCurveViewRange::normalize() {
   /* If one axis is set manually and the other is in auto mode, prioritize
    * changing the auto one. */
-  bool canChangeX = m_zoomAuto.x || !m_zoomAuto.y;
-  bool canChangeY = m_zoomAuto.y || !m_zoomAuto.x;
+  bool canChangeX = m_isAuto.x || !m_isAuto.y;
+  bool canChangeY = m_isAuto.y || !m_isAuto.x;
   setZoomAuto(false);
   protectedNormalize(canChangeX, canChangeY, !canChangeX || !canChangeY);
 }
 
-void InteractiveCurveViewRange::centerAxisAround(OMG::Axis axis,
-                                                 float position) {
+void InteractiveCurveViewRange::centerAxisAround(Axis axis, float position) {
   if (std::isnan(position)) {
     return;
   }
-  if (axis == OMG::Axis::Horizontal) {
+  if (axis == Axis::X) {
     float range = xMax() - xMin();
     if (std::fabs(position / range) > k_maxRatioPositionRange) {
       range = Range1D<float>::DefaultLengthAt(position);
@@ -272,7 +257,7 @@ bool InteractiveCurveViewRange::panToMakePointVisible(
 bool InteractiveCurveViewRange::zoomOutToMakePointVisible(
     float x, float y, float topMarginRatio, float rightMarginRatio,
     float bottomMarginRatio, float leftMarginRatio) {
-  Zoom zoom(-k_maxFloat, k_maxFloat, NormalYXRatio(), k_maxFloat);
+  Zoom zoom(-k_maxFloat, k_maxFloat, NormalYXRatio(), nullptr, k_maxFloat);
   zoom.fitPoint(Coordinate2D<float>(xMin(), yMin()));
   zoom.fitPoint(Coordinate2D<float>(xMax(), yMax()));
   zoom.fitPoint(Coordinate2D<float>(x, y), false, leftMarginRatio,
@@ -333,28 +318,12 @@ void InteractiveCurveViewRange::protectedNormalize(bool canChangeX,
 }
 
 void InteractiveCurveViewRange::privateSetZoomAuto(bool xAuto, bool yAuto) {
-  bool oldAuto = zoomAndGridUnitAuto();
-  m_zoomAuto.x = xAuto;
-  m_zoomAuto.y = yAuto;
-  if (m_delegate && oldAuto != zoomAndGridUnitAuto()) {
+  bool oldAuto = zoomAuto();
+  m_isAuto.x = xAuto;
+  m_isAuto.y = yAuto;
+  if (m_delegate && (oldAuto != zoomAuto())) {
     m_delegate->updateZoomButtons();
   }
-}
-
-void InteractiveCurveViewRange::privateSetUserStep(
-    InteractiveCurveViewRange::UserStepType xValue,
-    InteractiveCurveViewRange::UserStepType yValue) {
-  bool oldAuto = zoomAndGridUnitAuto();
-  m_userStep.x = xValue;
-  m_userStep.y = yValue;
-  if (m_delegate && oldAuto != zoomAndGridUnitAuto()) {
-    m_delegate->updateZoomButtons();
-  }
-  /* The m_gridUnit member variable is reset here to trigger a recomputation of
-   * the variable when it is accessed later on. m_gridUnit will be recomputed
-   * from the value of the newly defined m_userStep, through the
-   * computeGridUnitFromUserParameter function. */
-  resetGridUnit();
 }
 
 void InteractiveCurveViewRange::privateComputeRanges(bool computeX,
@@ -388,7 +357,7 @@ void InteractiveCurveViewRange::privateComputeRanges(bool computeX,
         }
       } else {
         m_delegate->tidyModels(checkpoint.endOfPoolBeforeCheckpoint());
-        newRange = Zoom<float>::DefaultRange(NormalYXRatio(), k_maxFloat);
+        newRange = Zoom::DefaultRange(NormalYXRatio(), k_maxFloat);
       }
     }
 
@@ -425,167 +394,6 @@ void InteractiveCurveViewRange::privateComputeRanges(bool computeX,
   }
 
   setZoomNormalize(isOrthonormal());
-}
-
-int ClosestPowerOfTenAbove(int number) {
-  int powerOfTen = 10;
-  while (number > powerOfTen) {
-    powerOfTen *= 10;
-  }
-  return powerOfTen;
-}
-
-// The "two-five-ten" factors are defined as ({1, 2, 5}x10^n)
-int ClosestTwoFiveTenFactorAbove(int number) {
-  int powerOfTen = ClosestPowerOfTenAbove(number);
-  int twoFactor = powerOfTen / 5;
-  if (number <= twoFactor) {
-    return twoFactor;
-  }
-  int fiveFactor = powerOfTen / 2;
-  if (number <= fiveFactor) {
-    return fiveFactor;
-  }
-  return powerOfTen;
-}
-
-ExpressionOrFloat InteractiveCurveViewRange::computeGridUnitFromUserParameter(
-    OMG::Axis axis) const {
-  assert(!gridUnitAuto(axis));
-  float minNumberOfUnits, maxNumberOfUnits, range;
-  if (axis == OMG::Axis::Horizontal) {
-    minNumberOfUnits = k_minNumberOfXGridUnits;
-    maxNumberOfUnits = k_maxNumberOfXGridUnits;
-    range = xMax() - xMin();
-  } else {
-    assert(axis == OMG::Axis::Vertical);
-    minNumberOfUnits = k_minNumberOfYGridUnits;
-    maxNumberOfUnits = k_maxNumberOfYGridUnits;
-    range = yMax() - yMin() + offscreenYAxis();
-  }
-  assert(range > 0.0f && std::isfinite(range));
-
-  // The grid unit is half of the user step parameter
-  ExpressionOrFloat userGridUnit = ExpressionOrFloat::Builder(
-      UserExpression::Create(KMult(1_e / 2_e, KA),
-                             {.KA = m_userStep(axis).expression()})
-          .cloneAndTrySimplify({}),
-      PoincareHelpers::ApproximateToRealScalar);
-  assert(PoincareHelpers::ToFloat(userGridUnit) > 0.0f);
-  float numberOfUnits = range / PoincareHelpers::ToFloat(userGridUnit);
-  if (minNumberOfUnits <= numberOfUnits && numberOfUnits <= maxNumberOfUnits) {
-    // Case 1
-    return userGridUnit;
-  } else if (numberOfUnits < minNumberOfUnits) {
-    // Case 2
-    int k = ClosestTwoFiveTenFactorAbove(
-        static_cast<int>(std::ceil(minNumberOfUnits / numberOfUnits)));
-    assert(k <= std::floor(maxNumberOfUnits / numberOfUnits));
-    return ExpressionOrFloat::Builder(
-        UserExpression::Create(
-            KMult(KA, KPow(KB, -1_e)),
-            {.KA = userGridUnit.expression(), .KB = UserExpression::Builder(k)})
-            .cloneAndTrySimplify({}),
-        PoincareHelpers::ApproximateToRealScalar);
-  }
-  assert(numberOfUnits > maxNumberOfUnits);
-  // Case 3
-  int k = ClosestTwoFiveTenFactorAbove(
-      static_cast<int>(std::ceil(numberOfUnits / maxNumberOfUnits)));
-  assert(k <= std::floor(numberOfUnits / minNumberOfUnits));
-
-  return ExpressionOrFloat::Builder(
-      UserExpression::Create(KMult(KA, KB), {.KA = userGridUnit.expression(),
-                                             .KB = UserExpression::Builder(k)})
-          .cloneAndTrySimplify({}),
-      PoincareHelpers::ApproximateToRealScalar);
-
-  // clang-format off
-  /* Proof of the algorithm:
-   *
-   * We want to find gridUnit = userGridUnit * k or gridUnit = userGridUnit / k, with k an integer,
-   * and k being a "two-five-ten" factor (meaning k is part of ({1, 2, 5}x10^n)).
-   * We want: minNumberOfUnits <= range / gridUnit <= maxNumberOfUnits
-   *
-   * Case 1: minNumberOfUnits <= range / userGridUnit <= maxNumberOfUnits
-   * ------
-   * The solution is userGridUnit.
-   *
-   * Case 2: range / userGridUnit < minNumberOfUnits
-   * -------
-   * We want to decrease the grid unit, so we look for gridUnit = userGridUnit / k, with k an integer
-   * A solution thus needs to verify:
-   *       minNumberOfUnits <= range / (userGridUnit / k) <= maxNumberOfUnits
-   * <=>   minNumberOfUnits <=  k * range / userGridUnit  <= maxNumberOfUnits
-   * <=>   E1 = minNumberOfUnits * userGridUnit / range <= k <= maxNumberOfUnits * userGridUnit / range = E2
-   * Since k must be a integer,
-   * <=>   ceil(E1) <= k <= floor(E2)
-   *
-   * We have a solution if ceil(E1) <= floor(E2) <=> floor(E1) < floor(E2) <=> floor(E1) != floor(E2)
-   *
-   * Let's compute E2 - E1:
-   * E2 - E1 = (maxNumberOfUnits - minNumberOfUnits) * userGridUnit / range
-   * and since range / userGridUnit < minNumberOfUnits
-   * E2 - E1 > (maxNumberOfUnits - minNumberOfUnits) / minNumberOfUnits = E3
-   * minNumberOfUnits and maxNumberOfUnits have predefined values depending on the axis. For the x-axis,
-   * minNumberOfUnits = 7 and maxNumberOfUnits = 18 so E3 = 1.57, and for the y-axis, minNumberOfUnits = 5
-   * and maxNumberOfUnits = 13 so E3 = 1.6.
-   * => E2 - E1 > 1.5
-   * => floor(E1) != floor(E2)
-   *
-   * We take the smallest "two-five-ten" factor available to be as close as possible to the user input:
-   * k = ClosestTwoFiveTenFactorAbove(ceil(E1))
-   * k = ClosestTwoFiveTenFactorAbove(ceil(minNumberOfUnits * userGridUnit / range))
-   *
-   * Given that maxNumberOfUnits / minNumberOfUnits is always > 2.5 (18/7 = 2.57 and 13/5 = 2.6), and that
-   * ClosestTwoFiveTenFactorAbove multiplies its input by 2.5 in the worst case (example:
-   * ClosestTwoFiveTenFactorAbove(21)=50), we will (hopefully) always be able to find a suitable value for k.
-   * We don't have a formal proof of this, but testing on worst case values seems to always work.
-   *
-   * Some examples for minNumberOfUnits = 7 and maxNumberOfUnits = 18:
-   *
-   * Example 1: x = range / userGridUnit = 3 (user choice)
-   * Then ceil(E1) = ceil(7/3) = 3
-   * k = ClosestTwoFiveTenFactorAbove(ceil(E1)) = 5
-   * And floor(E2) = floor(18/3) = 6 is greater than k
-   *
-   * Example 2: x = range / userGridUnit = 1/286  (user choice)
-   * Then ceil(E1) = ceil(7/(1/286)) = 2002
-   * k = ClosestTwoFiveTenFactorAbove(ceil(E1)) = 5000
-   * And floor(E2) = floor(18/(1/286)) = 5148 is greater than k
-   *
-   * Case 3: range / userGridUnit > maxNumberOfUnits
-   * -------
-   * We want to increase the grid unit, so we look for gridUnit = userGridUnit * k, with k an integer
-   * Similar computation than in case 2 will give
-   * E1 = range / (maxNumberOfUnits * userGridUnit)
-   * E2 = range / (minNumberOfUnits * userGridUnit)
-   * Let's compute E2 - E1:
-   * E2 - E1 = (1/minNumberOfUnits - 1/maxNumberOfUnits) * range / userGridUnit
-   * and since range / userGridUnit > maxNumberOfUnits
-   * E2 - E1 > (1/minNumberOfUnits - 1/maxNumberOfUnits) * maxNumberOfUnits = (maxNumberOfUnits - minNumberOfUnits) / minNumberOfUnits = E3
-   * We saw in case 2 that E3 > 1.5
-   * => E2 - E1 > 1.5
-   * => floor(E1) != floor(E2)
-   *
-   * We take the smallest "two-five-ten" factor available to be as close as possible to the user input:
-   * k = ClosestTwoFiveTenFactorAbove(ceil(E1))
-   *   = ClosestTwoFiveTenFactorAbove(ceil(range / (maxNumberOfUnits * userGridUnit)))
-   *
-   * Some examples for minNumberOfUnits = 7 and maxNumberOfUnits = 18:
-   *
-   * Example 1: x = range / userGridUnit = 37 (user choice)
-   * Then ceil(E1) = ceil(37/18) = 3
-   * k = ClosestTwoFiveTenFactorAbove(ceil(E1)) = 5
-   * And floor(E2) = floor(37/7) = 5 is equal to k
-   *
-   * Example 2: x = range / userGridUnit = 361 (user choice)
-   * Then ceil(E1) = ceil(361/18) = 21
-   * k = ClosestTwoFiveTenFactorAbove(ceil(E1)) = 50
-   * And floor(E2) = floor(361/7) = 51 is greater than k
-   *
-   */
-  // clang-format on
 }
 
 }  // namespace Shared

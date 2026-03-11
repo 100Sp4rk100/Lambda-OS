@@ -1,7 +1,0 @@
-Variables = "Variables"
-Expressions = "Expressions"
-Functions = "Functions"
-Sequences = "Sequences"
-DefineVariable = "Define a new variable"
-InvalidInputWarning = "Your input is not valid.\nThe variable will not be saved."
-VariableCantBeEdited = "This variable cannot\nbe edited here."

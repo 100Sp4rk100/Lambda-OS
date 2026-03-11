@@ -2,8 +2,8 @@
 
 #include <assert.h>
 #include <escher/clipboard.h>
-#include <poincare/k_tree.h>
-#include <poincare/layout.h>
+#include <poincare/condensed_sum_layout.h>
+#include <poincare/layout_helper.h>
 #include <poincare/print.h>
 #include <stdlib.h>
 
@@ -12,15 +12,23 @@
 #include "function_app.h"
 #include "poincare_helpers.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Poincare;
 using namespace Escher;
 
 namespace Shared {
 
-SumGraphController::SumGraphController(Responder* parentResponder,
-                                       FunctionGraphView* graphView,
-                                       InteractiveCurveViewRange* range,
-                                       CurveViewCursor* cursor)
+KDGlyph::Format SumGraphController::LegendView::k_glyphsFormat(){
+  return {
+        .style = {.backgroundColor = Theme::ThemeGestion::getColor("GrayMiddle"),
+                  .font = k_font}};
+}
+
+SumGraphController::SumGraphController(Responder *parentResponder,
+                                       FunctionGraphView *graphView,
+                                       InteractiveCurveViewRange *range,
+                                       CurveViewCursor *cursor)
     : SimpleInteractiveCurveViewController(parentResponder, cursor),
       m_step(Step::FirstParameter),
       m_startSum(NAN),
@@ -41,16 +49,11 @@ void SumGraphController::viewWillAppear() {
   SimpleInteractiveCurveViewController::viewWillAppear();
 }
 
-void SumGraphController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    /* Do not set the textField as first responder when displaying the result
-     * so that Copy and Sto apply on the result. */
-    if (m_step != Step::Result) {
-      App::app()->setFirstResponder(m_legendView.textField());
-    }
-  } else {
-    SimpleInteractiveCurveViewController::handleResponderChainEvent(event);
+void SumGraphController::didBecomeFirstResponder() {
+  /* Do not set the textField as first responder when displaying the result
+   * so that Copy and Sto apply on the result. */
+  if (m_step != Step::Result) {
+    App::app()->setFirstResponder(m_legendView.textField());
   }
 }
 
@@ -82,10 +85,9 @@ bool SumGraphController::handleEvent(Ion::Events::Event event) {
     PoincareHelpers::ConvertFloatToText<double>(m_result, buffer, bufferSize,
                                                 precision);
     if (event == Ion::Events::Sto || event == Ion::Events::Var) {
-      assert(App::app()->canStoreLayout());
-      App::app()->storeLayout(Layout::String(buffer));
+      App::app()->storeValue(buffer);
     } else {
-      Escher::Clipboard::SharedClipboard()->storeText(buffer);
+      Escher::Clipboard::SharedClipboard()->store(buffer);
     }
     return true;
   }
@@ -108,7 +110,7 @@ bool SumGraphController::moveCursorHorizontallyToPosition(double x) {
   }
   m_legendView.setEditableZone(m_cursor->x());
   makeCursorVisibleAndReloadBanner();
-  m_graphView->reload(false, false, true);
+  m_graphView->reload(true);
   return true;
 }
 
@@ -155,7 +157,7 @@ void SumGraphController::setRecord(Ion::Storage::Record record) {
   m_graphView->selectRecord(record);
 }
 
-bool SumGraphController::textFieldDidFinishEditing(AbstractTextField* textField,
+bool SumGraphController::textFieldDidFinishEditing(AbstractTextField *textField,
                                                    Ion::Events::Event event) {
   double floatBody = ParseInputFloatValue<double>(textField->draftText());
   if (HasUndefinedValue(floatBody)) {
@@ -175,7 +177,7 @@ bool SumGraphController::handleLeftRightEvent(Ion::Events::Event event) {
     return false;
   }
   const double oldPosition = m_cursor->x();
-  double newPosition = cursorNextStep(oldPosition, event.direction());
+  double newPosition = cursorNextStep(oldPosition, OMG::Direction(event));
   if (!allowEndLowerThanStart() && m_step == Step::SecondParameter &&
       newPosition < m_startSum) {
     newPosition = m_startSum;
@@ -185,7 +187,7 @@ bool SumGraphController::handleLeftRightEvent(Ion::Events::Event event) {
 
 bool SumGraphController::handleEnter() {
   if (m_step == Step::Result) {
-    StackViewController* stack = (StackViewController*)parentResponder();
+    StackViewController *stack = (StackViewController *)parentResponder();
     stack->pop();
   } else {
     Step currentStep = m_step;
@@ -213,10 +215,9 @@ void SumGraphController::reloadBannerView() {
   if (m_step == Step::Result) {
     endSum = m_cursor->x();
     assert(!selectedRecord().isNull());
-    Poincare::Context* context = FunctionApp::app()->localContext();
-    Poincare::SystemExpression sum =
-        createSumExpression(m_startSum, endSum, context);
-    result = sum.approximateToRealScalar<double>();
+    Poincare::Context *context = FunctionApp::app()->localContext();
+    Poincare::Expression sum = createSumExpression(m_startSum, endSum, context);
+    result = PoincareHelpers::ApproximateToScalar<double>(sum, context);
     functionLayout = createFunctionLayout();
   } else {
     m_legendView.setEditableZone(m_cursor->x());
@@ -227,8 +228,8 @@ void SumGraphController::reloadBannerView() {
                             sumSymbol());
 }
 
-Poincare::SystemExpression SumGraphController::createSumExpression(
-    double startSum, double endSum, Poincare::Context* context) {
+Poincare::Expression SumGraphController::createSumExpression(
+    double startSum, double endSum, Poincare::Context *context) {
   ExpiringPointer<Function> function =
       FunctionApp::app()->functionStore()->modelForRecord(selectedRecord());
   return function->sumBetweenBounds(startSum, endSum, context);
@@ -236,17 +237,17 @@ Poincare::SystemExpression SumGraphController::createSumExpression(
 
 /* Legend View */
 
-SumGraphController::LegendView::LegendView(SumGraphController* controller)
-    : m_sum(k_glyphsFormat),
-      m_legend(I18n::Message::Default, k_glyphsFormat),
+SumGraphController::LegendView::LegendView(SumGraphController *controller)
+    : m_sum(k_glyphsFormat()),
+      m_legend(I18n::Message::Default, k_glyphsFormat()),
       m_editableZone(controller, m_textBuffer, k_editableZoneBufferSize,
-                     controller, k_glyphsFormat) {
+                     controller, k_glyphsFormat()) {
   m_textBuffer[0] = 0;
 }
 
-void SumGraphController::LegendView::drawRect(KDContext* ctx,
+void SumGraphController::LegendView::drawRect(KDContext *ctx,
                                               KDRect rect) const {
-  ctx->fillRect(bounds(), Palette::GrayMiddle);
+  ctx->fillRect(bounds(), Theme::ThemeGestion::getColor("GrayMiddle"));
 }
 
 KDSize SumGraphController::LegendView::minimalSizeForOptimalDisplay() const {
@@ -267,7 +268,12 @@ void SumGraphController::LegendView::setEditableZone(double d) {
   m_editableZone.setText(buffer);
 }
 
-static Layout emptyValueLayout() { return " "_l; }
+static Layout emptyValueLayout() {
+  Layout layout = HorizontalLayout::Builder();
+  static_cast<HorizontalLayout &>(layout).setEmptyVisibility(
+      EmptyRectangle::State::Hidden);
+  return layout;
+}
 
 static Layout valueLayout(double value, int numberOfSignificantDigits,
                           Preferences::PrintFloatMode displayMode) {
@@ -275,7 +281,7 @@ static Layout valueLayout(double value, int numberOfSignificantDigits,
   char buffer[k_bufferSize];
   PoincareHelpers::ConvertFloatToTextWithDisplayMode<double>(
       value, buffer, k_bufferSize, numberOfSignificantDigits, displayMode);
-  Layout layout = Layout::String(buffer, strlen(buffer));
+  Layout layout = LayoutHelper::String(buffer, strlen(buffer));
   return layout;
 }
 
@@ -284,7 +290,7 @@ static Layout areaMessageLayout() {
   char buffer[bufferSize];
   int length = Print::CustomPrintf(buffer, bufferSize, "%s",
                                    I18n::translate(I18n::Message::Area));
-  return Layout::String(buffer, length);
+  return LayoutHelper::String(buffer, length);
 }
 
 void SumGraphController::LegendView::setSumLayout(Step step, double start,
@@ -299,32 +305,29 @@ void SumGraphController::LegendView::setSumLayout(Step step, double start,
       step == Step::FirstParameter
           ? emptyValueLayout()
           : valueLayout(end, k_valuesPrecision, k_valuesDisplayMode);
-  Layout sumLayout = Layout::Create(
-      KCondensedSumL(KA, KB, KC),
-      {.KA = Layout::CodePoint(sumSymbol), .KB = startLayout, .KC = endLayout});
+  Layout sumLayout = CondensedSumLayout::Builder(
+      CodePointLayout::Builder(sumSymbol), startLayout, endLayout);
   if (step == Step::Result) {
     Layout leftLayout;
-    Layout equalLayout = Layout::String(" = ", 3);
-    const MathPreferences* preferences = MathPreferences::SharedPreferences();
+    Layout equalLayout = LayoutHelper::String(" = ", 3);
+    Preferences *preferences = Preferences::SharedPreferences();
     Layout resultLayout =
         valueLayout(result, preferences->numberOfSignificantDigits(),
                     preferences->displayMode());
     if (functionLayout.isUninitialized() ||
-        (sumLayout->layoutSize(k_font).width() +
-             functionLayout->layoutSize(k_font).width() +
-             equalLayout->layoutSize(k_font).width() +
-             resultLayout->layoutSize(k_font).width() >
+        (sumLayout.layoutSize(k_font).width() +
+             functionLayout.layoutSize(k_font).width() +
+             equalLayout.layoutSize(k_font).width() +
+             resultLayout.layoutSize(k_font).width() >
          bounds().width())) {
       assert(sumSymbol == UCodePointIntegral);
       leftLayout = areaMessageLayout();
     } else {
-      leftLayout =
-          Layout::Create(KA ^ KB, {.KA = sumLayout, .KB = functionLayout});
+      leftLayout = HorizontalLayout::Builder(sumLayout, functionLayout);
     }
 
-    sumLayout = leftLayout = Layout::Create(
-        KA ^ KB ^ KC,
-        {.KA = leftLayout, .KB = equalLayout, .KC = resultLayout});
+    sumLayout =
+        HorizontalLayout::Builder(leftLayout, equalLayout, resultLayout);
   }
   m_sum.setLayout(sumLayout);
   m_sum.setAlignment(
@@ -333,7 +336,7 @@ void SumGraphController::LegendView::setSumLayout(Step step, double start,
   layoutSubviews(step, false);
 }
 
-View* SumGraphController::LegendView::subviewAtIndex(int index) {
+View *SumGraphController::LegendView::subviewAtIndex(int index) {
   assert(index >= 0 && index < 3);
   if (index == 0) {
     return &m_sum;

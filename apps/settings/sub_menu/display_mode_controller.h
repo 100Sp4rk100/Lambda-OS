@@ -13,6 +13,7 @@ class DisplayModeController : public PreferencesController,
                               public Shared::ParameterTextFieldDelegate {
  public:
   DisplayModeController(Escher::Responder* parentResponder);
+  TELEMETRY_ID("DisplayMode");
   KDCoordinate nonMemoizedRowHeight(int row) override;
   Escher::HighlightCell* reusableCell(int index, int type) override;
   int reusableCellCount(int type) const override;
@@ -20,7 +21,7 @@ class DisplayModeController : public PreferencesController,
     return (row == numberOfRows() - 1) ? k_significantDigitsType
                                        : k_resultFormatType;
   }
-  KDCoordinate separatorBeforeRow(int row) const override {
+  KDCoordinate separatorBeforeRow(int row) override {
     return typeAtRow(row) == k_significantDigitsType
                ? k_defaultRowSeparator
                : PreferencesController::separatorBeforeRow(row);

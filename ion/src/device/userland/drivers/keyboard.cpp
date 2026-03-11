@@ -1,6 +1,5 @@
+#include <drivers/svcall.h>
 #include <ion/keyboard.h>
-
-#include "svcall.h"
 
 namespace Ion {
 namespace Keyboard {
@@ -11,7 +10,7 @@ uint64_t SVC_ATTRIBUTES privateScan(){
 uint64_t SVC_ATTRIBUTES
     privatePopState(){SVC_RETURNING_R0R1(SVC_KEYBOARD_POP_STATE, State)}
 
-State scan(bool forPython) {
+State scan() {
   return State(privateScan());
 }
 

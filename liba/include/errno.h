@@ -13,17 +13,11 @@
 /* No such device or address */
 #define ENXIO 6
 
-/* Not enough space */
-#define ENOMEM 12
-
 /* Invalid argument */
 #define EINVAL 22
 
-/* File too large */
-#define EFBIG 27
-
-/* Result too large */
-#define ERANGE 34
+/* Not enough space */
+#define ENOMEM 12
 
 /* Resource temporarily unavailable */
 #define EAGAIN 35

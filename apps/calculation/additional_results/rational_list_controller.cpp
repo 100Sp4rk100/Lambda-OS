@@ -1,8 +1,8 @@
 #include "rational_list_controller.h"
 
 #include <apps/shared/poincare_helpers.h>
-#include <poincare/additional_results_helper.h>
-#include <poincare/k_tree.h>
+#include <poincare/based_integer.h>
+#include <poincare/integer.h>
 #include <string.h>
 
 #include "../app.h"
@@ -12,50 +12,57 @@ using namespace Shared;
 
 namespace Calculation {
 
-static bool isIntegerInput(const Expression e) {
-  return (e.isBasedInteger() ||
-          (e.isOpposite() && isIntegerInput(e.cloneChildAtIndex(0))));
+Integer extractInteger(const Expression e) {
+  if (e.type() == ExpressionNode::Type::Opposite) {
+    Integer i = extractInteger(e.childAtIndex(0));
+    i.setNegative(!i.isNegative());
+    return i;
+  }
+  assert(e.type() == ExpressionNode::Type::BasedInteger);
+  return static_cast<const BasedInteger &>(e).integer();
 }
 
-static bool isFractionInput(const Expression e) {
-  if (e.isOpposite()) {
-    return isFractionInput(e.cloneChildAtIndex(0));
+static bool isIntegerInput(Expression e) {
+  return (e.type() == ExpressionNode::Type::BasedInteger ||
+          (e.type() == ExpressionNode::Type::Opposite &&
+           isIntegerInput(e.childAtIndex(0))));
+}
+
+static bool isFractionInput(Expression e) {
+  if (e.type() == ExpressionNode::Type::Opposite) {
+    return isFractionInput(e.childAtIndex(0));
   }
-  if (!e.isDiv()) {
+  if (e.type() != ExpressionNode::Type::Division) {
     return false;
   }
-  Expression num = e.cloneChildAtIndex(0);
-  Expression den = e.cloneChildAtIndex(1);
+  Expression num = e.childAtIndex(0);
+  Expression den = e.childAtIndex(1);
   return isIntegerInput(num) && isIntegerInput(den);
 }
 
 void RationalListController::computeAdditionalResults(
-    const UserExpression input, const UserExpression exactOutput,
-    const UserExpression approximateOutput) {
+    const Expression input, const Expression exactOutput,
+    const Expression approximateOutput) {
   assert(AdditionalResultsType::HasRational(exactOutput));
-  UserExpression e = isFractionInput(input) ? input : exactOutput;
+  Expression e = isFractionInput(input) ? input : exactOutput;
   assert(!e.isUninitialized());
   static_assert(k_maxNumberOfRows >= 2,
                 "k_maxNumberOfRows must be greater than 2");
 
-  bool negative = e.isOpposite();
-  const UserExpression div = negative ? e.cloneChildAtIndex(0) : e;
-  assert(div.isDiv());
-
-  SystemExpression rational =
-      AdditionalResultsHelper::CreateRational(div, negative);
-  UserExpression mixedFraction = AdditionalResultsHelper::CreateMixedFraction(
-      rational,
-      GlobalPreferences::SharedGlobalPreferences()->mixedFractions() ==
-          Preferences::MixedFractions::Enabled);
-  UserExpression euclideanDiv =
-      AdditionalResultsHelper::CreateEuclideanDivision(rational);
+  bool negative = e.type() == ExpressionNode::Type::Opposite;
+  Expression div = negative ? e.childAtIndex(0) : e;
+  assert(div.type() == ExpressionNode::Type::Division);
+  Integer numerator = extractInteger(div.childAtIndex(0));
+  numerator.setNegative(negative != numerator.isNegative());
+  Integer denominator = extractInteger(div.childAtIndex(1));
 
   int index = 0;
-  m_layouts[index++] =
-      PoincareHelpers::CreateLayout(mixedFraction, App::app()->localContext());
-  m_layouts[index++] =
-      PoincareHelpers::CreateLayout(euclideanDiv, App::app()->localContext());
+  m_layouts[index++] = PoincareHelpers::CreateLayout(
+      Integer::CreateMixedFraction(numerator, denominator),
+      App::app()->localContext());
+  m_layouts[index++] = PoincareHelpers::CreateLayout(
+      Integer::CreateEuclideanDivision(numerator, denominator),
+      App::app()->localContext());
 }
 
 I18n::Message RationalListController::messageAtIndex(int index) {
@@ -67,10 +74,11 @@ I18n::Message RationalListController::messageAtIndex(int index) {
   }
 }
 
-Layout RationalListController::layoutAtIndex(Escher::HighlightCell* cell,
-                                             int index) {
-  return ExpressionsListController::layoutAtIndex(cell, index);
-#if 0  // TODO_PCJ
+size_t RationalListController::textAtIndex(char *buffer, size_t bufferSize,
+                                           Escher::HighlightCell *cell,
+                                           int index) {
+  size_t length =
+      ExpressionsListController::textAtIndex(buffer, bufferSize, cell, index);
   if (index == 1) {
     // Get rid of the left part of the equality
     char *equalPosition = strchr(buffer, '=');
@@ -79,7 +87,6 @@ Layout RationalListController::layoutAtIndex(Escher::HighlightCell* cell,
     return buffer + length - 1 - equalPosition;
   }
   return length;
-#endif
 }
 
 }  // namespace Calculation

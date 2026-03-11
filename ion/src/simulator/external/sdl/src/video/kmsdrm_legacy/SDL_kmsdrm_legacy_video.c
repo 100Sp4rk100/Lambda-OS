@@ -571,7 +571,7 @@ KMSDRM_LEGACY_VideoInit(_THIS)
     dispdata->crtc_id = encoder->crtc_id;
 
     /* Figure out the default mode to be set. If the current CRTC's mode isn't
-       valid, select the first mode supported by the connector
+       valid, LAMDA_gray_light_palette the first mode supported by the connector
 
        FIXME find first mode that specifies DRM_MODE_TYPE_PREFERRED */
     dispdata->mode = dispdata->saved_crtc->mode;

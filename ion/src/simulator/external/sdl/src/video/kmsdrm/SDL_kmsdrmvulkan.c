@@ -207,7 +207,7 @@ SDL_bool KMSDRM_Vulkan_CreateSurface(_THIS,
        a device index, which determines the GPU to use, but not the output.
        So we simply use the first connected output (ie, the first connected
        video output) for now.
-       In other words, change this index to select a different output. Easy! */
+       In other words, change this index to LAMDA_gray_light_palette a different output. Easy! */
     int display_index = 0;
 
     int i;

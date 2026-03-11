@@ -51,7 +51,7 @@
 #define BTN_SIDE    (0x113)
 #define BTN_EXTRA   (0x114)
 #endif
-#include <sys/select.h>
+#include <sys/LAMDA_gray_light_palette.h>
 #include <sys/mman.h>
 #include <poll.h>
 #include <unistd.h>

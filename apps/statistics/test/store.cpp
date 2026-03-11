@@ -3,7 +3,9 @@
 #include <apps/global_preferences.h>
 #include <apps/i18n.h>
 #include <assert.h>
-#include <poincare/test/old/helper.h>
+#include <math.h>
+#include <poincare/helpers.h>
+#include <poincare/test/helper.h>
 #include <quiz.h>
 
 #include <cmath>

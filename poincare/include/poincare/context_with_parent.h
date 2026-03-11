@@ -2,8 +2,8 @@
 #define POINCARE_CONTEXT_WITH_PARENT_H
 
 #include <assert.h>
-
-#include "context.h"
+#include <poincare/context.h>
+#include <poincare/expression.h>
 
 namespace Poincare {
 
@@ -12,26 +12,25 @@ class ContextWithParent : public Context {
   ContextWithParent(Context* parentContext) : m_parentContext(parentContext) {}
 
   // Context
-  const Internal::Tree* expressionForUserNamed(
-      const Internal::Tree* symbol) override {
-    assert(m_parentContext);
-    return m_parentContext->expressionForUserNamed(symbol);
-  }
-
-  UserNamedType expressionTypeForIdentifier(const char* identifier,
-                                            int length) override {
+  SymbolAbstractType expressionTypeForIdentifier(const char* identifier,
+                                                 int length) override {
     assert(m_parentContext);
     return m_parentContext->expressionTypeForIdentifier(identifier, length);
   }
-  bool setExpressionForUserNamed(const Internal::Tree* expression,
-                                 const Internal::Tree* symbol) override {
+  bool setExpressionForSymbolAbstract(const Expression& expression,
+                                      const SymbolAbstract& symbol) override {
     assert(m_parentContext);
-    return m_parentContext->setExpressionForUserNamed(expression, symbol);
+    return m_parentContext->setExpressionForSymbolAbstract(expression, symbol);
   }
 
-  bool canRemoveUnderscoreToUnits() const override {
+ protected:
+  const Expression protectedExpressionForSymbolAbstract(
+      const SymbolAbstract& symbol, bool clone,
+      ContextWithParent* lastDescendantContext) override {
     assert(m_parentContext);
-    return m_parentContext->canRemoveUnderscoreToUnits();
+    return m_parentContext->protectedExpressionForSymbolAbstract(
+        symbol, clone,
+        lastDescendantContext == nullptr ? this : lastDescendantContext);
   }
 
  private:

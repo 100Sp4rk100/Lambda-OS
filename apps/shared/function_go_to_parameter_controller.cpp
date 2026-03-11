@@ -27,11 +27,18 @@ bool FunctionGoToParameterController::confirmParameterAtIndex(
       (m_graphRange->xMax() - m_graphRange->xMin()) / Ion::Display::Width;
   f = FunctionBannerDelegate::GetValueDisplayedOnBanner(
       f, app->localContext(),
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits(),
+      Poincare::Preferences::SharedPreferences()->numberOfSignificantDigits(),
       pixelWidth, false);
   m_graphController->moveCursorAndCenterIfNeeded(f);
 
   return true;
+}
+
+void FunctionGoToParameterController::setRecord(Ion::Storage::Record record) {
+  m_record = record;
+  ExpiringPointer<Function> function =
+      FunctionApp::app()->functionStore()->modelForRecord(m_record);
+  setParameterName(function->parameterMessageName());
 }
 
 }  // namespace Shared

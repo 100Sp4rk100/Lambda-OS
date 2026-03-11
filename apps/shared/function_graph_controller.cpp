@@ -4,7 +4,8 @@
 #include <assert.h>
 #include <float.h>
 #include <poincare/coordinate_2D.h>
-#include <poincare/layout.h>
+#include <poincare/helpers.h>
+#include <poincare/layout_helper.h>
 
 #include <algorithm>
 #include <cmath>
@@ -18,27 +19,22 @@ using namespace Poincare;
 namespace Shared {
 
 FunctionGraphController::FunctionGraphController(
-    Responder* parentResponder, ButtonRowController* header,
-    InteractiveCurveViewRange* interactiveRange, AbstractPlotView* curveView,
-    CurveViewCursor* cursor, int* selectedCurveIndex)
+    Responder *parentResponder, ButtonRowController *header,
+    InteractiveCurveViewRange *interactiveRange, AbstractPlotView *curveView,
+    CurveViewCursor *cursor, int *selectedCurveIndex)
     : InteractiveCurveViewController(
           parentResponder, header, interactiveRange, curveView, cursor,
           I18n::Message::GraphCalculus, selectedCurveIndex) {}
 
-void FunctionGraphController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (curveView()->hasFocus()) {
-      bannerView()->abscissaValue()->setParentResponder(this);
-      bannerView()->abscissaValue()->setDelegate(this);
-      if (!isAlongY(*m_selectedCurveIndex)) {
-        App::app()->setFirstResponder(bannerView()->abscissaValue());
-      }
-    } else {
-      InteractiveCurveViewController::handleResponderChainEvent(event);
+void FunctionGraphController::didBecomeFirstResponder() {
+  if (curveView()->hasFocus()) {
+    bannerView()->abscissaValue()->setParentResponder(this);
+    bannerView()->abscissaValue()->setDelegate(this);
+    if (!isAlongY(*m_selectedCurveIndex)) {
+      App::app()->setFirstResponder(bannerView()->abscissaValue());
     }
   } else {
-    InteractiveCurveViewController::handleResponderChainEvent(event);
+    InteractiveCurveViewController::didBecomeFirstResponder();
   }
 }
 
@@ -94,53 +90,48 @@ FunctionGraphController::FunctionSelectionController::nonMemoizedRowHeight(
   ExpiringPointer<Function> function =
       graphController()->functionStore()->modelForRecord(
           graphController()->recordAtCurveIndex(row));
-  return std::max(function->layout()->layoutSize(k_font).height(),
-                  nameLayoutAtIndex(row)->layoutSize(k_font).height()) +
+  return std::max(function->layout().layoutSize(k_font).height(),
+                  nameLayoutAtIndex(row).layoutSize(k_font).height()) +
          Metric::CellMargins.height() + Metric::CellSeparatorThickness;
 }
 
 void FunctionGraphController::FunctionSelectionController::fillCellForRow(
-    HighlightCell* cell, int row) {
+    HighlightCell *cell, int row) {
   assert(row < graphController()->numberOfCurves());
   ExpiringPointer<Function> function =
       graphController()->functionStore()->modelForRecord(
           graphController()->recordAtCurveIndex(row));
-  CurveSelectionCellWithChevron* myCell =
-      static_cast<CurveSelectionCellWithChevron*>(cell);
+  CurveSelectionCellWithChevron *myCell =
+      static_cast<CurveSelectionCellWithChevron *>(cell);
   myCell->setColor(function->color());
-  myCell->label()->setLayout(nameLayoutAtIndex(row).clone());
+  myCell->label()->setLayout(function->layout().clone());
 }
 
 void FunctionGraphController::FunctionSelectionController::
-    handleResponderChainEvent(Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (numberOfRows() <= 1) {
-      /* This can happen if all functions were deactivated within the calculate
-       * menu. The function selection menu is still on the stack but it's now
-       * empty (or has only 1 function, in which case it should not appear.) */
-      static_cast<StackViewController*>(parentResponder())->pop();
-      return;
-    }
-    CurveSelectionController::handleResponderChainEvent(event);
-  } else {
-    CurveSelectionController::handleResponderChainEvent(event);
+    didBecomeFirstResponder() {
+  if (numberOfRows() <= 1) {
+    /* This can happen if all functions were deactivated within the calculate
+     * menu. The function selection menu is still on the stack but it's now
+     * empty (or has only 1 function, in which case it should not appear.) */
+    static_cast<StackViewController *>(parentResponder())->pop();
+    return;
   }
+  CurveSelectionController::didBecomeFirstResponder();
 }
 
 void FunctionGraphController::reloadBannerView() {
   assert(numberOfCurves() > 0);
   Ion::Storage::Record record = recordAtSelectedCurveIndex();
   reloadBannerViewForCursorOnFunction(
-      m_cursor->t(), m_cursor->x(), m_cursor->y(), record, functionStore(),
+      m_cursor, record, functionStore(),
       AppsContainerHelper::sharedAppsContainerGlobalContext());
 }
 
 double FunctionGraphController::defaultCursorT(Ion::Storage::Record record,
                                                bool ignoreMargins) {
-  Poincare::Context* context = App::app()->localContext();
+  Poincare::Context *context = App::app()->localContext();
   ExpiringPointer<Function> function = functionStore()->modelForRecord(record);
-  float gridUnit =
-      2.f * PoincareHelpers::ToFloat(interactiveCurveViewRange()->xGridUnit());
+  float gridUnit = 2.0 * interactiveCurveViewRange()->xGridUnit();
   float xMin = interactiveCurveViewRange()->xMin();
   float xMax = interactiveCurveViewRange()->xMax();
 
@@ -173,12 +164,12 @@ double FunctionGraphController::defaultCursorT(Ion::Storage::Record record,
   return currentX;
 }
 
-FunctionStore* FunctionGraphController::functionStore() const {
+FunctionStore *FunctionGraphController::functionStore() const {
   return FunctionApp::app()->functionStore();
 }
 
 void FunctionGraphController::computeDefaultPositionForFunctionAtIndex(
-    int index, double* t, Coordinate2D<double>* xy, bool ignoreMargins) {
+    int index, double *t, Coordinate2D<double> *xy, bool ignoreMargins) {
   Ion::Storage::Record record = recordAtCurveIndex(index);
   ExpiringPointer<Function> function = functionStore()->modelForRecord(record);
   *t = defaultCursorT(record, ignoreMargins);
@@ -212,7 +203,7 @@ void FunctionGraphController::initCursorParameters(bool ignoreMargins) {
 bool FunctionGraphController::moveCursorVertically(
     OMG::VerticalDirection direction) {
   int currentActiveFunctionIndex = *m_selectedCurveIndex;
-  Poincare::Context* context = App::app()->localContext();
+  Poincare::Context *context = App::app()->localContext();
   int nextSubCurve = 0;
   int nextCurve =
       nextCurveIndexVertically(direction, currentActiveFunctionIndex, context,
@@ -235,14 +226,14 @@ void FunctionGraphController::moveCursorVerticallyToPosition(int nextCurve,
     assert(!std::isnan(f->tMax()));
     nextT = std::min<double>(f->tMax(), std::max<double>(f->tMin(), nextT));
   }
-  Poincare::Context* context = App::app()->localContext();
+  Poincare::Context *context = App::app()->localContext();
   Poincare::Coordinate2D<double> cursorPosition =
       f->evaluateXYAtParameter(nextT, context, nextSubCurve);
   m_cursor->moveTo(nextT, cursorPosition.x(), cursorPosition.y());
   selectCurveAtIndex(nextCurve, true, nextSubCurve);
   // Prevent the abscissaValue from edition if the function is along y
-  Escher::Responder* responder = isAlongY(*m_selectedCurveIndex)
-                                     ? static_cast<Responder*>(this)
+  Escher::Responder *responder = isAlongY(*m_selectedCurveIndex)
+                                     ? static_cast<Responder *>(this)
                                      : bannerView()->abscissaValue();
   if (App::app()->firstResponder() != responder) {
     App::app()->setFirstResponder(responder);
@@ -262,12 +253,12 @@ Poincare::Coordinate2D<double> FunctionGraphController::selectedModelXyValues(
                   m_selectedSubCurveIndex);
 }
 
-AbstractPlotView* FunctionGraphController::curveView() {
+AbstractPlotView *FunctionGraphController::curveView() {
   return functionGraphView();
 }
 
 Coordinate2D<double> FunctionGraphController::xyValues(
-    int curveIndex, double t, Poincare::Context* context,
+    int curveIndex, double t, Poincare::Context *context,
     int subCurveIndex) const {
   return functionStore()
       ->modelForRecord(recordAtCurveIndex(curveIndex))
@@ -290,8 +281,7 @@ int FunctionGraphController::numberOfCurves() const {
   return functionStore()->numberOfActiveFunctions();
 }
 
-void FunctionGraphController::tidyModels(
-    const Poincare::PoolObject* treePoolCursor) {
+void FunctionGraphController::tidyModels(Poincare::TreeNode *treePoolCursor) {
   int nbOfFunctions = numberOfCurves();
   for (int i = 0; i < nbOfFunctions; i++) {
     ExpiringPointer<Function> f =

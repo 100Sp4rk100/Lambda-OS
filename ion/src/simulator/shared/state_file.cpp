@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "events.h"
 #include "journal.h"
 
 namespace Ion {
@@ -53,7 +52,7 @@ static inline bool loadFileHeader(const char* header) {
   return true;
 }
 
-static inline Ion::Events::Event reconstructEvent(uint8_t c) {
+static inline void pushEvent(uint8_t c) {
   Ion::Events::Event e = Ion::Events::Event(c);
   if (!Events::isDefined(static_cast<uint8_t>(
           e))) {  // If not defined, fall back on a normal key event.
@@ -62,69 +61,14 @@ static inline Ion::Events::Event reconstructEvent(uint8_t c) {
   }
   assert(Events::isDefined(static_cast<uint8_t>(e)));
 
-  if (e == Ion::Events::Termination || e == Ion::Events::TimerFire ||
-      e == Ion::Events::DeprecatedExternalText) {
-    return Ion::Events::None;
-  }
-  return e;
-}
-
-static inline void pushEventFromFile(uint8_t c, FILE* f) {
-  Ion::Events::Event e = reconstructEvent(c);
-  if (e == Ion::Events::None) {
+  if (e == Ion::Events::None || e == Ion::Events::Termination ||
+      e == Ion::Events::TimerFire || e == Ion::Events::ExternalText) {
     return;
-  } else if (e == Ion::Events::ExternalText) {
-    // Read and load external text into sharedExternalTextBuffer
-    constexpr size_t k_bufferSize = Ion::Events::sharedExternalTextBufferSize;
-    char* buffer = Ion::Events::sharedExternalTextBuffer();
-    int i = 0;
-    char ch;
-    while (true) {
-      ch = getc(f);
-      buffer[i++] = ch;
-      if (ch == 0 || ch == EOF) {
-        break;
-      }
-      if (i == k_bufferSize - 1) {
-        /* If [f] contains a long ExternalTextEvent, split it in [k_bufferSize]
-         * chunks */
-        buffer[i] = 0;
-        i = 0;
-        Journal::replayJournal()->pushEvent(e);
-      }
-    }
   }
+  /* ExternalText is not yet handled by state files. */
   Journal::replayJournal()->pushEvent(e);
 }
 
-static inline void pushEventFromMemory(uint8_t c, const uint8_t* ptr,
-                                       const uint8_t* bufferEnd) {
-  Ion::Events::Event e = reconstructEvent(c);
-  if (e == Ion::Events::None) {
-    return;
-  } else if (e == Ion::Events::ExternalText) {
-    // Read and load external text into sharedExternalTextBuffer
-    constexpr size_t k_bufferSize = Ion::Events::sharedExternalTextBufferSize;
-    char* buffer = Ion::Events::sharedExternalTextBuffer();
-    int i = 0;
-    char ch;
-    while (true) {
-      ch = *ptr;
-      buffer[i++] = ch;
-      if (ch == 0 || ptr++ >= bufferEnd) {
-        break;
-      }
-      if (i == k_bufferSize - 1) {
-        /* If [f] contains a long ExternalTextEvent, split it in [k_bufferSize]
-         * chunks */
-        buffer[i] = 0;
-        i = 0;
-        Journal::replayJournal()->pushEvent(e);
-      }
-    }
-  }
-  Journal::replayJournal()->pushEvent(e);
-}
 static inline bool loadFile(FILE* f, bool headlessStateFile) {
   if (!headlessStateFile) {
     char header[sHeaderLength + 1];
@@ -139,7 +83,7 @@ static inline bool loadFile(FILE* f, bool headlessStateFile) {
   // Events
   int c = 0;
   while ((c = getc(f)) != EOF) {
-    pushEventFromFile(c, f);
+    pushEvent(c);
   }
 
   Ion::Events::replayFrom(Journal::replayJournal());
@@ -177,9 +121,8 @@ void loadMemory(const char* buffer, size_t length, bool headlessStateFile) {
     e = reinterpret_cast<const uint8_t*>(buffer + sHeaderLength);
   }
   const uint8_t* bufferEnd = reinterpret_cast<const uint8_t*>(buffer + length);
-  while (e < bufferEnd) {
-    uint8_t ch = *e;
-    pushEventFromMemory(ch, e++, bufferEnd);
+  while (e != bufferEnd) {
+    pushEvent(*e++);
   }
   Ion::Events::replayFrom(Journal::replayJournal());
 }
@@ -212,12 +155,6 @@ static inline bool save(FILE* f) {
     uint8_t code = static_cast<uint8_t>(e);
     if (fwrite(&code, 1, 1, f) != 1) {
       return false;
-    }
-    if (e == Ion::Events::ExternalText) {
-      const char* text = Ion::Events::sharedExternalTextBuffer();
-      if (fwrite(text, strlen(text) + 1, 1, f) != 1) {
-        return false;
-      }
     }
   }
   return true;

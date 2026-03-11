@@ -6,13 +6,15 @@
 #include <escher/palette.h>
 #include <escher/view_controller.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 class AlternateEmptyViewDelegate {
  public:
   AlternateEmptyViewDelegate()
       : m_emptyView((I18n::Message)0,
-                    {.style = {.backgroundColor = Palette::WallScreen,
+                    {.style = {.backgroundColor = Theme::ThemeGestion::getColor("WallScreen"),
                                .font = KDFont::Size::Small},
                      .horizontalAlignment = KDGlyph::k_alignCenter}) {}
   virtual bool isEmpty() const = 0;

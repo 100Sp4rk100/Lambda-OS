@@ -8,7 +8,7 @@
 #include <escher/message_text_view.h>
 #include <escher/selectable_list_view_controller.h>
 
-#include "../model.h"
+#include "../model/model.h"
 #include "../store.h"
 
 namespace Regression {
@@ -20,11 +20,13 @@ class RegressionController : public Escher::SelectableListViewController<
   void setSeries(int series) { m_series = series; }
   void setDisplayedFromDataTab(bool status) { m_displayedFromDataTab = status; }
   // ViewController
-  const char* title() const override;
-  ViewController::TitlesDisplay titlesDisplay() const override;
+  const char* title() override;
+  ViewController::TitlesDisplay titlesDisplay() override;
+  TELEMETRY_ID("Regression");
 
   // Responder
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
 
   // MemoizedListViewDataSource
   KDCoordinate nonMemoizedRowHeight(int row) override;
@@ -38,9 +40,6 @@ class RegressionController : public Escher::SelectableListViewController<
                : k_variantNumberOfRows;
   }
   void fillCellForRow(Escher::HighlightCell* cell, int row) override;
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   /* In all variants, Model::Type::None isn't made available.

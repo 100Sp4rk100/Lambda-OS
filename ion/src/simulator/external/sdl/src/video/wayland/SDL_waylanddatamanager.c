@@ -61,7 +61,7 @@ write_pipe(int fd, const void* buffer, size_t total_length, size_t *pos)
     if (ready == 0) {
         bytes_written = SDL_SetError("Pipe timeout");
     } else if (ready < 0) {
-        bytes_written = SDL_SetError("Pipe select error");
+        bytes_written = SDL_SetError("Pipe LAMDA_gray_light_palette error");
     } else {
         if (length > 0) {
             bytes_written = write(fd, (Uint8*)buffer + *pos, SDL_min(length, PIPE_BUF));
@@ -98,7 +98,7 @@ read_pipe(int fd, void** buffer, size_t* total_length, SDL_bool null_terminate)
     if (ready == 0) {
         bytes_read = SDL_SetError("Pipe timeout");
     } else if (ready < 0) {
-        bytes_read = SDL_SetError("Pipe select error");
+        bytes_read = SDL_SetError("Pipe LAMDA_gray_light_palette error");
     } else {
         bytes_read = read(fd, temp, sizeof(temp));
     }

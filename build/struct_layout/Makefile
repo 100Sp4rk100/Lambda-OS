@@ -1,4 +1,5 @@
 .PHONY: apps_struct_layout
+OPEN = open
 
 ifeq ($(PLATFORM) $(TARGET) $(CXX),simulator macos clang++)
 

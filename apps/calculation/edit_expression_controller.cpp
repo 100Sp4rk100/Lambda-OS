@@ -2,8 +2,8 @@
 
 #include <assert.h>
 #include <ion/display.h>
-#include <poincare/exception_checkpoint.h>
 #include <poincare/preferences.h>
+#include <poincare/symbol.h>
 
 #include "app.h"
 
@@ -14,13 +14,13 @@ using namespace Escher;
 namespace Calculation {
 
 EditExpressionController::ContentView::ContentView(
-    Responder* parentResponder, CalculationSelectableListView* subview,
-    LayoutFieldDelegate* layoutFieldDelegate)
+    Responder *parentResponder, CalculationSelectableListView *subview,
+    LayoutFieldDelegate *layoutFieldDelegate)
     : View(),
       m_mainView(subview),
       m_expressionInputBar(parentResponder, layoutFieldDelegate) {}
 
-View* EditExpressionController::ContentView::subviewAtIndex(int index) {
+View *EditExpressionController::ContentView::subviewAtIndex(int index) {
   assert(index >= 0 && index < numberOfSubviews());
   if (index == 0) {
     return m_mainView;
@@ -46,49 +46,46 @@ void EditExpressionController::ContentView::reload() {
 }
 
 EditExpressionController::EditExpressionController(
-    Responder* parentResponder, HistoryController* historyController,
-    CalculationStore* calculationStore)
+    Responder *parentResponder, HistoryController *historyController,
+    CalculationStore *calculationStore)
     : ViewController(parentResponder),
       m_historyController(historyController),
       m_calculationStore(calculationStore),
       m_contentView(this,
-                    static_cast<CalculationSelectableListView*>(
+                    static_cast<CalculationSelectableListView *>(
                         m_historyController->view()),
-                    this) {}
-
-void EditExpressionController::insertLayout(Layout layout) {
-  App::app()->setFirstResponder(this);
-  m_contentView.layoutField()->updateCursorBeforeInsertion();
-  m_contentView.layoutField()->insertLayoutAtCursor(layout, true);
+                    this) {
+  clearWorkingBuffer();
 }
 
-void EditExpressionController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    m_contentView.mainView()->scrollToBottom();
-    m_contentView.layoutField()->setEditing(true);
-    App::app()->setFirstResponder(m_contentView.layoutField());
-  } else {
-    ViewController::handleResponderChainEvent(event);
-  }
+void EditExpressionController::insertTextBody(const char *text) {
+  App::app()->setFirstResponder(this);
+  m_contentView.layoutField()->updateCursorBeforeInsertion();
+  m_contentView.layoutField()->handleEventWithText(text, false, true);
+}
+
+void EditExpressionController::didBecomeFirstResponder() {
+  m_contentView.mainView()->scrollToBottom();
+  m_contentView.layoutField()->setEditing(true);
+  App::app()->setFirstResponder(m_contentView.layoutField());
 }
 
 void EditExpressionController::restoreInput() {
-  App::Snapshot* snap = App::app()->snapshot();
+  App::Snapshot *snap = App::app()->snapshot();
   m_contentView.layoutField()->restoreContent(
       snap->cacheBuffer(), *snap->cacheBufferInformationAddress(),
       snap->cacheCursorOffset(), snap->cacheCursorPosition());
-  if (MathPreferences::SharedPreferences()->editionMode() ==
+  if (Poincare::Preferences::SharedPreferences()->editionMode() ==
           Poincare::Preferences::EditionMode::Edition1D &&
       !m_contentView.layoutField()->layout().isCodePointsString()) {
-    // Restored input is incompatible with edition mode.
+    // Restored input in incompatible with edition mode.
     m_contentView.layoutField()->clearLayout();
     memoizeInput();
   }
 }
 
 void EditExpressionController::memoizeInput() {
-  App::Snapshot* snap = App::app()->snapshot();
+  App::Snapshot *snap = App::app()->snapshot();
   *snap->cacheBufferInformationAddress() =
       m_contentView.layoutField()->dumpContent(
           snap->cacheBuffer(), k_cacheBufferSize, snap->cacheCursorOffset(),
@@ -100,18 +97,18 @@ void EditExpressionController::viewWillAppear() {
 }
 
 bool EditExpressionController::layoutFieldDidReceiveEvent(
-    ::LayoutField* layoutField, Ion::Events::Event event) {
+    ::LayoutField *layoutField, Ion::Events::Event event) {
   assert(m_contentView.layoutField() == layoutField);
   if (event == Ion::Events::Up) {
     if (m_calculationStore->numberOfCalculations() > 0) {
-      clearLastInput();
+      clearWorkingBuffer();
       layoutField->setEditing(false);
       App::app()->setFirstResponder(m_historyController);
     }
     return true;
   }
   if (event == Ion::Events::Clear && layoutField->isEmpty()) {
-    clearLastInput();
+    clearWorkingBuffer();
     m_calculationStore->deleteAll();
     m_historyController->reload();
     return true;
@@ -121,7 +118,7 @@ bool EditExpressionController::layoutFieldDidReceiveEvent(
 }
 
 void EditExpressionController::layoutFieldDidHandleEvent(
-    Escher::LayoutField* layoutField) {
+    Escher::LayoutField *layoutField) {
   assert(m_contentView.layoutField() == layoutField);
   /* Memoize on all handled event, even if the text did not change, to properly
    * update the cursor position. */
@@ -129,39 +126,46 @@ void EditExpressionController::layoutFieldDidHandleEvent(
 }
 
 bool EditExpressionController::layoutFieldDidFinishEditing(
-    ::LayoutField* layoutField, Ion::Events::Event event) {
+    ::LayoutField *layoutField, Ion::Events::Event event) {
   assert(!layoutField->isEditing());
   assert(m_contentView.layoutField() == layoutField);
   assert(layoutField->context() == context());
-  Context* context = this->context();
-  PoolVariableContext ansContext =
-      m_calculationStore->createAnsContext(context);
-  if (!layoutField->isEmpty()) {
-    m_lastInput = layoutField->layout().clone();
+  Context *context = this->context();
+  VariableContext ansContext = m_calculationStore->createAnsContext(context);
+  if (layoutField->isEmpty()) {
+    if (m_workingBuffer[0] == 0) {
+      return false;
+    }
+    /* The input text store in m_workingBuffer might have been correct the
+     * first time but then be too long when replacing ans in another context. */
+    if (!isAcceptableText(m_workingBuffer, context)) {
+      App::app()->displayWarning(I18n::Message::SyntaxError);
+      return false;
+    }
+  } else {
+    Layout layout = layoutField->layout();
+    if (!isAcceptableLayout(layout, &ansContext)) {
+      App::app()->displayWarning(I18n::Message::SyntaxError);
+      return false;
+    }
+    assert(!layout.isUninitialized());
+    layout.serializeParsedExpression(m_workingBuffer, k_cacheBufferSize,
+                                     &ansContext);
   }
-  Layout layout = layoutField->isEmpty() ? m_lastInput : layoutField->layout();
-  if (layout.isUninitialized()) {
-    return false;
-  }
-  if (!isAcceptableLayout(layout, &ansContext)) {
-    App::app()->displayWarning(I18n::Message::SyntaxError);
-    return false;
-  }
-  assert(!layout.isUninitialized());
-  // TODO layout is parsed twice : in isAcceptableLayout and in push
-  Calculation* calculation =
-      m_calculationStore->push(layout, context).pointer();
+  Calculation *calculation =
+      m_calculationStore->push(m_workingBuffer, context).pointer();
   if (calculation) {
     HistoryViewCell::ComputeCalculationHeights(calculation, context);
-    m_historyController->reload(false);
+    m_historyController->reload();
     layoutField->clearAndSetEditing(true);
+    telemetryReportEvent("Input", m_workingBuffer);
     return true;
   }
   return false;
 }
 
 void EditExpressionController::layoutFieldDidChangeSize(
-    ::LayoutField* layoutField) {
+    ::LayoutField *layoutField) {
   assert(m_contentView.layoutField() == layoutField);
   if (layoutField->inputViewHeightDidChange()) {
     /* Reload the whole view only if the LayoutField's height did actually
@@ -178,27 +182,29 @@ void EditExpressionController::layoutFieldDidChangeSize(
 }
 
 bool EditExpressionController::isAcceptableExpression(
-    const Poincare::UserExpression expression, Context* context) {
+    const Poincare::Expression expression, Context *context) {
   if (expression.isUninitialized()) {
     return false;
   }
-  // Replace ans with its value and check layout
-  UserExpression exp = expression.clone();
-  m_calculationStore->replaceAnsInExpression(exp, context);
-  assert(!exp.isUninitialized());
-  Layout layout =
-      exp.createLayout(Preferences::PrintFloatMode::Decimal,
-                       PrintFloat::k_maxNumberOfSignificantDigits, context);
-  assert(!layout.isUninitialized());
-  layout = layout.cloneWithoutMargins();
-  exp = UserExpression::Parse(layout, context);
-  // Replacing Ans made the expression un-parsable.
+  // Replace ans with its value and check serialization
+  Expression exp = expression.clone();
+  exp = m_calculationStore->replaceAnsInExpression(exp, context);
+  constexpr int maxSerializationSize = Constant::MaxSerializedExpressionSize;
+  char buffer[maxSerializationSize];
+  int length = PoincareHelpers::Serialize(exp, buffer, maxSerializationSize);
+  /* If the buffer is totally full, it is VERY likely that writeTextInBuffer
+   * escaped before printing utterly the expression. */
+  if (length >= maxSerializationSize - 1) {
+    return false;
+  }
+  exp = Expression::Parse(buffer, context);
+  // The ans replacement made the expression unparsable
   return !exp.isUninitialized();
 }
 
 void EditExpressionController::reloadView() {
   m_contentView.reload();
-  m_historyController->reload(false);
+  m_historyController->reload();
 }
 
 }  // namespace Calculation

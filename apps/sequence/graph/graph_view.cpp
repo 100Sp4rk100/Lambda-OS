@@ -30,8 +30,8 @@ void GraphView::drawRecord(Ion::Storage::Record record, int index,
     drawDot(ctx, rect, Dots::Size::Tiny, Coordinate2D<float>(x, y), s->color());
     if (x >= m_highlightedStart && x <= m_highlightedEnd &&
         record == m_selectedRecord) {
-      KDColor color = m_shouldColorHighlighted ? s->color() : KDColorBlack;
-      drawStraightSegment(ctx, rect, OMG::Axis::Vertical, x, y, 0.f, color);
+      KDColor color = m_shouldColorHighlighted ? s->color() : Theme::ThemeGestion::getColor("KDColorBlack");
+      drawStraightSegment(ctx, rect, Axis::Vertical, x, y, 0.f, color);
     }
   }
 }

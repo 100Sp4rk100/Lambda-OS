@@ -34,6 +34,7 @@ class ExpressionsListController
 
   // StackViewController
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
   void viewDidDisappear() override;
 
   // MemoizedListViewDataSource
@@ -44,53 +45,46 @@ class ExpressionsListController
   int numberOfRows() const override;
 
   virtual void computeAdditionalResults(
-      const Poincare::UserExpression input,
-      const Poincare::UserExpression exactOutput,
-      const Poincare::UserExpression approximateOutput) = 0;
-  virtual Poincare::Layout layoutAtIndex(Escher::HighlightCell* cell,
-                                         int index);
+      const Poincare::Expression input, const Poincare::Expression exactOutput,
+      const Poincare::Expression approximateOutput) = 0;
+  virtual size_t textAtIndex(char* buffer, size_t bufferSize,
+                             Escher::HighlightCell* cell, int index);
 
  protected:
   constexpr static int k_expressionCellType = 0;
-  constexpr static int k_maxNumberOfRows = 6;
+  constexpr static int k_maxNumberOfRows = 5;
+  Poincare::Layout getExactLayoutFromExpression(
+      Poincare::Expression e,
+      const Poincare::ComputationContext& computationContext,
+      Poincare::Layout* approximatedLayout = nullptr);
   Poincare::Preferences::AngleUnit angleUnit() const {
-    assert(m_calculationPreferences.angleUnit !=
-           Poincare::Preferences::AngleUnit::None);
     return m_calculationPreferences.angleUnit;
   }
   Poincare::Preferences::PrintFloatMode displayMode() const {
     return m_calculationPreferences.displayMode;
   }
   Poincare::Preferences::ComplexFormat complexFormat() const {
-    assert(m_calculationPreferences.complexFormat !=
-           Poincare::Preferences::ComplexFormat::None);
     return m_calculationPreferences.complexFormat;
   }
   uint8_t numberOfSignificantDigits() const {
     return m_calculationPreferences.numberOfSignificantDigits;
   }
-  static Poincare::Layout GetExactLayoutFromExpression(
-      const Poincare::UserExpression e,
-      const Poincare::Internal::ProjectionContext* ctx,
-      Poincare::Layout* approximatedLayout = nullptr,
-      bool* exactAndApproximateExpressionsAreStrictlyEqual = nullptr);
 
   // Memoization of layouts
   mutable Poincare::Layout m_layouts[k_maxNumberOfRows];
   mutable Poincare::Layout m_exactLayouts[k_maxNumberOfRows];
   mutable Poincare::Layout m_approximatedLayouts[k_maxNumberOfRows];
-  bool m_isStrictlyEqual[k_maxNumberOfRows];
   AdditionalResultCell m_cells[k_maxNumberOfRows];
 
   class InnerListController : public ViewController {
    public:
     InnerListController(ExpressionsListController* dataSource,
                         Escher::SelectableListViewDelegate* delegate = nullptr);
-    const char* title() const override {
+    const char* title() override {
       return I18n::translate(I18n::Message::AdditionalResults);
     }
     Escher::View* view() override { return &m_selectableListView; }
-    void handleResponderChainEvent(ResponderChainEvent event) override;
+    void didBecomeFirstResponder() override;
     Escher::SelectableListView* selectableListView() {
       return &m_selectableListView;
     }
@@ -102,7 +96,6 @@ class ExpressionsListController
   InnerListController m_listController;
   EditExpressionController* m_editExpressionController;
   Poincare::Preferences::CalculationPreferences m_calculationPreferences;
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
  private:
   virtual I18n::Message messageAtIndex(int index) = 0;

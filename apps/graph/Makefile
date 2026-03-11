@@ -1,4 +1,7 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/graph/,$(addsuffix :-test, \
+apps += Graph::App
+app_headers += apps/graph/app.h
+
+app_graph_src = $(addprefix apps/graph/,\
   app.cpp \
   graph/area_between_curves_graph_controller.cpp \
   graph/area_between_curves_parameter_controller.cpp \
@@ -29,14 +32,19 @@ SOURCES_apps += $(addprefix $(PATH_apps)/graph/,$(addsuffix :-test, \
   shared/function_parameter_controller.cpp \
   values/interval_parameter_selector_controller.cpp \
   values/values_controller.cpp \
-  graph_icon.png \
-) \
-  test/caching.cpp:+test \
-  test/helper.cpp:+test \
-  test/function_names.cpp:+test \
-  test/function_properties.cpp:+test \
 )
 
-$(call depends_on_image,apps/graph/app.cpp,apps/graph/graph_icon.png)
+app_graph_src += $(app_graph_test_src)
+apps_src += $(app_graph_src)
 
-$(call i18n_without_universal,graph/i18n/base)
+i18n_files += $(call i18n_without_universal_for,graph/i18n/base)
+
+tests_src += $(addprefix apps/graph/test/,\
+  caching.cpp \
+  helper.cpp \
+  function_names.cpp \
+  function_properties.cpp \
+)
+
+$(eval $(call depends_on_image,apps/graph/app.cpp,apps/graph/graph_icon.png))
+$(eval $(call depends_on_image,apps/graph/app.cpp,apps/graph/graph_icon_epsilon.png))

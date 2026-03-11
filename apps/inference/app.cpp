@@ -3,114 +3,106 @@
 #include <apps/apps_container.h>
 #include <apps/apps_container_helper.h>
 
-#include "images/confidence_interval.h"
-#include "images/significance_test.h"
-#include "inference_icon.h"
-#include "models/homogeneity_test.h"
+#include "apps/theme_gestion/themeGestion.h"
+#include "models/statistic/homogeneity_test.h"
 
 using namespace Escher;
 
 namespace Inference {
 
-const Escher::Image* App::Descriptor::icon() const {
-  return ImageStore::InferenceIcon;
+const Escher::Image *App::Descriptor::icon() const {
+  return Theme::ThemeGestion::getIconImage("InferenceIcon");
 }
 
-App* App::Snapshot::unpack(Container* container) {
-  inference()->init();
+App *App::Snapshot::unpack(Container *container) {
+  statistic()->init();
   return new (container->currentAppBuffer())
-      App(this, static_cast<AppsContainer*>(container)->globalContext());
+      App(this, static_cast<AppsContainer *>(container)->globalContext());
 }
 
-App::App(Snapshot* snapshot, Poincare::Context* parentContext)
+App::App(Snapshot *snapshot, Poincare::Context *parentContext)
     : MathApp(snapshot, &m_inputViewController),
-      m_testGraphController(
-          &m_stackViewController,
-          static_cast<SignificanceTest*>(snapshot->inference())),
-      m_intervalGraphController(
-          &m_stackViewController,
-          static_cast<ConfidenceInterval*>(snapshot->inference())),
+      m_testGraphController(&m_stackViewController,
+                            static_cast<Test *>(snapshot->statistic())),
+      m_intervalGraphController(&m_stackViewController,
+                                static_cast<Interval *>(snapshot->statistic())),
       m_homogeneityResultsController(
           &m_stackViewController, &m_resultsController,
-          static_cast<HomogeneityTest*>(snapshot->inference())),
+          static_cast<HomogeneityTest *>(snapshot->statistic())),
       m_inputHomogeneityController(
           &m_stackViewController, &m_homogeneityResultsController,
-          static_cast<HomogeneityTest*>(snapshot->inference())),
+          static_cast<HomogeneityTest *>(snapshot->statistic())),
       m_goodnessResultsController(
           &m_stackViewController, &m_testGraphController,
           &m_intervalGraphController,
-          static_cast<GoodnessTest*>(snapshot->inference())),
+          static_cast<GoodnessTest *>(snapshot->statistic())),
       m_inputGoodnessController(
           &m_stackViewController, &m_goodnessResultsController,
-          static_cast<GoodnessTest*>(snapshot->inference())),
-      m_inputStoreController1(&m_stackViewController, &m_resultsController, 0,
-                              &m_inputStoreController2, snapshot->inference(),
-                              parentContext),
-      m_inputStoreController2(&m_stackViewController, &m_resultsController, 1,
-                              nullptr, snapshot->inference(), parentContext),
-      m_resultsController(&m_stackViewController, snapshot->inference(),
+          static_cast<GoodnessTest *>(snapshot->statistic())),
+      m_inputStoreController(&m_stackViewController, &m_resultsController,
+                             snapshot->statistic(), parentContext),
+      m_resultsController(&m_stackViewController, snapshot->statistic(),
                           &m_testGraphController, &m_intervalGraphController),
       m_inputController(&m_stackViewController, &m_resultsController,
-                        snapshot->inference()),
+                        snapshot->statistic()),
       m_typeController(&m_stackViewController, &m_hypothesisController,
                        &m_inputController, &m_datasetController,
-                       snapshot->inference()),
+                       snapshot->statistic()),
       m_categoricalTypeController(
-          &m_stackViewController, static_cast<Chi2Test*>(snapshot->inference()),
+          &m_stackViewController,
+          static_cast<Chi2Test *>(snapshot->statistic()),
           &m_inputGoodnessController, &m_inputHomogeneityController),
-      m_hypothesisController(
-          &m_stackViewController, &m_inputController, &m_inputStoreController1,
-          &m_datasetController,
-          static_cast<SignificanceTest*>(snapshot->inference())),
+      m_hypothesisController(&m_stackViewController, &m_inputController,
+                             &m_inputStoreController, &m_datasetController,
+                             static_cast<Test *>(snapshot->statistic())),
       m_datasetController(&m_stackViewController, &m_inputController,
-                          &m_inputStoreController1, snapshot->inference()),
+                          &m_inputStoreController, snapshot->statistic()),
       m_testController(&m_stackViewController, &m_hypothesisController,
                        &m_typeController, &m_categoricalTypeController,
-                       &m_inputStoreController1, &m_inputController,
-                       snapshot->inference()),
+                       &m_inputStoreController, &m_inputController,
+                       snapshot->statistic()),
       m_menuController(
           &m_stackViewController, {&m_testController, &m_testController},
           {{I18n::Message::Tests, I18n::Message::TestDescr},
            {I18n::Message::Intervals, I18n::Message::IntervalDescr}},
-          {ImageStore::SignificanceTest, ImageStore::ConfidenceInterval}, this),
+          {Theme::ThemeGestion::getIconImage("SignificanceTest"), Theme::ThemeGestion::getIconImage("ConfidenceInterval")}, this),
       m_stackViewController(&m_modalViewController, &m_menuController,
                             StackViewController::Style::GrayGradation),
       m_inputViewController(&m_modalViewController, &m_stackViewController,
                             Shared::MathLayoutFieldDelegate::Default()),
       m_bufferDestructor(nullptr) {}
 
-void App::didBecomeActive(Window* window) {
-  OMG::RingBuffer<Escher::ViewController*,
-                  LargeStackViewController::k_maxNumberOfChildren>* queue =
+void App::didBecomeActive(Window *window) {
+  Ion::RingBuffer<Escher::ViewController *,
+                  LargeStackViewController::k_maxNumberOfChildren> *queue =
       snapshot()->pageQueue();
   int queueLength = queue->length();
-  Escher::ViewController* currentController = &m_menuController;
+  Escher::ViewController *currentController = &m_menuController;
   bool stop = false;
   bool resultsWereRecomputed = false;
   for (int i = 0; i < queueLength; i++) {
     /* The queue is refilled dynamically when "stackOpenPage"ing which prevents
      * from popping until the queue is empty. */
-    Escher::ViewController* controller = queue->queuePop();
+    Escher::ViewController *controller = queue->queuePop();
     if (stop) {
       continue;
     }
     currentController->stackOpenPage(controller);
     currentController = controller;
 
-    if ((currentController == &m_inputStoreController1) ||
-        (currentController == &m_inputStoreController2)) {
+    if (currentController == &m_inputStoreController) {
       // X1/Y1 data might have changed outside the app.
-      if (!snapshot()->inference()->validateInputs()) {
+      if (!snapshot()->statistic()->validateInputs()) {
         // If input were invalidated, just stop here.
         stop = true;
       } else {
         // Recompute results
-        snapshot()->inference()->compute();
+        snapshot()->statistic()->compute();
         resultsWereRecomputed = true;
       }
     } else if (resultsWereRecomputed &&
                currentController == &m_resultsController &&
-               !snapshot()->inference()->isGraphable()) {
+               !snapshot()->statistic()->isGraphable()) {
       // The results changed and can't be graphed anymore
       stop = true;
     }
@@ -118,17 +110,17 @@ void App::didBecomeActive(Window* window) {
   Escher::App::didBecomeActive(window);
 }
 
-void App::willOpenPage(ViewController* controller) {
+void App::willOpenPage(ViewController *controller) {
   snapshot()->pageQueue()->push(controller);
 }
 
-void App::didExitPage(ViewController* controller) {
-  ViewController* c = snapshot()->pageQueue()->stackPop();
+void App::didExitPage(ViewController *controller) {
+  ViewController *c = snapshot()->pageQueue()->stackPop();
   assert(c == controller);
   (void)c;
 }
 
-void App::cleanBuffer(DynamicCellsDataSourceDestructor* destructor) {
+void App::cleanBuffer(DynamicCellsDataSourceDestructor *destructor) {
   assert(destructor);
   if (m_bufferDestructor) {
     m_bufferDestructor->dynamicCellsTableView()->selectColumn(0);
@@ -141,8 +133,9 @@ void App::cleanBuffer(DynamicCellsDataSourceDestructor* destructor) {
 }
 
 void App::selectSubApp(int subAppIndex) {
-  if (subAppIndex >= 0 && snapshot()->inference()->initializeSubApp(
-                              static_cast<SubApp>(subAppIndex))) {
+  if (subAppIndex >= 0 &&
+      Statistic::Initialize(snapshot()->statistic(),
+                            static_cast<Statistic::SubApp>(subAppIndex))) {
     m_testController.selectRow(0);
     m_hypothesisController.selectRow(0);
     m_typeController.selectRow(0);
@@ -151,12 +144,12 @@ void App::selectSubApp(int subAppIndex) {
 
 constexpr static App::Descriptor sDescriptor;
 
-const App::Descriptor* App::Snapshot::descriptor() const {
+const App::Descriptor *App::Snapshot::descriptor() const {
   return &sDescriptor;
 }
 
 void App::Snapshot::tidy() {
-  inference()->tidy();
+  statistic()->tidy();
   Shared::SharedApp::Snapshot::tidy();
 }
 

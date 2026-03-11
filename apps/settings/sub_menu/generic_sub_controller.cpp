@@ -12,11 +12,11 @@ using namespace Escher;
 
 namespace Settings {
 
-GenericSubController::GenericSubController(Responder* parentResponder)
+GenericSubController::GenericSubController(Responder *parentResponder)
     : SelectableListViewController(parentResponder),
       m_messageTreeModel(nullptr) {}
 
-const char* GenericSubController::title() const {
+const char *GenericSubController::title() {
   if (m_messageTreeModel) {
     return I18n::translate(m_messageTreeModel->label());
   }
@@ -26,11 +26,10 @@ const char* GenericSubController::title() const {
 void GenericSubController::initView() {
   ViewController::initView();
   m_selectableListView.resetSizeAndOffsetMemoization();
-  /* This can't be done in handleResponderChainEvent(didEnter) because we don't
-   * want it to be done everytime the pop-up disappears. For example, if we are
-   * editing a field and a pop-up shows up with a warning, we don't want to
-   * reload the entire table when dismissing the pop-up (that would erase the
-   * edition). */
+  /* This can't be done in didEnterResponderChain because we don't want it to
+   * be done everytime the pop-up disappears. For example, if we are editing a
+   * field and a pop-up shows up with a warning, we don't want to reload the
+   * entire table when dismissing the pop-up (that would erase the edition). */
   selectRow(initialSelectedRow());
   setOffset(KDPointZero);
 }
@@ -63,23 +62,23 @@ KDCoordinate GenericSubController::nonMemoizedRowHeight(int row) {
   return protectedNonMemoizedRowHeight(&tempCell, row);
 }
 
-void GenericSubController::fillCellForRow(HighlightCell* cell, int row) {
-  static_cast<MessageTextView*>(
-      static_cast<AbstractMenuCell*>(cell)->widget(CellWidget::Type::Label))
+void GenericSubController::fillCellForRow(HighlightCell *cell, int row) {
+  static_cast<MessageTextView *>(
+      static_cast<AbstractMenuCell *>(cell)->widget(CellWidget::Type::Label))
       ->setMessage(m_messageTreeModel->childAtIndex(row)->label());
 }
 
 void GenericSubController::setMessageTreeModel(
-    const MessageTree* messageTreeModel) {
-  m_messageTreeModel = (MessageTree*)messageTreeModel;
+    const MessageTree *messageTreeModel) {
+  m_messageTreeModel = (MessageTree *)messageTreeModel;
 }
 
 void GenericSubController::viewDidDisappear() {
   m_selectableListView.deselectTable();
 }
 
-StackViewController* GenericSubController::stackController() const {
-  return (StackViewController*)parentResponder();
+StackViewController *GenericSubController::stackController() const {
+  return (StackViewController *)parentResponder();
 }
 
 }  // namespace Settings

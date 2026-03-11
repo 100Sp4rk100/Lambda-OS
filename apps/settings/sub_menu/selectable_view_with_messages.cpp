@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Shared;
 using namespace Escher;
 
@@ -14,14 +16,14 @@ SelectableViewWithMessages::SelectableViewWithMessages(
     SelectableTableView* selectableTableView)
     : m_selectableTableView(selectableTableView),
       m_messageTextView(I18n::Message::Default,
-                        {.style = {.glyphColor = Palette::GrayDark,
-                                   .backgroundColor = Palette::WallScreen,
+                        {.style = {.glyphColor = Theme::ThemeGestion::getColor("GrayDark"),
+                                   .backgroundColor = Theme::ThemeGestion::getColor("WallScreen"),
                                    .font = KDFont::Size::Small},
                          .horizontalAlignment = KDGlyph::k_alignCenter,
                          .verticalAlignment = KDGlyph::k_alignCenter}) {}
 
 void SelectableViewWithMessages::drawRect(KDContext* ctx, KDRect rect) const {
-  ctx->fillRect(bounds(), Palette::WallScreen);
+  ctx->fillRect(bounds(), Theme::ThemeGestion::getColor("WallScreen"));
 }
 
 void SelectableViewWithMessages::setMessage(I18n::Message message) {

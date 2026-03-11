@@ -16,13 +16,12 @@ class TestModeController : public GenericSubController {
                      MainController* mainController)
       : GenericSubController(parentResponder),
         m_mainController(mainController) {}
+  TELEMETRY_ID("TestMode");
   KDCoordinate nonMemoizedRowHeight(int row) override;
   Escher::HighlightCell* reusableCell(int index, int type) override;
   bool handleEvent(Ion::Events::Event event) override;
   int reusableCellCount(int type) const override { return k_numberOfCells; };
-
- protected:
-  void handleResponderChainEvent(ResponderChainEvent event) override;
+  void didBecomeFirstResponder() override;
 
  private:
   constexpr static int k_numberOfCells = 2;

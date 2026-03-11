@@ -25,7 +25,7 @@ class PlotBannerView : public Shared::BannerView {
 
 class SimplePlotBannerView : public PlotBannerView {
  public:
-  SimplePlotBannerView() : m_value(k_bannerFieldFormat) {}
+  SimplePlotBannerView() : m_value(k_bannerFieldFormat()) {}
   BannerBufferTextView* value() { return &m_value; }
 
  private:

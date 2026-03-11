@@ -22,22 +22,23 @@ class DoublePairTableController
       public Escher::AlternateEmptyViewDelegate,
       public Escher::SelectableTableViewDelegate {
  public:
-  DoublePairTableController(Escher::Responder* parentResponder,
-                            Escher::ButtonRowController* header);
+  DoublePairTableController(Escher::Responder *parentResponder,
+                            Escher::ButtonRowController *header);
 
   // AlternateEmptyViewDelegate
   bool isEmpty() const override { return !store()->hasActiveSeries(); }
   I18n::Message emptyMessage() override {
     return I18n::Message::NoValueToCompute;
   }
-  Escher::Responder* responderWhenEmpty() override;
+  Escher::Responder *responderWhenEmpty() override;
 
   // ViewController
-  Escher::View* view() override { return &m_prefacedTwiceTableView; }
+  Escher::View *view() override { return &m_prefacedTwiceTableView; }
   void viewWillAppear() override;
 
   // Responder
   bool handleEvent(Ion::Events::Event event) override;
+  void didBecomeFirstResponder() override;
 
   // RegularHeightTableViewDataSource
   bool canSelectCellAtLocation(int column, int row) override {
@@ -51,17 +52,16 @@ class DoublePairTableController
   int numberOfColumns() const override {
     return 2 + store()->numberOfActiveSeries();
   }
-  Escher::HighlightCell* reusableCell(int index, int type) override;
+  Escher::HighlightCell *reusableCell(int index, int type) override;
   int reusableCellCount(int type) const override;
   int typeAtLocation(int column, int row) const override;
-  KDCoordinate separatorBeforeColumn(int index) const override;
+  KDCoordinate separatorBeforeColumn(int index) override;
 
  protected:
   // Number of cells
   constexpr static int k_maxNumberOfDisplayableRows = 11;
   constexpr static int k_numberOfHeaderColumns = 2;
-  // Reusable cells. At most 4 columns can appear on the same screen.
-  constexpr static int k_numberOfSeriesTitleCells = 4;
+  constexpr static int k_numberOfSeriesTitleCells = 3;
   constexpr static int k_numberOfCalculationCells =
       k_numberOfSeriesTitleCells * k_maxNumberOfDisplayableRows;
   // Cell sizes
@@ -78,17 +78,15 @@ class DoublePairTableController
   constexpr static int k_calculationSymbolCellType = 3;
   constexpr static int k_calculationCellType = 4;
 
-  void handleResponderChainEvent(ResponderChainEvent event) override;
-
   // TableViewDataSource
   KDCoordinate defaultRowHeight() override { return k_cellHeight; }
 
-  virtual DoublePairStore* store() const = 0;
-  Escher::TabViewController* tabController() const override {
-    return static_cast<Escher::TabViewController*>(
+  virtual DoublePairStore *store() const = 0;
+  Escher::TabViewController *tabController() const override {
+    return static_cast<Escher::TabViewController *>(
         parentResponder()->parentResponder()->parentResponder());
   }
-  Escher::SelectableTableView* selectableTableView() override {
+  Escher::SelectableTableView *selectableTableView() override {
     return &m_selectableTableView;
   }
 

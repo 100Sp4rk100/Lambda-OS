@@ -1,18 +1,19 @@
 #include "domain_parameter_controller.h"
 
 #include <assert.h>
-#include <poincare/k_tree.h>
+#include <poincare/infinity.h>
 
 #include "../app.h"
 
 using namespace Shared;
 using namespace Escher;
+using namespace Poincare;
 
 namespace Graph {
 
 DomainParameterController::DomainParameterController(Responder* parentResponder)
-    : Shared::SingleRangeControllerFloatPrecision(parentResponder,
-                                                  &m_confirmPopUpController),
+    : Shared::SingleRangeController<float>(parentResponder,
+                                           &m_confirmPopUpController),
       m_confirmPopUpController(Invocation::Builder<DomainParameterController>(
           [](DomainParameterController* controller, void* sender) {
             controller->pop(false);
@@ -42,10 +43,10 @@ bool DomainParameterController::textFieldDidFinishEditing(
       textField->draftText()[0] == '\0') {
     textField->setEditing(true);  // To edit draft text buffer in setText
     if (textField == m_boundsCells[0].textField()) {
-      textField->setText(Poincare::Infinity::k_minusInfinityName);
+      textField->setText(Infinity::Name(true));
     } else {
       assert(textField == m_boundsCells[1].textField());
-      textField->setText(Poincare::Infinity::k_infinityName);
+      textField->setText(Infinity::Name(false));
     }
     textField->setEditing(false);  // set editing back to previous value
   }
@@ -58,7 +59,6 @@ void DomainParameterController::textFieldDidAbortEditing(
 }
 
 I18n::Message DomainParameterController::parameterMessage(int index) const {
-  assert(index == 0 || index == 1);
   ContinuousFunctionProperties plotProperties = function()->properties();
   if (plotProperties.isParametric()) {
     return index == 0 ? I18n::Message::TMin : I18n::Message::TMax;
@@ -121,7 +121,10 @@ DomainParameterController::function() const {
 
 Poincare::Layout DomainParameterController::extraCellLayoutAtRow(int row) {
   assert(row == 0);
-  return m_currentTextFieldIsMinField ? "-∞"_l : "∞"_l;
+  Preferences* pref = Preferences::SharedPreferences();
+  return Infinity::Builder(m_currentTextFieldIsMinField)
+      .createLayout(pref->displayMode(), pref->numberOfSignificantDigits(),
+                    App::app()->localContext());
 }
 
 void DomainParameterController::switchToolboxContent(

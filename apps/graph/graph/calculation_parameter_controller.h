@@ -29,12 +29,13 @@ class CalculationParameterController
                                  GraphView* graphView, BannerView* bannerView,
                                  Shared::InteractiveCurveViewRange* range,
                                  Shared::CurveViewCursor* cursor);
-  const char* title() const override;
+  const char* title() override;
   bool handleEvent(Ion::Events::Event event) override;
   void viewWillAppear() override;
   void fillAreaCell();
+  TELEMETRY_ID("CalculationParameter");
   int numberOfRows() const override { return k_numberOfRows; }
-  TitlesDisplay titlesDisplay() const override {
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayLastTwoTitles;
   }
 
@@ -42,7 +43,7 @@ class CalculationParameterController
   void setRecord(Ion::Storage::Record record);
 
  private:
-  constexpr static int k_numberOfRows = 9;
+  static constexpr int k_numberOfRows = 9;
   template <class T>
   void push(T* controller, bool pop);
   bool shouldDisplayIntersectionCell() const;

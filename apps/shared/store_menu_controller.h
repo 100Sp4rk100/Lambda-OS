@@ -3,7 +3,7 @@
 
 #include <apps/i18n.h>
 #include <escher/editable_expression_cell.h>
-#include <escher/editable_field_help_box.h>
+#include <escher/editable_fiel_help_box.h>
 #include <escher/list_view_data_source.h>
 #include <escher/selectable_list_view.h>
 #include <escher/selectable_table_view_data_source.h>
@@ -20,10 +20,13 @@ class StoreMenuController : public Escher::ModalViewController,
                             public MathLayoutFieldDelegate {
  public:
   StoreMenuController();
-  void setLayout(Poincare::Layout layout);
+  void setText(const char* text);
 
   void open();
   void close();
+
+  // Responder
+  void didBecomeFirstResponder() override;
 
   // ListViewDataSource
   int numberOfRows() const override { return 1; }
@@ -47,25 +50,21 @@ class StoreMenuController : public Escher::ModalViewController,
     return true;
   }
 
- protected:
-  // Responder
-  void handleResponderChainEvent(ResponderChainEvent event) override;
-
  private:
   class InnerListController : public ViewController {
    public:
     InnerListController(StoreMenuController* dataSource);
-    const char* title() const override {
+    const char* title() override {
       return I18n::translate(I18n::Message::DefineVariable);
     }
     Escher::View* view() override { return &m_selectableListView; }
-    void handleResponderChainEvent(ResponderChainEvent event) override;
+    void didBecomeFirstResponder() override;
 
    private:
     Escher::SelectableListView m_selectableListView;
   };
 
-  bool store(Poincare::Layout layout);
+  bool parseAndStore(const char* text);
   void openAbortWarning();
 
   char m_savedDraftTextBuffer[Escher::AbstractTextField::MaxBufferSize()];

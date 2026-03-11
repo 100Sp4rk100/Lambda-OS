@@ -1,7 +1,9 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/on_boarding/,$(addsuffix :-test, \
+app_on_boarding_src = $(addprefix apps/on_boarding/,\
   app.cpp \
   localization_controller.cpp \
-  startup_prompt_controller.cpp \
-))
+  prompt_controller.cpp \
+)
 
-$(call i18n_without_universal,on_boarding/i18n/base)
+apps_src += $(app_on_boarding_src)
+
+i18n_files += $(call i18n_without_universal_for,on_boarding/i18n/base)

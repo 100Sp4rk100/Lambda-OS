@@ -22,10 +22,10 @@ using namespace Escher;
 
 namespace Code {
 
-constexpr static const char* sStandardPromptText = ">>> ";
+constexpr static const char *sStandardPromptText = ">>> ";
 
-ConsoleController::ConsoleController(Responder* parentResponder,
-                                     App* pythonDelegate
+ConsoleController::ConsoleController(Responder *parentResponder,
+                                     App *pythonDelegate
 #if EPSILON_GETOPT
                                      ,
                                      bool lockOnConsole
@@ -48,7 +48,7 @@ ConsoleController::ConsoleController(Responder* parentResponder,
 {
   m_selectableListView.setMargins({Metric::TitleBarExternHorizontalMargin,
                                    Metric::CommonMargins.right(), 0, 0});
-  m_selectableListView.setBackgroundColor(KDColorWhite);
+  m_selectableListView.setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
   m_editCell.setPrompt(sStandardPromptText);
   for (int i = 0; i < k_numberOfLineCells; i++) {
     m_cells[i].setParentResponder(&m_selectableListView);
@@ -80,8 +80,8 @@ void ConsoleController::autoImport() {
   }
 }
 
-void ConsoleController::runAndPrintForCommand(const char* command) {
-  const char* storedCommand = m_consoleStore.pushCommand(command);
+void ConsoleController::runAndPrintForCommand(const char *command) {
+  const char *storedCommand = m_consoleStore.pushCommand(command);
   assert(m_outputAccumulationBuffer[0] == '\0');
 
   // Draw the console before running the code
@@ -105,21 +105,21 @@ void ConsoleController::terminateInputLoop() {
   interrupt();
 }
 
-const char* ConsoleController::inputText(const char* prompt) {
-  AppsContainer* appsContainer = AppsContainer::sharedAppsContainer();
+const char *ConsoleController::inputText(const char *prompt) {
+  AppsContainer *appsContainer = AppsContainer::sharedAppsContainer();
   m_inputRunLoopActive = true;
 
   // Hide the sandbox if it is displayed
   hideAnyDisplayedViewController();
 
-  const char* promptText = prompt;
-  char* s = const_cast<char*>(prompt);
+  const char *promptText = prompt;
+  char *s = const_cast<char *>(prompt);
 
   if (promptText != nullptr) {
     /* Set the prompt text. If the prompt text has a '\n', put the prompt text
      * in the history until the last '\n', and put the remaining prompt text in
      * the edit cell's prompt. */
-    char* lastCarriageReturn = nullptr;
+    char *lastCarriageReturn = nullptr;
     while (*s != 0) {
       if (*s == '\n') {
         lastCarriageReturn = s;
@@ -141,8 +141,8 @@ const char* ConsoleController::inputText(const char* prompt) {
 
   // Launch a new input loop
   appsContainer->runWhile(
-      [](void* a) {
-        ConsoleController* c = static_cast<ConsoleController*>(a);
+      [](void *a) {
+        ConsoleController *c = static_cast<ConsoleController *>(a);
         return c->inputRunLoopActive();
       },
       this);
@@ -151,7 +151,7 @@ const char* ConsoleController::inputText(const char* prompt) {
   if (promptText != nullptr) {
     printText(promptText, s - promptText);
   }
-  const char* text = m_editCell.text();
+  const char *text = m_editCell.text();
   size_t textSize = strlen(text);
   printText(text, textSize);
   flushOutputAccumulationBufferToStore();
@@ -170,21 +170,16 @@ void ConsoleController::viewWillAppear() {
   reloadData();
 }
 
-void ConsoleController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (!isDisplayingViewController()) {
-      App::app()->setFirstResponder(&m_editCell);
-    } else {
-      /* A view controller might be displayed: for example, when pushing the
-       * console on the stack controller, we auto-import scripts during the
-       * 'viewWillAppear' and then we set the console as first responder. The
-       * sandbox or the matplotlib controller might have been pushed in the
-       * auto-import. */
-      App::app()->setFirstResponder(stackViewController()->topViewController());
-    }
+void ConsoleController::didBecomeFirstResponder() {
+  if (!isDisplayingViewController()) {
+    App::app()->setFirstResponder(&m_editCell);
   } else {
-    ViewController::handleResponderChainEvent(event);
+    /* A view controller might be displayed: for example, when pushing the
+     * console on the stack controller, we auto-import scripts during the
+     * 'viewWillAppear' and then we set the console as first responder. The
+     * sandbox or the matplotlib controller might have been pushed in the
+     * auto-import. */
+    App::app()->setFirstResponder(stackViewController()->topViewController());
   }
 }
 
@@ -192,7 +187,7 @@ bool ConsoleController::handleEvent(Ion::Events::Event event) {
   if (event == Ion::Events::OK || event == Ion::Events::EXE) {
     if (m_consoleStore.numberOfLines() > 0 &&
         typeAtRow(selectedRow()) == k_lineCellType) {
-      const char* text = m_consoleStore.lineAtIndex(selectedRow()).text();
+      const char *text = m_consoleStore.lineAtIndex(selectedRow()).text();
       m_editCell.setEditing(true);
       m_selectableListView.selectCell(m_consoleStore.numberOfLines());
       App::app()->setFirstResponder(&m_editCell);
@@ -234,7 +229,7 @@ KDCoordinate ConsoleController::defaultRowHeight() {
       GlobalPreferences::SharedGlobalPreferences()->font());
 }
 
-HighlightCell* ConsoleController::reusableCell(int index, int type) {
+HighlightCell *ConsoleController::reusableCell(int index, int type) {
   assert(index >= 0);
   if (type == k_lineCellType) {
     assert(index < k_numberOfLineCells);
@@ -263,15 +258,15 @@ int ConsoleController::typeAtRow(int row) const {
   return k_editCellType;
 }
 
-void ConsoleController::fillCellForRow(HighlightCell* cell, int row) {
+void ConsoleController::fillCellForRow(HighlightCell *cell, int row) {
   if (typeAtRow(row) == k_lineCellType) {
-    static_cast<ConsoleLineCell*>(cell)->setLine(
+    static_cast<ConsoleLineCell *>(cell)->setLine(
         m_consoleStore.lineAtIndex(row));
   }
 }
 
 void ConsoleController::listViewDidChangeSelectionAndDidScroll(
-    Escher::SelectableListView* l, int previousSelectedRow,
+    Escher::SelectableListView *l, int previousSelectedRow,
     KDPoint previousOffset, bool withinTemporarySelection) {
   assert(l == &m_selectableListView);
   if (withinTemporarySelection) {
@@ -285,13 +280,13 @@ void ConsoleController::listViewDidChangeSelectionAndDidScroll(
     if (previousSelectedRow > -1 &&
         typeAtRow(previousSelectedRow) == k_lineCellType) {
       // Reset the scroll of the previous cell
-      ConsoleLineCell* previousCell =
-          (ConsoleLineCell*)(l->cell(previousSelectedRow));
+      ConsoleLineCell *previousCell =
+          (ConsoleLineCell *)(l->cell(previousSelectedRow));
       if (previousCell) {
         previousCell->reloadCell();
       }
     }
-    ConsoleLineCell* selectedCell = (ConsoleLineCell*)(l->selectedCell());
+    ConsoleLineCell *selectedCell = (ConsoleLineCell *)(l->selectedCell());
     if (selectedCell) {
       selectedCell->reloadCell();
     }
@@ -299,13 +294,13 @@ void ConsoleController::listViewDidChangeSelectionAndDidScroll(
 }
 
 bool ConsoleController::textFieldShouldFinishEditing(
-    AbstractTextField* textField, Ion::Events::Event event) {
+    AbstractTextField *textField, Ion::Events::Event event) {
   assert(textField->isEditing());
   return textField->draftTextLength() > 0 &&
          TextFieldDelegate::textFieldShouldFinishEditing(textField, event);
 }
 
-bool ConsoleController::textFieldDidReceiveEvent(AbstractTextField* textField,
+bool ConsoleController::textFieldDidReceiveEvent(AbstractTextField *textField,
                                                  Ion::Events::Event event) {
   if (event == Ion::Events::Var) {
     prepareVariableBox();
@@ -329,13 +324,14 @@ bool ConsoleController::textFieldDidReceiveEvent(AbstractTextField* textField,
   return App::app()->textInputDidReceiveEvent(textField, event);
 }
 
-bool ConsoleController::textFieldDidFinishEditing(AbstractTextField* textField,
+bool ConsoleController::textFieldDidFinishEditing(AbstractTextField *textField,
                                                   Ion::Events::Event event) {
   if (m_inputRunLoopActive) {
     m_inputRunLoopActive = false;
     return false;
   }
-  char* text = textField->draftText();
+  char *text = textField->draftText();
+  telemetryReportEvent("Console", text);
   runAndPrintForCommand(text);
   if (!isDisplayingViewController()) {
     reloadData();
@@ -343,7 +339,7 @@ bool ConsoleController::textFieldDidFinishEditing(AbstractTextField* textField,
   return true;
 }
 
-void ConsoleController::textFieldDidAbortEditing(AbstractTextField* textField) {
+void ConsoleController::textFieldDidAbortEditing(AbstractTextField *textField) {
   if (m_inputRunLoopActive) {
     m_inputRunLoopActive = false;
   } else {
@@ -365,7 +361,7 @@ void ConsoleController::textFieldDidAbortEditing(AbstractTextField* textField) {
 }
 
 void ConsoleController::prepareVariableBox() {
-  PythonVariableBoxController* varBox = App::app()->variableBox();
+  PythonVariableBoxController *varBox = App::app()->variableBox();
   // Subtitle display status must be set before as it alter loaded node order
   varBox->setDisplaySubtitles(false);
   varBox->loadVariablesImportedFromScripts();
@@ -379,7 +375,7 @@ void ConsoleController::resetSandbox() {
   m_sandboxController.reset();
 }
 
-void ConsoleController::displayViewController(ViewController* controller) {
+void ConsoleController::displayViewController(ViewController *controller) {
   if (stackViewController()->topViewController() == controller) {
     return;
   }
@@ -398,8 +394,8 @@ bool ConsoleController::isDisplayingViewController() {
   /* The StackViewController model state is the best way to know wether the
    * console is displaying a View Controller (Sandbox or Matplotlib). Indeed,
    * keeping a boolean or a pointer raises the issue of when updating it - when
-   * 'viewWillAppear' or when 'handleResponderChainEvent(didEnter)' - in both
-   * cases, the state would be wrong at some point... */
+   * 'viewWillAppear' or when 'didEnterResponderChain' - in both cases, the
+   * state would be wrong at some point... */
   return stackViewController()->depth() > 2;
 }
 
@@ -417,7 +413,7 @@ void ConsoleController::reloadData() {
 
 /* printText is called by the Python machine.
  * The text argument is not always null-terminated. */
-void ConsoleController::printText(const char* text, size_t length) {
+void ConsoleController::printText(const char *text, size_t length) {
   size_t textCutIndex = firstNewLineCharIndex(text, length);
   if (textCutIndex >= length) {
     /* If there is no new line in text, just append it to the output
@@ -488,7 +484,7 @@ void ConsoleController::flushOutputAccumulationBufferToStore() {
   emptyOutputAccumulationBuffer();
 }
 
-void ConsoleController::appendTextToOutputAccumulationBuffer(const char* text,
+void ConsoleController::appendTextToOutputAccumulationBuffer(const char *text,
                                                              size_t length) {
   constexpr static int k_maxLength = k_outputAccumulationBufferSize - 1;
   size_t lengthOfAccumulatedText = strlen(m_outputAccumulationBuffer);
@@ -522,7 +518,7 @@ void ConsoleController::emptyOutputAccumulationBuffer() {
   }
 }
 
-size_t ConsoleController::firstNewLineCharIndex(const char* text,
+size_t ConsoleController::firstNewLineCharIndex(const char *text,
                                                 size_t length) {
   size_t index = 0;
   while (index < length) {
@@ -534,8 +530,8 @@ size_t ConsoleController::firstNewLineCharIndex(const char* text,
   return index;
 }
 
-StackViewController* ConsoleController::stackViewController() {
-  return static_cast<StackViewController*>(parentResponder());
+StackViewController *ConsoleController::stackViewController() {
+  return static_cast<StackViewController *>(parentResponder());
 }
 
 }  // namespace Code

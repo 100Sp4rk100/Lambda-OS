@@ -17,10 +17,8 @@ class ColorParameterController : public Escher::SelectableListViewController<
         m_derivationOrder(0) {}
 
   // ViewController
-  const char* title() const override {
-    return I18n::translate(I18n::Message::Color);
-  }
-  TitlesDisplay titlesDisplay() const override {
+  const char* title() override { return I18n::translate(I18n::Message::Color); }
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayLastThreeTitles;
   }
   void viewWillAppear() override;

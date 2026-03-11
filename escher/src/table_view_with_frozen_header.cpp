@@ -1,11 +1,13 @@
 #include <escher/table_view_with_frozen_header.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 TableViewWithFrozenHeader::TableViewWithFrozenHeader(
     SelectableTableView* selectableTableView, I18n::Message header)
-    : m_headerView(header, {.style = {.glyphColor = Palette::GrayDark,
-                                      .backgroundColor = Palette::WallScreen,
+    : m_headerView(header, {.style = {.glyphColor = Theme::ThemeGestion::getColor("GrayDark"),
+                                      .backgroundColor = Theme::ThemeGestion::getColor("WallScreen"),
                                       .font = KDFont::Size::Small},
                             .horizontalAlignment = KDGlyph::k_alignCenter}),
       m_selectableTableView(selectableTableView) {
@@ -21,7 +23,7 @@ void TableViewWithFrozenHeader::drawRect(KDContext* ctx, KDRect rect) const {
       m_selectableTableView->minimalSizeForOptimalDisplay().height();
   ctx->fillRect(
       KDRect(0, tableHeight, bounds().width(), bounds().height() - tableHeight),
-      Palette::WallScreen);
+      Theme::ThemeGestion::getColor("WallScreen"));
 }
 
 View* TableViewWithFrozenHeader::subviewAtIndex(int index) {

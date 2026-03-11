@@ -26,8 +26,8 @@ class FunctionParameterController : public Shared::ListParameterController,
   void viewWillAppear() override;
   bool handleEvent(Ion::Events::Event event) override;
   int numberOfRows() const override { return k_numberOfRows; }
-  const char* title() const override;
-  TitlesDisplay titlesDisplay() const override {
+  const char* title() override;
+  TitlesDisplay titlesDisplay() override {
     return TitlesDisplay::DisplayLastTwoTitles;
   }
   void setParameterDelegate(ParameterDelegate* parameterDelegate) {
@@ -36,10 +36,10 @@ class FunctionParameterController : public Shared::ListParameterController,
 
  private:
   // Shared cells + m_detailsCell + m_functionDomainCell + m_derivativesCell
-  constexpr static int k_numberOfRows =
+  static constexpr int k_numberOfRows =
       Shared::ListParameterController::k_numberOfSharedCells + 3;
   bool displayDetails() const {
-    assert(!MathPreferences::SharedPreferences()
+    assert(!Poincare::Preferences::SharedPreferences()
                 ->examMode()
                 .forbidGraphDetails() ||
            m_detailsParameterController.detailsNumberOfSections() == 0);

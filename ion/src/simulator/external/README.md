@@ -13,10 +13,6 @@ From future versions :
 - `97c71371f21187f146872d41f94a5593c0a374ba` (release-2.0.22)
 - `3c703f20611356913d6feee422ee6a3491529dde` (after release-2.28.1, date: 08/04/23)
 - `dfd80f3d762441e34e501c18a20b50c09fe3730f` (after release-2.28.1, date: 12/05/23)
-- `3ddbeab88fcf5bc1b09fb664403b1240d342a6ae` (SDL 3, release-3.2.0, commit date: 20/06/2023 only a subpart of this commit is applied: emptying unused function `SDL_ANDROID_SensorUpdate`)
-- `77285b6c3fba3cad57a53c1b804926a679e07411` (release-2.32.x, fix auto-rotate by respecting user orientation lock)
-- `f9d018c8081d7bbac5f083853ecfbcf67fdb2fdd` (SDL 3, release-3.2.0, fix for Android 14+, API 33+)
-- `814f0b7d41a6df9c72b02083dbf404ec6093e218` (SDL 3 not released. Purely code aesthetic, only a subpart of the commit, impacting previous cherry-picked commit)
 
 ## Updating SDL
 
@@ -43,8 +39,8 @@ A lot of trimming and reordering across platforms will be necessary.
 Apply the additional fixes mentioned above that are still in a future version.
 
 ## SDL version compatibilities
-Our web simulator is tied to a specific emscripten version, and recent SDL releases might not support it.
-Check version compatibility between our version of emsdk and the SDL version you want to install before installing it.
+Our web simulator is tied to a specific emscripten version, and recent SDL releases no longer support it.
+As of now, the SDL cannot be updated past a certain release (At least `release-2.0.22` isn't compatible) without updating emscripten.
 
 # dlfcn
 

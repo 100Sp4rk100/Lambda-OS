@@ -2,7 +2,7 @@
 
 #include <apps/i18n.h>
 
-#include "settings_icon.h"
+#include "apps/theme_gestion/themeGestion.h"
 
 using namespace Escher;
 
@@ -16,7 +16,7 @@ I18n::Message App::Descriptor::upperName() const {
   return I18n::Message::SettingsAppCapital;
 }
 
-const Image* App::Descriptor::icon() const { return ImageStore::SettingsIcon; }
+const Image* App::Descriptor::icon() const { return Theme::ThemeGestion::getIconImage("SettingsIcon"); }
 
 App* App::Snapshot::unpack(Container* container) {
   return new (container->currentAppBuffer()) App(this);

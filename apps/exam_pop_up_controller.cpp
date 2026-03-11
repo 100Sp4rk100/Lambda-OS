@@ -7,7 +7,6 @@
 #include <array>
 
 #include "apps_container.h"
-#include "math_preferences.h"
 
 using namespace Escher;
 using namespace Poincare;
@@ -43,6 +42,8 @@ void ExamPopUpController::viewDidDisappear() {
 }
 
 I18n::Message ExamPopUpController::activationWarningMessage() const {
+  constexpr size_t numberOfModes =
+      static_cast<size_t>(ExamMode::Ruleset::NumberOfRulesets);
   constexpr size_t messagesPerMode = 2;
   constexpr I18n::Message messages[] = {
       // Off
@@ -56,7 +57,7 @@ I18n::Message ExamPopUpController::activationWarningMessage() const {
       I18n::Message::ActiveDutchOrEnglishExamModeWithResetMessage,
       // IBTest
       I18n::Message::ActiveUSAExamModeMessage,
-      I18n::Message::ActiveUSAExamModeWithResetMessage,
+      I18n::Message::ActiveTxPaScIbExamModeWithResetMessage,
       // PressToTest
       I18n::Message::ActivePressToTestModeMessage,
       I18n::Message::ActivePressToTestWithResetMessage,
@@ -68,31 +69,27 @@ I18n::Message ExamPopUpController::activationWarningMessage() const {
       I18n::Message::ActiveDutchOrEnglishExamModeWithResetMessage,
       // STAAR
       I18n::Message::ActiveUSAExamModeMessage,
-      I18n::Message::ActiveUSAExamModeWithResetMessage,
+      I18n::Message::ActiveTxPaScIbExamModeWithResetMessage,
       // Pennsylvania
       I18n::Message::ActiveUSAExamModeMessage,
-      I18n::Message::ActiveUSAExamModeWithResetMessage,
+      I18n::Message::ActiveTxPaScIbExamModeWithResetMessage,
       // SouthCarolina
       I18n::Message::ActiveUSAExamModeMessage,
-      I18n::Message::ActiveUSAExamModeWithResetMessage,
+      I18n::Message::ActiveTxPaScIbExamModeWithResetMessage,
       // NorthCarolina
       I18n::Message::ActiveUSAExamModeMessage,
-      I18n::Message::ActiveUSAExamModeWithResetMessage,
-      // SAT
-      I18n::Message::ActiveUSAExamModeMessage,
-      I18n::Message::ActiveUSAExamModeWithResetMessage,
+      I18n::Message::ActiveTxPaScIbExamModeWithResetMessage,
   };
-  static_assert(
-      std::size(messages) == Ion::ExamMode::k_numberOfModes * messagesPerMode,
-      "messages size is invalid");
+  static_assert(std::size(messages) == numberOfModes * messagesPerMode,
+                "messages size is invalid");
   ExamMode::Ruleset rules = m_targetExamMode.ruleset();
   size_t index = static_cast<size_t>(rules) * messagesPerMode;
   index += (rules == ExamMode::Ruleset::Off &&
-            MathPreferences::SharedPreferences()->examMode().ruleset() ==
+            Preferences::SharedPreferences()->examMode().ruleset() ==
                 ExamMode::Ruleset::PressToTest) ||
            Ion::Authentication::clearanceLevel() !=
                Ion::Authentication::ClearanceLevel::NumWorks;
-  assert(index < Ion::ExamMode::k_numberOfModes * messagesPerMode);
+  assert(index < numberOfModes * messagesPerMode);
   return messages[index];
 }
 
@@ -100,6 +97,6 @@ bool ExamPopUpController::handleButton() const {
   /* Warning : By unplugging before confirmation, the examMode may then be
    *           deactivated while unplugged. */
   AppsContainer::sharedAppsContainer()->setExamMode(
-      m_targetExamMode, MathPreferences::SharedPreferences()->examMode());
+      m_targetExamMode, Preferences::SharedPreferences()->examMode());
   return true;
 }

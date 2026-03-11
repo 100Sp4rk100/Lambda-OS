@@ -18,6 +18,11 @@ bool AppsWindow::updateBatteryLevel() {
   return m_titleBarView.setChargeState(Ion::Battery::level());
 }
 
+bool AppsWindow::updateClock(int h, int m) {
+  return m_titleBarView.setTime(h, m);
+}
+
+
 void AppsWindow::updateBatteryAnimation() {
   return m_titleBarView.updateBatteryAnimation();
 }

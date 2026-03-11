@@ -1,11 +1,12 @@
 #ifndef ESCHER_APP_H
 #define ESCHER_APP_H
 
-#include <escher/editable_field_help_box.h>
+#include <escher/editable_fiel_help_box.h>
 #include <escher/i18n.h>
 #include <escher/image.h>
 #include <escher/modal_view_controller.h>
 #include <escher/responder.h>
+#include <escher/telemetry.h>
 #include <escher/timer.h>
 #include <escher/view_controller.h>
 #include <escher/warning_controller.h>
@@ -86,8 +87,7 @@ class App : public Responder {
   ModalViewController* modalViewController() { return &m_modalViewController; }
   virtual void willOpenPage(ViewController* controller) {}
   virtual void didExitPage(ViewController* controller) {}
-  virtual bool canStoreLayout() const { return false; }
-  virtual void storeLayout(Poincare::Layout layout = {}) {}
+  virtual void storeValue(const char* text = "") {}
   virtual int numberOfTimers() { return 0; }
   virtual Timer* timerAtIndex(int i) {
     assert(false);
@@ -102,6 +102,10 @@ class App : public Responder {
     return true;
   }
   virtual void storageDidChangeForRecord(Ion::Storage::Record) {}
+
+#if EPSILON_TELEMETRY
+  virtual const char* telemetryId() const { return nullptr; }
+#endif
 
   static App* app();
 

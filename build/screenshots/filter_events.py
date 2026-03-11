@@ -34,17 +34,12 @@ def main():
 
     # Convert the txt back into nws
     print(args.events)
-    filteredEvents = convert_txt_to_nws(temp_txt, args.state_file, args.events)
+    convert_txt_to_nws(temp_txt, args.state_file, args.events)
 
     # Clean folder
     os.remove(temp_txt)
 
-    print(
-        args.state_file
-        + " was successfully edited. "
-        + str(filteredEvents)
-        + " events have been filtered !"
-    )
+    print(args.state_file + " was successfully edited !")
 
 
 if __name__ == "__main__":

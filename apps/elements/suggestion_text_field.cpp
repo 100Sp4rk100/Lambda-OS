@@ -1,5 +1,7 @@
 #include "suggestion_text_field.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Escher;
 
 namespace Elements {
@@ -17,8 +19,8 @@ void SuggestionTextField::ContentView::drawRect(KDContext* ctx,
     assert(strlen(m_suggestion) >= draftTextLength());
     ctx->drawString(suggestionSuffix(),
                     glyphFrameAtPosition(draftText(), draftTextEnd()).origin(),
-                    {.glyphColor = Palette::GrayDark,
-                     .backgroundColor = KDColorWhite,
+                    {.glyphColor = Theme::ThemeGestion::getColor("GrayDark"),
+                     .backgroundColor = Theme::ThemeGestion::getColor("KDColorWhite"),
                      .font = m_format.style.font});
   }
 }
@@ -43,7 +45,7 @@ void SuggestionTextField::ContentView::setSuggestion(const char* suggestion) {
 SuggestionTextField::SuggestionTextField(Responder* parentResponder,
                                          TextFieldDelegate* delegate)
     : AbstractTextField(parentResponder, &m_contentView, delegate) {
-  setBackgroundColor(KDColorWhite);
+  setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
 }
 
 bool SuggestionTextField::handleEvent(Ion::Events::Event event) {

@@ -6,6 +6,8 @@
 #include <escher/palette.h>
 #include <escher/view.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Escher {
 
 class GlyphsView : public View, public CellWidget {
@@ -30,17 +32,15 @@ class GlyphsView : public View, public CellWidget {
     return type == Type::Accessory;
   }
 
-  constexpr static KDGlyph::Format k_defaultLabel = {};
-  constexpr static KDGlyph::Format k_defaultSubLabel = {
-      .style = {.glyphColor = Palette::GrayDark, .font = KDFont::Size::Small}};
-  constexpr static KDGlyph::Format k_defaultAccessory = {
-      .horizontalAlignment = KDGlyph::k_alignRight};
+  static KDGlyph::Format k_defaultLabel();
+  static KDGlyph::Format k_defaultSubLabel();
+  static KDGlyph::Format k_defaultAccessory();
 
   static KDGlyph::Format FormatForWidgetType(CellWidget::Type type) {
     return type == CellWidget::Type::Label
-               ? k_defaultLabel
-               : (type == CellWidget::Type::SubLabel ? k_defaultSubLabel
-                                                     : k_defaultAccessory);
+               ? k_defaultLabel()
+               : (type == CellWidget::Type::SubLabel ? k_defaultSubLabel()
+                                                     : k_defaultAccessory());
   }
 
   void defaultInitialization(CellWidget::Type type) override {

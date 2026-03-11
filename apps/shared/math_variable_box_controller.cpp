@@ -2,16 +2,16 @@
 
 #include <apps/apps_container.h>
 #include <apps/global_preferences.h>
+#include <apps/graph/list/list_controller.h>
 #include <apps/shared/app_with_store_menu.h>
 #include <apps/shared/sequence.h>
 #include <assert.h>
 #include <escher/metric.h>
-#include <omg/utf8_helper.h>
 #include <poincare/exception_checkpoint.h>
 #include <poincare/expression.h>
-#include <poincare/k_layout.h>
-#include <poincare/layout.h>
+#include <poincare/layout_helper.h>
 #include <poincare/preferences.h>
+#include <poincare/serialization_helper.h>
 
 #include <algorithm>
 
@@ -44,7 +44,7 @@ void MathVariableBoxController::viewDidDisappear() {
    * viewDidDisappear. */
 
   /* Tidy the layouts displayed in the MathVariableBoxController to clean
-   * Pool */
+   * TreePool */
   for (int i = 0; i < k_maxNumberOfDisplayedRows; i++) {
     m_leafCells[i].label()->setLayout(Layout());
     m_leafCells[i].subLabel()->setLayout(Layout());
@@ -65,7 +65,7 @@ bool MathVariableBoxController::handleEvent(Ion::Events::Event event) {
     int row = selectedRow();
     if (destroyRecordAtRow(row)) {
       if (App::app()->modalViewController()->currentModalViewController() !=
-          static_cast<const ViewController*>(this)) {
+          static_cast<const ViewController *>(this)) {
         // The varbox was dismissed by prepareForIntrusiveStorageChange
         return true;
       }
@@ -77,7 +77,7 @@ bool MathVariableBoxController::handleEvent(Ion::Events::Event event) {
       }
       return true;
     } else {
-      // TODO: The record deletion has been denied. Add a warning.
+      // TODO : The record deletion has been denied. Add a warning.
     }
   }
   if (m_currentPage == Page::RootMenu &&
@@ -136,20 +136,20 @@ int MathVariableBoxController::reusableCellCount(int type) const {
   return k_numberOfMenuRows;
 }
 
-void MathVariableBoxController::fillCellForRow(HighlightCell* cell, int row) {
+void MathVariableBoxController::fillCellForRow(HighlightCell *cell, int row) {
   int type = typeAtRow(row);
   if (type == k_defineVariableCellType) {
     return;
   }
   if (type == k_nodeCellType) {
-    Escher::NestedMenuController::NodeCell* myCell =
-        static_cast<Escher::NestedMenuController::NodeCell*>(cell);
+    Escher::NestedMenuController::NodeCell *myCell =
+        static_cast<Escher::NestedMenuController::NodeCell *>(cell);
     myCell->label()->setMessage(nodeLabel(pageAtIndex(row)));
     myCell->reloadCell();
     return;
   }
   assert(type == k_leafCellType);
-  LeafCell* myCell = static_cast<LeafCell*>(cell);
+  LeafCell *myCell = static_cast<LeafCell *>(cell);
   Storage::Record record = recordAtIndex(row);
   char symbolName[Shared::Function::k_maxNameWithArgumentSize];
   size_t symbolLength = 0;
@@ -157,20 +157,20 @@ void MathVariableBoxController::fillCellForRow(HighlightCell* cell, int row) {
   if (m_currentPage == Page::Expression || m_currentPage == Page::List ||
       m_currentPage == Page::Matrix) {
     static_assert(Shared::Function::k_maxNameWithArgumentSize >
-                      SymbolHelper::k_maxNameSize,
+                      SymbolAbstractNode::k_maxNameSize,
                   "Forgot argument's size?");
-    symbolLength =
-        record.nameWithoutExtension(symbolName, SymbolHelper::k_maxNameSize);
+    symbolLength = record.nameWithoutExtension(
+        symbolName, SymbolAbstractNode::k_maxNameSize);
   } else if (m_currentPage == Page::Function) {
     CodePoint symbol = UCodePointNull;
     if (record.hasExtension(Storage::functionExtension)) {
-      symbol = GlobalContext::s_continuousFunctionStore->modelForRecord(record)
+      symbol = GlobalContext::continuousFunctionStore->modelForRecord(record)
                    ->symbol();
     } else if (record.hasExtension(Storage::parametricComponentExtension)) {
-      symbol = CodePoints::k_parametricSymbol;
+      symbol = ContinuousFunctionProperties::k_parametricSymbol;
     } else {
       assert(record.hasExtension(Storage::regressionExtension));
-      symbol = CodePoints::k_cartesianSymbol;
+      symbol = ContinuousFunctionProperties::k_cartesianSymbol;
     }
     symbolLength = Function::NameWithArgument(
         record, symbol, symbolName, Function::k_maxNameWithArgumentSize);
@@ -183,7 +183,7 @@ void MathVariableBoxController::fillCellForRow(HighlightCell* cell, int row) {
     symbolLayout = u.definitionName();
   }
   if (symbolLayout.isUninitialized()) {
-    symbolLayout = Layout::String(symbolName, symbolLength);
+    symbolLayout = LayoutHelper::String(symbolName, symbolLength);
   }
   myCell->label()->setLayout(symbolLayout);
   myCell->subLabel()->setLayout(expressionLayoutForRecord(record, row));
@@ -214,7 +214,7 @@ int MathVariableBoxController::typeAtRow(int row) const {
   return k_leafCellType;
 }
 
-HighlightCell* MathVariableBoxController::reusableCell(int index, int type) {
+HighlightCell *MathVariableBoxController::reusableCell(int index, int type) {
   assert(index >= 0);
   if (type == k_defineVariableCellType) {
     return &m_defineVariableCell;
@@ -225,13 +225,13 @@ HighlightCell* MathVariableBoxController::reusableCell(int index, int type) {
   return nodeCellAtIndex(index);
 }
 
-MathVariableBoxController::LeafCell* MathVariableBoxController::leafCellAtIndex(
+MathVariableBoxController::LeafCell *MathVariableBoxController::leafCellAtIndex(
     int index) {
   assert(index >= 0 && index < k_maxNumberOfDisplayedRows);
   return &m_leafCells[index];
 }
 
-Escher::NestedMenuController::NodeCell*
+Escher::NestedMenuController::NodeCell *
 MathVariableBoxController::nodeCellAtIndex(int index) {
   assert(index >= 0 && index < k_numberOfMenuRows);
   return &m_nodeCells[index];
@@ -289,35 +289,28 @@ bool MathVariableBoxController::selectLeaf(int selectedRow) {
   size_t nameLength =
       record.nameWithoutExtension(nameToHandle, nameToHandleMaxSize);
 
-  if (m_currentPage == Page::Sequence) {
-    App::app()->modalViewController()->dismissModal();
-    sender()->handleEventWithLayout(Layout::Create(
-        KA ^ KSubscriptL(""_l), {.KA = Layout::String(nameToHandle)}));
-    return true;
-  }
-
-  if (m_currentPage == Page::Function) {
+  if (m_currentPage == Page::Function || m_currentPage == Page::Sequence) {
     // Add parentheses to a function name, and braces to a sequence
     char openingChar = m_currentPage == Page::Function ? '(' : '{';
     char closingChar = m_currentPage == Page::Function ? ')' : '}';
     assert(nameLength < nameToHandleMaxSize);
     if (m_currentPage == Page::Sequence) {
-      nameLength += UTF8Helper::WriteCodePoint(
+      nameLength += SerializationHelper::CodePoint(
           nameToHandle + nameLength, nameToHandleMaxSize - nameLength - 1,
           UCodePointSystem);
     }
-    nameLength += UTF8Helper::WriteCodePoint(
+    nameLength += SerializationHelper::CodePoint(
         nameToHandle + nameLength, nameToHandleMaxSize - nameLength - 1,
         openingChar);
-    nameLength += UTF8Helper::WriteCodePoint(
+    nameLength += SerializationHelper::CodePoint(
         nameToHandle + nameLength, nameToHandleMaxSize - nameLength - 1,
         UCodePointEmpty);
     if (m_currentPage == Page::Sequence) {
-      nameLength += UTF8Helper::WriteCodePoint(
+      nameLength += SerializationHelper::CodePoint(
           nameToHandle + nameLength, nameToHandleMaxSize - nameLength - 1,
           UCodePointSystem);
     }
-    nameLength += UTF8Helper::WriteCodePoint(
+    nameLength += SerializationHelper::CodePoint(
         nameToHandle + nameLength, nameToHandleMaxSize - nameLength - 1,
         closingChar);
     assert(nameLength < nameToHandleMaxSize);
@@ -387,7 +380,7 @@ Layout MathVariableBoxController::expressionLayoutForRecord(
   return m_layouts[index - m_firstMemoizedLayoutIndex];
 }
 
-const char* MathVariableBoxController::Extension(Page page) {
+const char *MathVariableBoxController::Extension(Page page) {
   // Function contains two extensions (func and reg)
   assert(page != Page::RootMenu && page != Page::Function);
   switch (page) {
@@ -447,19 +440,19 @@ bool MathVariableBoxController::destroyRecordAtRow(int row) {
       return false;
     }
     bool isParametricFunction = false;
-    constexpr size_t bufferSize = SymbolHelper::k_maxNameSize;
+    constexpr size_t bufferSize = SymbolAbstractNode::k_maxNameSize;
     char buffer[bufferSize];
     size_t length = 0;
     if (record.hasExtension(Storage::functionExtension)) {
       ExpiringPointer<ContinuousFunction> f =
-          GlobalContext::s_continuousFunctionStore->modelForRecord(record);
+          GlobalContext::continuousFunctionStore->modelForRecord(record);
       if (f->properties().isEnabledParametric()) {
         isParametricFunction = true;
         length = f->name(buffer, bufferSize);
       }
     }
-    Shared::AppWithStoreMenu* app =
-        static_cast<Shared::AppWithStoreMenu*>(App::app());
+    Shared::AppWithStoreMenu *app =
+        static_cast<Shared::AppWithStoreMenu *>(App::app());
     app->prepareForIntrusiveStorageChange();
     bool canDestroy = record.tryToDestroy();
     app->concludeIntrusiveStorageChange();

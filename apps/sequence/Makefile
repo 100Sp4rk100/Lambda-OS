@@ -1,4 +1,11 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/sequence/,$(addsuffix :-test, \
+apps += Sequence::App
+app_headers += apps/sequence/app.h
+
+app_sequence_test_src = $(addprefix apps/sequence/,\
+ \
+)
+
+app_sequence_src = $(addprefix apps/sequence/,\
   app.cpp \
   graph/cobweb_controller.cpp \
   graph/cobweb_graph_view.cpp \
@@ -14,15 +21,21 @@ SOURCES_apps += $(addprefix $(PATH_apps)/sequence/,$(addsuffix :-test, \
   list/sequence_cell.cpp \
   list/sequence_toolbox_data_source.cpp \
   list/type_parameter_controller.cpp \
+  list/vertical_sequence_title_cell.cpp \
   values/interval_parameter_controller.cpp \
   values/sequence_column_parameter_controller.cpp \
   values/sum_column_parameter_controller.cpp \
   values/values_controller.cpp \
-  sequence_icon.png \
-) \
-  test/sequence.cpp:+test \
 )
 
-$(call depends_on_image,$(PATH_apps)/sequence/app.cpp,$(PATH_apps)/sequence/sequence_icon.png)
+app_sequence_src += $(app_sequence_test_src)
+apps_src += $(app_sequence_src)
 
-$(call i18n_without_universal,sequence/i18n/base)
+i18n_files += $(call i18n_without_universal_for,sequence/i18n/base)
+
+tests_src += $(addprefix apps/sequence/test/,\
+  sequence.cpp\
+)
+
+$(eval $(call depends_on_image,apps/sequence/app.cpp,apps/sequence/sequence_icon.png))
+$(eval $(call depends_on_image,apps/sequence/app.cpp,apps/sequence/sequence_icon_epsilon.png))

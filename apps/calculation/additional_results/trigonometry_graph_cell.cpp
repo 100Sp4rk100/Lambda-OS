@@ -1,5 +1,7 @@
 #include "trigonometry_graph_cell.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 using namespace Shared;
 using namespace Poincare;
 using namespace Escher;
@@ -12,7 +14,7 @@ void TrigonometryGraphPolicy::drawPlot(const AbstractPlotView* plotView,
 
   float angle = m_model->angle();
   assert(std::isfinite(angle));
-  assert(0 <= angle && angle < 2 * M_PI + OMG::Float::EpsilonLax<float>());
+  assert(0 <= angle && angle < 2 * M_PI + Float<float>::EpsilonLax());
   if (!std::isfinite(angle)) {
     /* This is defensive coding to avoid looping infinitely in drawArcOfEllipse
      * when angle is not finite. This should not happen since some asserts
@@ -26,15 +28,15 @@ void TrigonometryGraphPolicy::drawPlot(const AbstractPlotView* plotView,
   float c = std::cos(angle);
 
   // - Draw sine and cosine projections
-  plotView->drawDashedStraightSegment(ctx, rect, OMG::Axis::Horizontal, s, 0.f,
-                                      c, Palette::Red);
-  plotView->drawDashedStraightSegment(ctx, rect, OMG::Axis::Vertical, c, 0.f, s,
-                                      Palette::Red);
-  plotView->drawSegment(ctx, rect, {0.f, 0.f}, {c, s}, Palette::Red);
+  plotView->drawDashedStraightSegment(
+      ctx, rect, AbstractPlotView::Axis::Horizontal, s, 0.f, c, Theme::ThemeGestion::getColor("Red"));
+  plotView->drawDashedStraightSegment(
+      ctx, rect, AbstractPlotView::Axis::Vertical, c, 0.f, s, Theme::ThemeGestion::getColor("Red"));
+  plotView->drawSegment(ctx, rect, {0.f, 0.f}, {c, s}, Theme::ThemeGestion::getColor("Red"));
 
   // - Draw angle position on the circle
   plotView->drawDot(ctx, rect, Dots::Size::Large, Coordinate2D<float>(c, s),
-                    Palette::Red);
+                    Theme::ThemeGestion::getColor("Red"));
 
   // - Draw angle arc and label
   constexpr float k_arcRatio = 0.2;
@@ -47,42 +49,42 @@ void TrigonometryGraphPolicy::drawPlot(const AbstractPlotView* plotView,
       AbstractPlotView::RelativePosition::There,
       labelOnLine ? AbstractPlotView::RelativePosition::Before
                   : AbstractPlotView::RelativePosition::There,
-      Palette::Red);
+      Theme::ThemeGestion::getColor("Red"));
   // Draw the arc
   drawArcOfEllipse(plotView, ctx, rect, {0.f, 0.f}, k_arcRatio, k_arcRatio,
-                   0.0f, angle, Palette::Red);
+                   0.0f, angle, Theme::ThemeGestion::getColor("Red"));
 
   // - Draw "sin(θ)" and "cos(θ)" labels
   plotView->drawLabel(ctx, rect, "sin(θ)", Coordinate2D<float>(0.f, s),
                       c >= 0.f ? AbstractPlotView::RelativePosition::Before
                                : AbstractPlotView::RelativePosition::After,
-                      AbstractPlotView::RelativePosition::There, Palette::Red);
+                      AbstractPlotView::RelativePosition::There, Theme::ThemeGestion::getColor("Red"));
   plotView->drawLabel(ctx, rect, "cos(θ)", Coordinate2D<float>(c, 0.f),
                       AbstractPlotView::RelativePosition::There,
                       s >= 0.f ? AbstractPlotView::RelativePosition::After
                                : AbstractPlotView::RelativePosition::Before,
-                      Palette::Red);
+                      Theme::ThemeGestion::getColor("Red"));
 }
 
 void UnitCircle::drawAxesAndGrid(const AbstractPlotView* plotView,
                                  KDContext* ctx, KDRect rect) const {
   PlotPolicy::WithPolarGrid::DrawGrid(plotView, ctx, rect);
-  plotView->drawCircle(ctx, rect, {0.f, 0.f}, 1.f, KDColorBlack);
+  plotView->drawCircle(ctx, rect, {0.f, 0.f}, 1.f, Theme::ThemeGestion::getColor("KDColorBlack"));
   // Labels should be as close to the axes as possible so we place them manually
   KDRect labelRect = plotView->labelRect(
       "-1", {-1, 0}, AbstractPlotView::RelativePosition::Before,
       AbstractPlotView::RelativePosition::There);
   plotView->drawLabel(ctx, rect, "-1",
                       labelRect.translatedBy(k_minusOneFineTunePosition),
-                      KDColorBlack);
+                      Theme::ThemeGestion::getColor("KDColorBlack"));
   labelRect = plotView->labelRect("1", {1, 0},
                                   AbstractPlotView::RelativePosition::After,
                                   AbstractPlotView::RelativePosition::There);
   plotView->drawLabel(ctx, rect, "1",
                       labelRect.translatedBy(k_oneFineTunePosition),
-                      KDColorBlack);
-  m_xAxis.drawAxis(plotView, ctx, rect, OMG::Axis::Horizontal);
-  m_yAxis.drawAxis(plotView, ctx, rect, OMG::Axis::Vertical);
+                      Theme::ThemeGestion::getColor("KDColorBlack"));
+  m_xAxis.drawAxis(plotView, ctx, rect, AbstractPlotView::Axis::Horizontal);
+  m_yAxis.drawAxis(plotView, ctx, rect, AbstractPlotView::Axis::Vertical);
 }
 
 TrigonometryGraphView::TrigonometryGraphView(TrigonometryModel* model)

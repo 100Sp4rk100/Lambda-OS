@@ -7,16 +7,14 @@
 #include <escher/view.h>
 #include <ion.h>
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Shared {
 
 class BannerView : public Escher::View {
  public:
   constexpr static KDFont::Size k_font = KDFont::Size::Small;
-  constexpr static KDGlyph::Format k_bannerFieldFormat = {
-      .style = {.glyphColor = KDColorBlack,
-                .backgroundColor = Escher::Palette::GrayMiddle,
-                .font = k_font},
-      .horizontalAlignment = KDGlyph::k_alignCenter};
+  static KDGlyph::Format k_bannerFieldFormat();
   using BannerBufferTextView = Escher::OneLineBufferTextView<k_font>;
 
   static KDCoordinate HeightGivenNumberOfLines(int linesCount);

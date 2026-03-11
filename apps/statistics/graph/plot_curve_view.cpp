@@ -5,9 +5,6 @@
 #include <algorithm>
 
 #include "plot_controller.h"
-#include "poincare/k_tree.h"
-#include "poincare/src/expression/projection.h"
-#include "shared/poincare_helpers.h"
 
 using namespace Poincare;
 using namespace Shared;
@@ -16,30 +13,20 @@ namespace Statistics {
 
 // LabeledAxisWithOptionalPercent
 
-ExpressionOrFloat LabeledAxisWithOptionalPercent::tickStep(
-    const Shared::AbstractPlotView* plotView, OMG::Axis axis) const {
-  return ExpressionOrFloat::Builder(
-      UserExpression::Create(
-          KMult(KA, KB),
-          {.KA = PlotPolicy::VerticalLabeledAxis::tickStep(plotView, axis)
-                     .expression(),
-           .KB = UserExpression::Builder(
-               m_plotController->labelStepMultiplicator(axis))})
-          .cloneAndTrySimplify({}),
-      PoincareHelpers::ApproximateToRealScalar);
+float LabeledAxisWithOptionalPercent::tickStep(
+    const Shared::AbstractPlotView* plotView,
+    Shared::AbstractPlotView::Axis axis) const {
+  return PlotPolicy::VerticalLabeledAxis::tickStep(plotView, axis) *
+         m_plotController->labelStepMultiplicator(axis);
 }
 
 int LabeledAxisWithOptionalPercent::computeLabel(
-    size_t labelIndex, const Shared::AbstractPlotView* plotView,
-    OMG::Axis axis) {
-  int length =
-      PlotPolicy::VerticalLabeledAxis::computeLabel(labelIndex, plotView, axis);
-  assert(length <= static_cast<int>(k_labelBufferMaxSize));
-  assert(length <= static_cast<int>(k_labelBufferMaxGlyphLength));
-  m_plotController->appendLabelSuffix(
-      axis, &m_labels[labelIndex][length],
-      static_cast<int>(k_labelBufferMaxSize) - length, length,
-      static_cast<int>(k_labelBufferMaxGlyphLength) - length);
+    int i, const Shared::AbstractPlotView* plotView,
+    AbstractPlotView::Axis axis) {
+  int length = PlotPolicy::VerticalLabeledAxis::computeLabel(i, plotView, axis);
+  m_plotController->appendLabelSuffix(axis, &m_labels[i][length],
+                                      k_labelBufferMaxSize - length, length,
+                                      k_labelBufferMaxGlyphLength - length);
   return k_labelBufferMaxSize;
 }
 

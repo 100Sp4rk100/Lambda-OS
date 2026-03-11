@@ -2,7 +2,15 @@
 
 #include <apps/global_preferences.h>
 #include <apps/shared/poincare_helpers.h>
-#include <omg/utf8_helper.h>
+#include <ion/unicode/utf8_helper.h>
+#include <poincare/boolean.h>
+#include <poincare/comparison.h>
+#include <poincare/constant.h>
+#include <poincare/empty_context.h>
+#include <poincare/nonreal.h>
+#include <poincare/rational.h>
+#include <poincare/subtraction.h>
+#include <poincare/undefined.h>
 
 using namespace Ion;
 using namespace Poincare;
@@ -10,78 +18,79 @@ using namespace Shared;
 
 namespace Solver {
 
-#if 0
-SystemExpression Equation::Model::standardForm(
-    const Storage::Record* record, Context* context,
+bool Equation::containsIComplex(Context *context,
+                                SymbolicComputation replaceSymbols) const {
+  return expressionClone().hasComplexI(context, replaceSymbols);
+}
+
+Expression Equation::Model::standardForm(
+    const Storage::Record *record, Context *context,
     bool replaceFunctionsButNotSymbols, ReductionTarget reductionTarget) const {
-  SystemExpression returnedExpression = SystemExpression();
+  Expression returnedExpression = Expression();
   // In any case, undefined symbols must be preserved.
   SymbolicComputation symbolicComputation =
       replaceFunctionsButNotSymbols
-          ? SymbolicComputation::ReplaceDefinedFunctions
-          : SymbolicComputation::ReplaceDefinedSymbols;
-  UserExpression expressionInputWithoutFunctions = expressionClone(record);
-  expressionInputWithoutFunctions.replaceSymbols(context, symbolicComputation);
+          ? SymbolicComputation::ReplaceDefinedFunctionsWithDefinitions
+          : SymbolicComputation::ReplaceAllDefinedSymbolsWithDefinition;
+  Expression expressionInputWithoutFunctions =
+      Expression::ExpressionWithoutSymbols(expressionClone(record), context,
+                                           symbolicComputation);
   if (expressionInputWithoutFunctions.isUninitialized()) {
     // The expression is circularly-defined
     expressionInputWithoutFunctions = Undefined::Builder();
   }
   EmptyContext emptyContext;
-  Context* contextToUse =
+  Context *contextToUse =
       replaceFunctionsButNotSymbols ? &emptyContext : context;
 
   // Reduce the expression
-  UserExpression simplifiedInput = expressionInputWithoutFunctions;
-  bool reductionFailure = false;
+  Expression simplifiedInput = expressionInputWithoutFunctions;
   PoincareHelpers::CloneAndSimplify(&simplifiedInput, contextToUse,
-                                    {.target = reductionTarget},
-                                    &reductionFailure);
-  assert(!reductionFailure);
+                                    {.target = reductionTarget});
 
-  if (simplifiedInput.isNonReal()) {
-    returnedExpression = NonReal::Builder();
+  if (simplifiedInput.type() == ExpressionNode::Type::Nonreal) {
+    returnedExpression = Nonreal::Builder();
   } else if (simplifiedInput.recursivelyMatches(
-                 [](const Expression e, Context* context) {
-                   return (e.isUndefined() || e.isPlusOrMinusInfinity());
+                 [](const Expression e, Context *context) {
+                   return e.isOfType({ExpressionNode::Type::Undefined,
+                                      ExpressionNode::Type::Infinity}) ||
+                          Expression::IsMatrix(e, context);
                  },
-                 contextToUse) ||
-             simplifiedInput.dimension().isMatrix()) {
+                 contextToUse)) {
     returnedExpression = Undefined::Builder();
-  } else if (simplifiedInput.isEquality()) {
-    returnedExpression =
-        Subtraction::Builder(simplifiedInput.cloneChildAtIndex(0),
-                             simplifiedInput.cloneChildAtIndex(1));
-    Internal::ProjectionContext projCtx =
-        PoincareHelpers::ProjectionContextForParameters(
+  } else if (ComparisonNode::IsBinaryEquality(simplifiedInput)) {
+    returnedExpression = Subtraction::Builder(simplifiedInput.childAtIndex(0),
+                                              simplifiedInput.childAtIndex(1));
+    ReductionContext reductionContext =
+        PoincareHelpers::ReductionContextForParameters(
             expressionInputWithoutFunctions, contextToUse,
             {.target = reductionTarget});
-    returnedExpression =
-        returnedExpression.cloneAndReduce(projCtx, &reductionFailure);
-    assert(!reductionFailure && !returnedExpression.isUninitialized());
+    returnedExpression = returnedExpression.cloneAndReduce(reductionContext);
   } else {
-    assert(simplifiedInput.isBoolean() || simplifiedInput.isList());
+    assert(simplifiedInput.isOfType(
+        {ExpressionNode::Type::Boolean, ExpressionNode::Type::List}));
     /* The equality has disappeared after reduction. This may be because:
      * - the comparison was always true or false (e.g. 1 = 0) and has been
      *   reduced to a boolean.
      * - the equal sign has been distributed inside a list
      * Return 1 if the equation has no solution (since it is equivalent to
      * 1 = 0) or 0 if it has infinite solutions. */
-    returnedExpression = simplifiedInput.isBoolean() &&
-                                 static_cast<Boolean&>(simplifiedInput).value()
-                             ? Rational::Builder(0)
-                             : Rational::Builder(1);
+    returnedExpression =
+        simplifiedInput.type() == ExpressionNode::Type::Boolean &&
+                static_cast<Boolean &>(simplifiedInput).value()
+            ? Rational::Builder(0)
+            : Rational::Builder(1);
   }
   return returnedExpression;
 }
-#endif
 
-void* Equation::Model::expressionAddress(
-    const Ion::Storage::Record* record) const {
-  return (char*)record->value().buffer;
+void *Equation::Model::expressionAddress(
+    const Ion::Storage::Record *record) const {
+  return (char *)record->value().buffer;
 }
 
 size_t Equation::Model::expressionSize(
-    const Ion::Storage::Record* record) const {
+    const Ion::Storage::Record *record) const {
   return record->value().size;
 }
 

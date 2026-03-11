@@ -1,7 +1,8 @@
 #ifndef POINCARE_COORDINATE_2D_H
 #define POINCARE_COORDINATE_2D_H
 
-#include <cmath>
+#include <math.h>
+#include <poincare/helpers.h>
 
 namespace Poincare {
 
@@ -14,10 +15,6 @@ class Coordinate2D final {
   template <class C>
   operator Coordinate2D<C>() {
     return Coordinate2D<C>(static_cast<C>(m_x), static_cast<C>(m_y));
-  }
-
-  bool operator==(const Coordinate2D& other) const {
-    return (x() == other.x() && y() == other.y());
   }
 
   T x() const { return m_x; }

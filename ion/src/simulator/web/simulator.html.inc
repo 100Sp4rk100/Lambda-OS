@@ -24,19 +24,14 @@
         </div>
       </div>
       <div class="col-fullscreen">
-        <canvas class="calculator-mirror" width=ION_DISPLAY_WIDTH height=ION_DISPLAY_HEIGHT></canvas>
+        <canvas class="calculator-mirror" width="320" height="240"></canvas>
       </div>
     </div>
-    <script src=EM_MODULE_JS></script>
+    <script src="epsilon.js"></script>
     <script>
 #include "calculator.js"
-      var ModuleAsync = {};
-      var Module = {
-          UTF8ToString: (x => x),
-          _IonSoftwareVersion: (() => EPSILON_VERSION),
-          _IonPatchLevel: (() => PATCH_LEVEL)
-          };
-Calculator(ModuleAsync);
+var Module = {};
+Calculator(Module);
     </script>
     <script>
 document.getElementById("action-fullscreen").addEventListener("click", function(e){
@@ -48,7 +43,7 @@ document.getElementById("action-fullscreen").addEventListener("click", function(
 });
 
 document.getElementById("action-screenshot").addEventListener("click", function(e) {
-  ModuleAsync.takeScreenshot(e);
+  Module.takeScreenshot(e);
 });
     </script>
     <script async src="https://www.numworks.com/simulator/update.js"></script>

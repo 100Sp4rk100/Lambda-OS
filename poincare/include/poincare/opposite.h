@@ -1,0 +1,80 @@
+#ifndef POINCARE_OPPOSITE_H
+#define POINCARE_OPPOSITE_H
+
+#include <poincare/approximation_helper.h>
+#include <poincare/expression.h>
+
+namespace Poincare {
+
+class Opposite;
+
+class OppositeNode final : public ExpressionNode {
+ public:
+  // TreeNode
+  size_t size() const override { return sizeof(OppositeNode); }
+  int numberOfChildren() const override { return 1; }
+#if POINCARE_TREE_LOG
+  void logNodeName(std::ostream& stream) const override {
+    stream << "Opposite";
+  }
+#endif
+
+  // Properties
+  TrinaryBoolean isNull(Context* context) const override {
+    return childAtIndex(0)->isNull(context);
+  }
+  Type type() const override { return Type::Opposite; }
+  TrinaryBoolean isPositive(Context* context) const override {
+    return TrinaryNot(childAtIndex(0)->isPositive(context));
+  }
+  bool childAtIndexNeedsUserParentheses(const Expression& child,
+                                        int childIndex) const override;
+
+  // Approximation
+  Evaluation<float> approximate(
+      SinglePrecision p,
+      const ApproximationContext& approximationContext) const override {
+    return templatedApproximate<float>(approximationContext);
+  }
+  Evaluation<double> approximate(
+      DoublePrecision p,
+      const ApproximationContext& approximationContext) const override {
+    return templatedApproximate<double>(approximationContext);
+  }
+  template <typename T>
+  Evaluation<T> templatedApproximate(
+      const ApproximationContext& approximationContext) const;
+
+  // Layout
+  Layout createLayout(Preferences::PrintFloatMode floatDisplayMode,
+                      int numberOfSignificantDigits,
+                      Context* context) const override;
+  size_t serialize(char* buffer, size_t bufferSize,
+                   Preferences::PrintFloatMode floatDisplayMode =
+                       Preferences::PrintFloatMode::Decimal,
+                   int numberOfSignificantDigits = 0) const override;
+
+  // Simplification
+  Expression shallowReduce(const ReductionContext& reductionContext) override;
+  LayoutShape leftLayoutShape() const override {
+    // leftLayoutShape of Opposite is only called from Conjugate
+    assert(parent() && parent()->type() == Type::Conjugate);
+    return LayoutShape::OneLetter;
+  };
+  LayoutShape rightLayoutShape() const override {
+    return childAtIndex(0)->rightLayoutShape();
+  }
+};
+
+class Opposite final : public ExpressionOneChild<Opposite, OppositeNode> {
+ public:
+  using ExpressionBuilder::ExpressionBuilder, ExpressionBuilder::Builder;
+  static Opposite Builder() {
+    return TreeHandle::FixedArityBuilder<Opposite, OppositeNode>();
+  }
+  Expression shallowReduce(ReductionContext reductionContext);
+};
+
+}  // namespace Poincare
+
+#endif

@@ -3,19 +3,18 @@
 #include <assert.h>
 #include <escher/container.h>
 #include <omg/ieee754.h>
-#include <omg/utf8_helper.h>
 #include <poincare/print.h>
+#include <poincare/serialization_helper.h>
 
 #include "../app.h"
-#include "apps/shared/poincare_helpers.h"
 
 namespace Statistics {
 
 FrequencyController::FrequencyController(
-    Escher::Responder* parentResponder, Escher::ButtonRowController* header,
-    Escher::TabViewController* tabController,
-    Escher::StackViewController* stackViewController,
-    Escher::ViewController* typeViewController, Store* store)
+    Escher::Responder *parentResponder, Escher::ButtonRowController *header,
+    Escher::TabViewController *tabController,
+    Escher::StackViewController *stackViewController,
+    Escher::ViewController *typeViewController, Store *store)
     : PlotController(parentResponder, header, tabController,
                      stackViewController, typeViewController, store),
       m_bannerViewWithEditableField(this, this) {
@@ -23,21 +22,16 @@ FrequencyController::FrequencyController(
   m_curveView.setCursorView(&m_cursorView);
 }
 
-void FrequencyController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (m_curveView.hasFocus()) {
-      Escher::App::app()->setFirstResponder(
-          m_bannerViewWithEditableField.value());
-    }
-    PlotController::handleResponderChainEvent(event);
-  } else {
-    PlotController::handleResponderChainEvent(event);
+void FrequencyController::didBecomeFirstResponder() {
+  if (m_curveView.hasFocus()) {
+    Escher::App::app()->setFirstResponder(
+        m_bannerViewWithEditableField.value());
   }
+  PlotController::didBecomeFirstResponder();
 }
 
 bool FrequencyController::textFieldDidFinishEditing(
-    Escher::AbstractTextField* textField, Ion::Events::Event event) {
+    Escher::AbstractTextField *textField, Ion::Events::Event event) {
   double newX = ParseInputFloatValue<double>(textField->draftText());
   if (HasUndefinedValue(newX)) {
     return false;
@@ -59,16 +53,18 @@ bool FrequencyController::textFieldDidFinishEditing(
   }
   // Update cursor
   m_cursor.moveTo(newX, newX, yValueAtAbscissa(selectedSeries(), newX));
-  setCursorIsRing(newX == valueAtIndex(selectedSeries(), selectedIndex()));
+  m_cursorView.setIsRing(newX ==
+                         valueAtIndex(selectedSeries(), selectedIndex()));
   reloadBannerView();
   m_curveView.reload();
   return true;
 }
 
-void FrequencyController::appendLabelSuffix(OMG::Axis axis, char* labelBuffer,
-                                            int maxSize, int glyphLength,
+void FrequencyController::appendLabelSuffix(Shared::AbstractPlotView::Axis axis,
+                                            char *labelBuffer, int maxSize,
+                                            int glyphLength,
                                             int maxGlyphLength) const {
-  if (axis == OMG::Axis::Horizontal) {
+  if (axis == Shared::AbstractPlotView::Axis::Horizontal) {
     return;
   }
   int length = strlen(labelBuffer);
@@ -77,7 +73,8 @@ void FrequencyController::appendLabelSuffix(OMG::Axis axis, char* labelBuffer,
     labelBuffer[0] = 0;
     return;
   }
-  UTF8Helper::WriteCodePoint(labelBuffer + length, maxSize - length, '%');
+  Poincare::SerializationHelper::CodePoint(labelBuffer + length,
+                                           maxSize - length, '%');
 }
 
 void FrequencyController::reloadValueInBanner(
@@ -97,7 +94,7 @@ void FrequencyController::reloadValueInBanner(
 }
 
 void FrequencyController::moveCursorToSelectedIndex(bool setColor) {
-  setCursorIsRing(true);
+  m_cursorView.setIsRing(true);
   PlotController::moveCursorToSelectedIndex(setColor);
 }
 
@@ -110,10 +107,9 @@ bool FrequencyController::moveSelectionHorizontally(
   }
 
   // Compute cursor step
-  double step =
-      (direction.isRight() ? 1 : -1) *
-      Shared::PoincareHelpers::ToFloat<double>(m_graphRange.xGridUnit()) /
-      static_cast<double>(k_numberOfCursorStepsInGradUnit);
+  double step = (direction.isRight() ? 1 : -1) *
+                static_cast<double>(m_graphRange.xGridUnit()) /
+                static_cast<double>(k_numberOfCursorStepsInGradUnit);
   assert(step != 0.0);
 
   double x = m_cursor.x();
@@ -143,7 +139,7 @@ bool FrequencyController::moveSelectionHorizontally(
     moveCursorToSelectedIndex(false);
     return true;
   }
-  setCursorIsRing(false);
+  m_cursorView.setIsRing(false);
 
   // Apply step
   x += step;
@@ -262,7 +258,7 @@ void FrequencyController::updateHorizontalIndexAfterSelectingNewSeries(
   assert(false);
 }
 
-void FrequencyController::computeYBounds(float* yMin, float* yMax) const {
+void FrequencyController::computeYBounds(float *yMin, float *yMax) const {
   // Frequency curve is always bounded between 0 and 100
   *yMin = 0.0f;
   *yMax = 100.0f;

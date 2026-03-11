@@ -1,15 +1,26 @@
-SOURCES_apps += $(addprefix $(PATH_apps)/finance/,$(addsuffix :-test, \
-  app.cpp \
-  interest_menu_controller.cpp \
-  menu_controller.cpp \
-  parameters_controller.cpp \
-  result_controller.cpp \
-  finance_icon.png \
-) \
+apps += Finance::App
+app_headers += apps/finance/app.h
+
+app_finance_test_src = $(addprefix apps/finance/,\
   data.cpp \
-  test/finance.cpp:+test \
 )
 
-$(call depends_on_image,$(PATH_apps)/finance/app.cpp,$(PATH_apps)/finance/finance_icon.png)
+app_finance_src = $(addprefix apps/finance/,\
+  app.cpp \
+  parameters_controller.cpp \
+  interest_menu_controller.cpp \
+  menu_controller.cpp \
+  result_controller.cpp \
+)
 
-$(call i18n_with_universal,finance/i18n/base)
+app_finance_src += $(app_finance_test_src)
+apps_src += $(app_finance_src)
+
+i18n_files += $(call i18n_with_universal_for,finance/i18n/base)
+
+tests_src += $(addprefix apps/finance/test/,\
+  finance.cpp \
+)
+
+$(eval $(call depends_on_image,apps/finance/app.cpp,apps/finance/finance_icon.png))
+$(eval $(call depends_on_image,apps/finance/app.cpp,apps/finance/finance_icon_epsilon.png))

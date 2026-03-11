@@ -17,6 +17,7 @@ class AppsWindow : public Escher::Window {
   bool updateAlphaLock();
   void hideTitleBarView(bool hide);
   void updateBatteryAnimation();
+  bool updateClock(int h, int m);
 
  private:
 #if ESCHER_VIEW_LOGGING

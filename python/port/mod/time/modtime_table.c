@@ -2,11 +2,17 @@
 
 MP_DEFINE_CONST_FUN_OBJ_1(modtime_sleep_obj, modtime_sleep);
 MP_DEFINE_CONST_FUN_OBJ_0(modtime_monotonic_obj, modtime_monotonic);
+MP_DEFINE_CONST_FUN_OBJ_0(modtime_getTime_obj, modtime_getTime);
+MP_DEFINE_CONST_FUN_OBJ_0(modtime_resetTime_obj, modtime_resetTime);
+MP_DEFINE_CONST_FUN_OBJ_3(modtime_setTime_obj, modtime_setTime);
 
 STATIC const mp_rom_map_elem_t modtime_module_globals_table[] = {
   { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_time) },
   { MP_ROM_QSTR(MP_QSTR_sleep), MP_ROM_PTR(&modtime_sleep_obj) },
   { MP_ROM_QSTR(MP_QSTR_monotonic), MP_ROM_PTR(&modtime_monotonic_obj) },
+  { MP_ROM_QSTR(MP_QSTR_getTime), MP_ROM_PTR(&modtime_getTime_obj) },
+  { MP_ROM_QSTR(MP_QSTR_setTime), MP_ROM_PTR(&modtime_setTime_obj) },
+  { MP_ROM_QSTR(MP_QSTR_resetTime), MP_ROM_PTR(&modtime_resetTime_obj) },
 };
 
 STATIC MP_DEFINE_CONST_DICT(modtime_module_globals, modtime_module_globals_table);

@@ -1,6 +1,4 @@
 ---
-Language:     Cpp
-Standard:     c++20
-BasedOnStyle: Google
-DerivePointerAlignment: false
+Language:        Cpp
+BasedOnStyle:  Google
 ...

@@ -1,8 +1,9 @@
 #include "formula_template_menu_controller.h"
 
 #include <ion/storage/record.h>
-#include <poincare/k_tree.h>
+#include <poincare/addition.h>
 #include <poincare/print.h>
+#include <poincare/symbol.h>
 
 #include "column_helper.h"
 
@@ -12,7 +13,7 @@ using namespace Poincare;
 namespace Shared {
 
 FormulaTemplateMenuController::FormulaTemplateMenuController(
-    Responder* parentResponder, StoreColumnHelper* storeColumnHelper)
+    Responder *parentResponder, StoreColumnHelper *storeColumnHelper)
     : SelectableListViewController(parentResponder),
       m_storeColumnHelper(storeColumnHelper) {
   m_emptyTemplateCell.label()->setMessage(I18n::Message::Empty);
@@ -20,7 +21,7 @@ FormulaTemplateMenuController::FormulaTemplateMenuController(
   m_selectableListView.hideScrollBars();
 }
 
-const char* FormulaTemplateMenuController::title() const {
+const char *FormulaTemplateMenuController::title() {
   return I18n::translate(I18n::Message::FillWithFormula);
 }
 
@@ -30,7 +31,7 @@ void FormulaTemplateMenuController::viewWillAppear() {
   selectRow(0);
 }
 
-void FormulaTemplateMenuController::fillCellForRow(HighlightCell* cell,
+void FormulaTemplateMenuController::fillCellForRow(HighlightCell *cell,
                                                    int row) {
   assert(row < k_numberOfTemplates);
   CellType type = static_cast<CellType>(typeAtRow(row));
@@ -40,13 +41,13 @@ void FormulaTemplateMenuController::fillCellForRow(HighlightCell* cell,
   computeUninitializedLayouts();
   int index = relativeCellIndex(row, type);
   if (type == CellType::TemplateWithMessage) {
-    MessageTemplateCell* myCell = static_cast<MessageTemplateCell*>(cell);
+    MessageTemplateCell *myCell = static_cast<MessageTemplateCell *>(cell);
     myCell->label()->setLayout(m_layouts[row - 1]);
     myCell->subLabel()->setMessage(k_subLabelMessages[index]);
     return;
   }
   assert(type == CellType::TemplateWithBuffer);
-  BufferTemplateCell* myCell = static_cast<BufferTemplateCell*>(cell);
+  BufferTemplateCell *myCell = static_cast<BufferTemplateCell *>(cell);
   myCell->label()->setLayout(m_layouts[row - 1]);
   fillSubLabelBuffer(myCell, index);
 }
@@ -78,7 +79,7 @@ KDCoordinate FormulaTemplateMenuController::nonMemoizedRowHeight(int row) {
       reusableCell(reusableCellIndex, typeAtRow(row)), row);
 }
 
-HighlightCell* FormulaTemplateMenuController::reusableCell(int index,
+HighlightCell *FormulaTemplateMenuController::reusableCell(int index,
                                                            int type) {
   assert(index < reusableCellCount(type));
   CellType cellType = static_cast<CellType>(type);
@@ -132,30 +133,26 @@ bool FormulaTemplateMenuController::shouldDisplayOtherAppCell() const {
   return r.value().size;
 }
 
-UserExpression FormulaTemplateMenuController::templateExpressionForCell(
-    Cell cell) {
+Expression FormulaTemplateMenuController::templateExpressionForCell(Cell cell) {
   assert(cell < Cell::MaxNumberOfRows && cell > Cell::EmptyTemplate);
   if (cell <= Cell::Logarithm) {
-    return UserExpression::Parse(k_templates[static_cast<int>(cell) - 1],
-                                 nullptr);
+    return Expression::Parse(k_templates[static_cast<int>(cell) - 1], nullptr);
   }
   // Build the expression "X2+X3"
   if (cell == Cell::OtherColumns) {
     char name1[DoublePairStore::k_columnNamesLength + 1];
     char name2[DoublePairStore::k_columnNamesLength + 1];
-    fillSumColumnNames(name1, name2);
-    return UserExpression::Create(
-        KAdd(KA, KB), {.KA = SymbolHelper::BuildSymbol(
-                           name1, DoublePairStore::k_columnNamesLength),
-                       .KB = SymbolHelper::BuildSymbol(
-                           name2, DoublePairStore::k_columnNamesLength)});
+    char *columnNames[2] = {name1, name2};
+    fillSumColumnNames(columnNames);
+    return Addition::Builder(
+        Symbol::Builder(columnNames[0], DoublePairStore::k_columnNamesLength),
+        Symbol::Builder(columnNames[1], DoublePairStore::k_columnNamesLength));
   }
   // Build the expression "V1"
   assert(cell == Cell::OtherApp && shouldDisplayOtherAppCell());
   char columnName[DoublePairStore::k_columnNamesLength + 1];
   fillOtherAppColumnName(columnName);
-  return SymbolHelper::BuildSymbol(columnName,
-                                   DoublePairStore::k_columnNamesLength);
+  return Symbol::Builder(columnName, DoublePairStore::k_columnNamesLength);
 }
 
 void FormulaTemplateMenuController::computeUninitializedLayouts() {
@@ -164,8 +161,7 @@ void FormulaTemplateMenuController::computeUninitializedLayouts() {
     if (!m_layouts[i - 1].isUninitialized()) {
       continue;
     }
-    Poincare::UserExpression e =
-        templateExpressionForCell(static_cast<Cell>(i));
+    Poincare::Expression e = templateExpressionForCell(static_cast<Cell>(i));
     m_layouts[i - 1] =
         e.createLayout(Poincare::Preferences::PrintFloatMode::Decimal,
                        Preferences::ShortNumberOfSignificantDigits,
@@ -173,7 +169,7 @@ void FormulaTemplateMenuController::computeUninitializedLayouts() {
   }
 }
 
-void FormulaTemplateMenuController::fillSubLabelBuffer(BufferTemplateCell* cell,
+void FormulaTemplateMenuController::fillSubLabelBuffer(BufferTemplateCell *cell,
                                                        int index) {
   I18n::Message message =
       k_subLabelMessages[index + k_numberOfExpressionCellsWithMessage];
@@ -183,7 +179,8 @@ void FormulaTemplateMenuController::fillSubLabelBuffer(BufferTemplateCell* cell,
   if (index == 0) {
     char name1[DoublePairStore::k_columnNamesLength + 1];
     char name2[DoublePairStore::k_columnNamesLength + 1];
-    fillSumColumnNames(name1, name2);
+    char *columnNames[2] = {name1, name2};
+    fillSumColumnNames(columnNames);
     Print::CustomPrintf(buffer, k_bufferSize, I18n::translate(message), name1,
                         name2);
     cell->subLabel()->setText(buffer);
@@ -197,42 +194,20 @@ void FormulaTemplateMenuController::fillSubLabelBuffer(BufferTemplateCell* cell,
   cell->subLabel()->setText(buffer);
 }
 
-void replaceSeriesIndex(char* columnName, int value) {
-  columnName[1] = '1' + value;
-}
-int getSeriesIndex(const char* columnName) {
-  return static_cast<int>(columnName[1] - '1');
-}
-
-void FormulaTemplateMenuController::fillSumColumnNames(
-    char* columnName1, char* columnName2) const {
-  char currentColumnName[DoublePairStore::k_columnNamesLength + 1];
-  m_storeColumnHelper->fillColumnNameFromStore(
-      m_storeColumnHelper->referencedColumn(), currentColumnName);
-  int currentSeriesIndex = getSeriesIndex(currentColumnName);
-
-  strlcpy(columnName1, currentColumnName,
-          DoublePairStore::k_columnNamesLength + 1);
-  strlcpy(columnName2, currentColumnName,
-          DoublePairStore::k_columnNamesLength + 1);
-
-  /* The displayed sum will be "V_(n-2) + V_(n-1)" (for columnName in the form
-   * "V1", "V2", "V3" etc.). For the first and the second column, we display
-   * "V2+V3" or "V1+V3" respectively.  */
-  static_assert(DoublePairStore::k_numberOfSeries >= 3);
-  replaceSeriesIndex(columnName1, currentSeriesIndex == 0 ? 1
-                                  : currentSeriesIndex == 1
-                                      ? 0
-                                      : currentSeriesIndex - 2);
-  replaceSeriesIndex(columnName2, currentSeriesIndex == 0 ? 2
-                                  : currentSeriesIndex == 1
-                                      ? 2
-                                      : currentSeriesIndex - 1);
+void FormulaTemplateMenuController::fillSumColumnNames(char *buffers[]) const {
+  for (int i = 0; i < 2; i++) {
+    m_storeColumnHelper->fillColumnNameFromStore(
+        m_storeColumnHelper->referencedColumn(), buffers[i]);
+    int seriesIndex = static_cast<int>(buffers[i][1] - '1');
+    int newSeriesIndex =
+        (seriesIndex + i + 1) % DoublePairStore::k_numberOfSeries;
+    buffers[i][1] = '1' + newSeriesIndex;
+  }
 }
 
 char correspondingColumnInOtherApp(char columnPrefix) {
   constexpr static int k_numberOfApps = 2;
-  constexpr static const char* const* k_columnNames[k_numberOfApps] = {
+  constexpr static const char *const *k_columnNames[k_numberOfApps] = {
       DoublePairStore::k_regressionColumNames,
       DoublePairStore::k_statisticsColumNames};
   for (int i = 0; i < DoublePairStore::k_numberOfColumnsPerSeries; i++) {
@@ -246,7 +221,7 @@ char correspondingColumnInOtherApp(char columnPrefix) {
   return 0;
 }
 
-void FormulaTemplateMenuController::fillOtherAppColumnName(char* buffer) const {
+void FormulaTemplateMenuController::fillOtherAppColumnName(char *buffer) const {
   m_storeColumnHelper->fillColumnNameFromStore(
       m_storeColumnHelper->referencedColumn(), buffer);
   buffer[0] = correspondingColumnInOtherApp(buffer[0]);

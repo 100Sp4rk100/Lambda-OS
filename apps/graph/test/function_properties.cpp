@@ -1,77 +1,12 @@
 #include <apps/shared/global_context.h>
-#include <poincare/function_properties/function_type.h>
-#include <poincare/src/expression/projection.h>
-#include <poincare/test/helper.h>
 #include <quiz.h>
 
 #include "helper.h"
 
-using namespace Poincare;
 using namespace Shared;
+using namespace Poincare;
 
 namespace Graph {
-
-void assert_cartesian_function_type_is(
-    const char* expression, FunctionType::CartesianType expectedType) {
-  const char* symbol = "x";
-  Shared::GlobalContext context;
-  Expression e = Expression::Builder(parse_expression(expression, &context));
-  bool reductionFailure = false;
-  e = e.cloneAndReduce(
-      Internal::Projection::DefaultProjectionContextForAnalysis(&context),
-      &reductionFailure);
-  assert(!reductionFailure && !e.isUninitialized());
-  FunctionType::CartesianType type =
-      FunctionType::CartesianFunctionType(e, symbol);
-  quiz_assert_print_if_failure(type == expectedType, expression);
-}
-
-QUIZ_CASE(graph_cartesian_function_type) {
-  assert_cartesian_function_type_is("cos(3x)+2sin(x+1)-tan(4x)",
-                                    FunctionType::CartesianType::Trigonometric);
-  assert_cartesian_function_type_is("4cos(log(3))",
-                                    FunctionType::CartesianType::Constant);
-  assert_cartesian_function_type_is("3x", FunctionType::CartesianType::Linear);
-  assert_cartesian_function_type_is("1+x", FunctionType::CartesianType::Affine);
-  assert_cartesian_function_type_is("1+(1/x)",
-                                    FunctionType::CartesianType::Rational);
-  assert_cartesian_function_type_is("(πx^2-3x^5)/(1-x)",
-                                    FunctionType::CartesianType::Rational);
-  assert_cartesian_function_type_is("x^0.5",
-                                    FunctionType::CartesianType::Default);
-  assert_cartesian_function_type_is("4log(6x)+3cos(1)-πlog(2x-4)",
-                                    FunctionType::CartesianType::Logarithmic);
-  assert_cartesian_function_type_is("tan(3x)",
-                                    FunctionType::CartesianType::Trigonometric);
-  assert_cartesian_function_type_is("cos(3x)+2sin(x+1)-tan(4x)",
-                                    FunctionType::CartesianType::Trigonometric);
-  assert_cartesian_function_type_is("4tan(3x)-tan(x+1)",
-                                    FunctionType::CartesianType::Trigonometric);
-}
-
-void assert_polar_line_type_is(const char* expression,
-                               FunctionType::LineType expectedType) {
-  const char* symbol = "θ";
-  Shared::GlobalContext context;
-  Expression e = Expression::Builder(parse_expression(expression, &context));
-  bool reductionFailure = false;
-  e = e.cloneAndReduce(
-      Internal::Projection::DefaultProjectionContextForAnalysis(&context),
-      &reductionFailure);
-  assert(!reductionFailure && !e.isUninitialized());
-  FunctionType::LineType type = FunctionType::PolarLineType(e, symbol);
-  quiz_assert_print_if_failure(type == expectedType, expression);
-}
-
-QUIZ_CASE(graph_polar_line_type) {
-  assert_polar_line_type_is("1/cos(θ)", FunctionType::LineType::Vertical);
-  assert_polar_line_type_is("1/sin(θ)", FunctionType::LineType::Horizontal);
-  assert_polar_line_type_is("1/cos(θ+π/2)", FunctionType::LineType::Horizontal);
-  assert_polar_line_type_is("1/cos(θ-π/2)", FunctionType::LineType::Horizontal);
-  assert_polar_line_type_is("1/sin(θ+4)", FunctionType::LineType::Diagonal);
-  assert_polar_line_type_is("1/(1+cos(θ))", FunctionType::LineType::None);
-  assert_polar_line_type_is("1/(cos(3θ))", FunctionType::LineType::None);
-}
 
 struct FunctionProperties {
   ContinuousFunctionProperties::Status m_status =
@@ -79,7 +14,7 @@ struct FunctionProperties {
   I18n::Message m_caption = ContinuousFunctionProperties::k_defaultCaption;
   ContinuousFunctionProperties::SymbolType m_symbolType =
       ContinuousFunctionProperties::k_defaultSymbolType;
-  ComparisonJunior::Operator m_equationType =
+  Poincare::ComparisonNode::OperatorType m_equationType =
       ContinuousFunctionProperties::k_defaultEquationType;
   ContinuousFunctionProperties::CurveParameterType m_curveParameterType =
       ContinuousFunctionProperties::k_defaultCurveParameterType;
@@ -115,7 +50,6 @@ void assert_check_function_properties(const char* expression,
                 expectedProperties.m_equationType);
     quiz_assert(fProperties.areaType() == expectedProperties.m_areaType);
   }
-  store->removeModel(*function);
 }
 
 void assert_check_function_properties(const char* expression,
@@ -128,10 +62,10 @@ void assert_check_function_properties(const char* expression,
 }
 
 void assert_same_function_properties(const char* expression1,
-                                     const char* expression2,
-                                     Context* context) {
+                                     const char* expression2) {
+  GlobalContext context;
   ContinuousFunctionStore store;
-  ContinuousFunction* function1 = addFunction(expression1, &store, context);
+  ContinuousFunction* function1 = addFunction(expression1, &store, &context);
   ContinuousFunctionProperties properties1 = function1->properties();
   assert_check_function_properties(
       expression2,
@@ -147,18 +81,11 @@ void assert_same_function_properties(const char* expression1,
           .m_isAlongY = properties1.isAlongY(),
           .m_areaType = properties1.areaType(),
       },
-      &store, context);
-  store.removeModel(*function1);
-}
-
-void assert_same_function_properties(const char* expression1,
-                                     const char* expression2) {
-  GlobalContext context;
-  assert_same_function_properties(expression1, expression2, &context);
+      &store, &context);
 }
 
 QUIZ_CASE(graph_function_properties) {
-  MathPreferences::SharedPreferences()->setComplexFormat(
+  Poincare::Preferences::SharedPreferences()->setComplexFormat(
       Preferences::ComplexFormat::Cartesian);
 
   // Test the plot type under different Press-to-test parameters :
@@ -176,24 +103,8 @@ QUIZ_CASE(graph_function_properties) {
                    .setFlag(PTTFlags::ForbidInequalityGraphing)
                    .setFlag(PTTFlags::ForbidImplicitPlots)),
   };
-
-  MathPreferences::SharedPreferences()->setComplexFormat(
-      Preferences::ComplexFormat::Cartesian);
-
-  constexpr static FunctionProperties k_linearProperties = FunctionProperties{
-      .m_caption = I18n::Message::LinearType,
-      .m_curveParameterType =
-          ContinuousFunctionProperties::CurveParameterType::CartesianFunction};
-
-  constexpr static FunctionProperties k_lineProperties = FunctionProperties{
-      .m_caption = I18n::Message::LineType,
-      .m_curveParameterType =
-          ContinuousFunctionProperties::CurveParameterType::Line};
-
   for (const ExamMode examMode : examModes) {
-    if (MathPreferences::SharedPreferences()->examMode() != examMode) {
-      MathPreferences::SharedPreferences()->setExamMode(examMode);
-    }
+    Preferences::SharedPreferences()->setExamMode(examMode);
     bool noInequations = examMode.forbidInequalityGraphing();
     bool noImplicitPlot = examMode.forbidImplicitPlots();
 
@@ -214,30 +125,15 @@ QUIZ_CASE(graph_function_properties) {
                                    CurveParameterType::CartesianFunction});
 
     assert_check_function_properties(
-        "f(x)=-(4x+π)",
-        FunctionProperties{.m_caption = I18n::Message::AffineType,
+        "f(x)=-2x/(1+π)",
+        FunctionProperties{.m_caption = I18n::Message::LinearType,
                            .m_curveParameterType =
                                ContinuousFunctionProperties::
                                    CurveParameterType::CartesianFunction});
-    assert_check_function_properties(
-        "f(x)=3(π-x)",
-        FunctionProperties{.m_caption = I18n::Message::AffineType,
-                           .m_curveParameterType =
-                               ContinuousFunctionProperties::
-                                   CurveParameterType::CartesianFunction});
-
-    assert_check_function_properties("f(x)=-2x/(1+π)", k_linearProperties);
 
     assert_check_function_properties(
         "f(x)=-(2x-4/(1+π))",
         FunctionProperties{.m_caption = I18n::Message::AffineType,
-                           .m_curveParameterType =
-                               ContinuousFunctionProperties::
-                                   CurveParameterType::CartesianFunction});
-
-    assert_check_function_properties(
-        "f(x)=x^1000",
-        FunctionProperties{.m_caption = I18n::Message::PolynomialType,
                            .m_curveParameterType =
                                ContinuousFunctionProperties::
                                    CurveParameterType::CartesianFunction});
@@ -315,7 +211,13 @@ QUIZ_CASE(graph_function_properties) {
         .m_caption = I18n::Message::Disabled};
 
     assert_check_function_properties(
-        "y+x+1=0", noImplicitPlot ? k_bannedProperties : k_lineProperties);
+        "y+x+1=0",
+        noImplicitPlot
+            ? k_bannedProperties
+            : FunctionProperties{
+                  .m_caption = I18n::Message::LineType,
+                  .m_curveParameterType =
+                      ContinuousFunctionProperties::CurveParameterType::Line});
 
     constexpr static FunctionProperties k_horizontalLineProperties =
         FunctionProperties{.m_caption = I18n::Message::HorizontalLineType,
@@ -376,17 +278,17 @@ QUIZ_CASE(graph_function_properties) {
                                        : k_alongYOfDegreeTwoWithTwoSubCurves);
 
     assert_check_function_properties(
-        "x^2<0",
-        (noInequations || noImplicitPlot)
-            ? k_bannedProperties
-            : FunctionProperties{
-                  .m_caption = I18n::Message::InequalityType,
-                  .m_equationType = ComparisonJunior::Operator::Inferior,
-                  .m_isOfDegreeTwo = true,
-                  .m_numberOfSubCurves = 1,
-                  .m_isAlongY = true,
-                  .m_areaType =
-                      ContinuousFunctionProperties::AreaType::Inside});
+        "x^2<0", (noInequations || noImplicitPlot)
+                     ? k_bannedProperties
+                     : FunctionProperties{
+                           .m_caption = I18n::Message::InequalityType,
+                           .m_equationType =
+                               Poincare::ComparisonNode::OperatorType::Inferior,
+                           .m_isOfDegreeTwo = true,
+                           .m_numberOfSubCurves = 1,
+                           .m_isAlongY = true,
+                           .m_areaType =
+                               ContinuousFunctionProperties::AreaType::Inside});
 
     assert_check_function_properties(
         "y>log(x)",
@@ -394,7 +296,8 @@ QUIZ_CASE(graph_function_properties) {
             ? k_bannedProperties
             : FunctionProperties{
                   .m_caption = I18n::Message::InequalityType,
-                  .m_equationType = ComparisonJunior::Operator::Superior,
+                  .m_equationType =
+                      Poincare::ComparisonNode::OperatorType::Superior,
                   .m_curveParameterType = ContinuousFunctionProperties::
                       CurveParameterType::CartesianFunction,
                   .m_areaType = ContinuousFunctionProperties::AreaType::Above});
@@ -405,7 +308,8 @@ QUIZ_CASE(graph_function_properties) {
             ? k_bannedProperties
             : FunctionProperties{
                   .m_caption = I18n::Message::InequalityType,
-                  .m_equationType = ComparisonJunior::Operator::Inferior,
+                  .m_equationType =
+                      Poincare::ComparisonNode::OperatorType::Inferior,
                   .m_curveParameterType = ContinuousFunctionProperties::
                       CurveParameterType::CartesianFunction,
                   .m_areaType = ContinuousFunctionProperties::AreaType::Below});
@@ -417,7 +321,8 @@ QUIZ_CASE(graph_function_properties) {
             ? k_bannedProperties
             : FunctionProperties{
                   .m_caption = I18n::Message::InequalityType,
-                  .m_equationType = ComparisonJunior::Operator::Inferior,
+                  .m_equationType =
+                      Poincare::ComparisonNode::OperatorType::Inferior,
                   .m_conicShape = Poincare::Conic::Shape::Circle,
                   .m_isOfDegreeTwo = true,
                   .m_numberOfSubCurves = 2,
@@ -430,7 +335,8 @@ QUIZ_CASE(graph_function_properties) {
             : FunctionProperties{
                   .m_status = ContinuousFunctionProperties::Status::Unhandled,
                   .m_caption = I18n::Message::UnhandledType,
-                  .m_equationType = ComparisonJunior::Operator::Superior});
+                  .m_equationType =
+                      Poincare::ComparisonNode::OperatorType::Superior});
     assert_check_function_properties(
         "x^2+y^2=12",
         noImplicitPlot
@@ -490,7 +396,8 @@ QUIZ_CASE(graph_function_properties) {
         FunctionProperties{
             .m_caption = I18n::Message::Equation,
             .m_curveParameterType =
-                ContinuousFunctionProperties::CurveParameterType::Line});
+                ContinuousFunctionProperties::CurveParameterType::Line,
+        });
 
     constexpr static FunctionProperties k_twoSubCurves =
         FunctionProperties{.m_caption = I18n::Message::Equation,
@@ -510,7 +417,7 @@ QUIZ_CASE(graph_function_properties) {
             ? k_bannedProperties
             : FunctionProperties{
                   .m_caption = I18n::Message::InequalityType,
-                  .m_equationType = ComparisonJunior::Operator::Superior,
+                  .m_equationType = ComparisonNode::OperatorType::Superior,
                   .m_isOfDegreeTwo = true,
                   .m_numberOfSubCurves = 2,
                   .m_areaType =
@@ -522,14 +429,11 @@ QUIZ_CASE(graph_function_properties) {
             ? k_bannedProperties
             : FunctionProperties{
                   .m_caption = I18n::Message::InequalityType,
-                  .m_equationType = ComparisonJunior::Operator::SuperiorEqual,
+                  .m_equationType = ComparisonNode::OperatorType::SuperiorEqual,
                   .m_isOfDegreeTwo = true,
-                  .m_numberOfSubCurves = 1,
+                  .m_numberOfSubCurves = 2,
                   .m_areaType =
                       ContinuousFunctionProperties::AreaType::Outside});
-
-    assert_check_function_properties(
-        "(x+i)*y^2=x", noImplicitPlot ? k_bannedProperties : k_twoSubCurves);
 
     // === Polar functions ===
 
@@ -840,7 +744,8 @@ QUIZ_CASE(graph_function_properties) {
             : FunctionProperties{
                   .m_status = ContinuousFunctionProperties::Status::Unhandled,
                   .m_caption = I18n::Message::UnhandledType,
-                  .m_equationType = ComparisonJunior::Operator::Superior});
+                  .m_equationType =
+                      Poincare::ComparisonNode::OperatorType::Superior});
 
     assert_check_function_properties(
         "2-y^2>log(x)",
@@ -849,7 +754,8 @@ QUIZ_CASE(graph_function_properties) {
             : FunctionProperties{
                   .m_status = ContinuousFunctionProperties::Status::Unhandled,
                   .m_caption = I18n::Message::UnhandledType,
-                  .m_equationType = ComparisonJunior::Operator::Superior});
+                  .m_equationType =
+                      Poincare::ComparisonNode::OperatorType::Superior});
 
     assert_check_function_properties("x*y^2=x", k_unhandledCartesian);
     assert_check_function_properties("y=piecewise(3y,x<2,x)",
@@ -884,36 +790,42 @@ QUIZ_CASE(graph_function_properties) {
     assert_check_function_properties(
         "f(t)=(t,[[tan(tan(tan(tan(tan(tan(tan(tan(tan(4)))))))))]])",
         k_undefinedParametric);
+
     // === Updated complex format ===
 
-    assert(MathPreferences::SharedPreferences()->complexFormat() ==
+    assert(Poincare::Preferences::SharedPreferences()->complexFormat() ==
            Preferences::ComplexFormat::Cartesian);
     assert_check_function_properties("y=(√(-1))^2", k_horizontalLineProperties);
     assert_check_function_properties("y=(i)^2", k_horizontalLineProperties);
-    assert_check_function_properties("f(x)=im(i*x+1)", k_linearProperties);
-    assert_check_function_properties("y=im(i*x+1)", k_lineProperties);
+    assert_check_function_properties(
+        "f(x)=im(i*x+1)",
+        FunctionProperties{.m_caption = I18n::Message::Function,
+                           .m_curveParameterType =
+                               ContinuousFunctionProperties::
+                                   CurveParameterType::CartesianFunction});
+    assert_check_function_properties("y=im(i*x+1)",
+                                     k_cartesianEquationProperties);
 
-    MathPreferences::SharedPreferences()->setComplexFormat(
+    Poincare::Preferences::SharedPreferences()->setComplexFormat(
         Preferences::ComplexFormat::Real);
     assert_check_function_properties("y=(√(-1))^2", k_unhandledCartesian);
     assert_check_function_properties("y=(i)^2", k_horizontalLineProperties);
-    assert_check_function_properties("f(x)=im(i*x+1)", k_linearProperties);
-    assert_check_function_properties("y=im(i*x+1)", k_lineProperties);
-    // Restore cartesian complex format
-    MathPreferences::SharedPreferences()->setComplexFormat(
+    assert_check_function_properties(
+        "f(x)=im(i*x+1)",
+        FunctionProperties{.m_caption = I18n::Message::Function,
+                           .m_curveParameterType =
+                               ContinuousFunctionProperties::
+                                   CurveParameterType::CartesianFunction});
+    assert_check_function_properties("y=im(i*x+1)",
+                                     k_cartesianEquationProperties);
+    // Restore preferences
+    Poincare::Preferences::SharedPreferences()->setComplexFormat(
         Preferences::ComplexFormat::Cartesian);
 
     // Restore an Off exam mode.
-    if (MathPreferences::SharedPreferences()->examMode() !=
-        ExamMode(ExamMode::Ruleset::Off)) {
-      MathPreferences::SharedPreferences()->setExamMode(
-          ExamMode(ExamMode::Ruleset::Off));
-    }
+    Poincare::Preferences::SharedPreferences()->setExamMode(
+        ExamMode(ExamMode::Ruleset::Off));
   }
-
-  // Restore default preferences
-  MathPreferences::SharedPreferences()->setComplexFormat(
-      Preferences::ComplexFormat::Real);
 }
 
 QUIZ_CASE(graph_function_properties_with_predefined_variables) {
@@ -979,33 +891,23 @@ QUIZ_CASE(graph_function_properties_with_predefined_variables) {
 
   // For derivatives
   addFunction("f(x)=3x", &store, &context);
-  assert_same_function_properties("f1(x)=f'(x)", "f2(x)=diff(f(x),x,x)",
-                                  &context);
-  assert_same_function_properties("f1(x)=f\"(x)", "f2(x)=diff(f(x),x,x,2)",
-                                  &context);
-  assert_same_function_properties("f1(x)=f^(3)(x)", "f2(x)=diff(f(x),x,x,3)",
-                                  &context);
-  assert_same_function_properties("y=f'(x)", "y=diff(f(x),x,x)", &context);
-  assert_same_function_properties("y=f\"(x)", "y=diff(f(x),x,x,2)", &context);
-  assert_same_function_properties("y=f^(3)(x)", "y=diff(f(x),x,x,3)", &context);
+  assert_same_function_properties("f1(x)=f'(x)", "f2(x)=diff(f(x),x,x)");
+  assert_same_function_properties("f1(x)=f\"(x)", "f2(x)=diff(f(x),x,x,2)");
+  assert_same_function_properties("f1(x)=f^(3)(x)", "f2(x)=diff(f(x),x,x,3)");
+  assert_same_function_properties("y=f'(x)", "y=diff(f(x),x,x)");
+  assert_same_function_properties("y=f\"(x)", "y=diff(f(x),x,x,2)");
+  assert_same_function_properties("y=f^(3)(x)", "y=diff(f(x),x,x,3)");
   addFunction("r1(θ)=cos(θ)", &store, &context);
-  assert_same_function_properties("r2(θ)=r1'(θ)", "r3(θ)=diff(r1(θ),θ,θ)",
-                                  &context);
-  assert_same_function_properties("r2(θ)=r1\"(θ)", "r3(θ)=diff(r1(θ),θ,θ,2)",
-                                  &context);
-  assert_same_function_properties("r2(θ)=r1^(3)(θ)", "r3(θ)=diff(r1(θ),θ,θ,3)",
-                                  &context);
-  assert_same_function_properties("r=r1'(θ)", "r=diff(r1(θ),θ,θ)", &context);
-  assert_same_function_properties("r=r1\"(θ)", "r=diff(r1(θ),θ,θ,2)", &context);
-  assert_same_function_properties("r=r1^(3)(θ)", "r=diff(r1(θ),θ,θ,3)",
-                                  &context);
+  assert_same_function_properties("r2(θ)=r1'(θ)", "r3(θ)=diff(r1(θ),θ,θ)");
+  assert_same_function_properties("r2(θ)=r1\"(θ)", "r3(θ)=diff(r1(θ),θ,θ,2)");
+  assert_same_function_properties("r2(θ)=r1^(3)(θ)", "r3(θ)=diff(r1(θ),θ,θ,3)");
+  assert_same_function_properties("r=r1'(θ)", "r=diff(r1(θ),θ,θ)");
+  assert_same_function_properties("r=r1\"(θ)", "r=diff(r1(θ),θ,θ,2)");
+  assert_same_function_properties("r=r1^(3)(θ)", "r=diff(r1(θ),θ,θ,3)");
   addFunction("g(t)=(-t,t)", &store, &context);
-  assert_same_function_properties("g1(t)=g'(t)", "g2(t)=diff(g(t),t,t)",
-                                  &context);
-  assert_same_function_properties("g1(t)=g\"(t)", "g2(t)=diff(g(t),t,t,2)",
-                                  &context);
-  assert_same_function_properties("g1(t)=g^(3)(t)", "g2(t)=diff(g(t),t,t,3)",
-                                  &context);
+  assert_same_function_properties("g1(t)=g'(t)", "g2(t)=diff(g(t),t,t)");
+  assert_same_function_properties("g1(t)=g\"(t)", "g2(t)=diff(g(t),t,t,2)");
+  assert_same_function_properties("g1(t)=g^(3)(t)", "g2(t)=diff(g(t),t,t,3)");
 
   // We do not distibute operations on points
   assert_check_function_properties(
@@ -1014,28 +916,17 @@ QUIZ_CASE(graph_function_properties_with_predefined_variables) {
           .m_caption = I18n::Message::ParametricLineType,
           .m_symbolType = ContinuousFunctionProperties::SymbolType::T,
           .m_curveParameterType =
-              ContinuousFunctionProperties::CurveParameterType::Parametric},
-      &store, &context);
-  assert_check_function_properties(
-      "h(t)=g'(t)",
+              ContinuousFunctionProperties::CurveParameterType::Parametric});
+  constexpr static FunctionProperties k_unhandledParametric =
       FunctionProperties{
-          .m_caption = I18n::Message::ParametricEquationType,
-          .m_symbolType = ContinuousFunctionProperties::SymbolType::T,
-          .m_curveParameterType =
-              ContinuousFunctionProperties::CurveParameterType::Parametric,
-          .m_conicShape = Poincare::Conic::Shape::Parabola},
-      &store, &context);
-  constexpr static FunctionProperties k_undefinedParametric =
-      FunctionProperties{
-          .m_status = ContinuousFunctionProperties::Status::Undefined,
-          .m_caption = I18n::Message::UndefinedType,
+          .m_status = ContinuousFunctionProperties::Status::Unhandled,
+          .m_caption = I18n::Message::UnhandledType,
           .m_symbolType = ContinuousFunctionProperties::SymbolType::T,
           .m_curveParameterType =
               ContinuousFunctionProperties::CurveParameterType::Parametric};
-  assert_check_function_properties("h(t)=2g(t)", k_undefinedParametric, &store,
-                                   &context);
-  assert_check_function_properties("h(t)=2g'(t)", k_undefinedParametric, &store,
-                                   &context);
+  assert_check_function_properties("h(t)=g'(t)", k_unhandledParametric);
+  assert_check_function_properties("h(t)=2g(t)", k_unhandledParametric);
+  assert_check_function_properties("h(t)=2g'(t)", k_unhandledParametric);
 
   store.removeAll();
 }

@@ -2,9 +2,9 @@
 #define POINCARE_RANGE_H
 
 #include <assert.h>
-#include <omg/float.h>
 #include <omg/ieee754.h>
 #include <poincare/coordinate_2D.h>
+#include <poincare/float.h>
 
 #include <algorithm>
 #include <cmath>
@@ -23,14 +23,14 @@ class Range1D {
     return std::max(
         std::pow(static_cast<T>(10.),
                  OMG::IEEE754<T>::exponentBase10(t) - static_cast<T>(2.)),
-        k_minLength + OMG::Float::EpsilonLax<T>());
+        k_minLength + Float<T>::EpsilonLax());
   }
 
   /* Given any two numbers, ValidRangeBetween will return a range with bounds no
    * more than limit, and length no less than k_minLength. */
   static Range1D<T> ValidRangeBetween(T a, T b, T limit = k_maxFloat);
 
-  constexpr Range1D(T min = NAN, T max = NAN, T limit = k_maxFloat)
+  constexpr Range1D<T>(T min = NAN, T max = NAN, T limit = k_maxFloat)
       : m_min(std::clamp(min, -limit, limit)),
         m_max(std::clamp(max, -limit, limit)) {
     assert(m_min <= m_max || (std::isnan(m_min) && std::isnan(max)));
@@ -77,8 +77,8 @@ class Range1D {
 template <typename T>
 class Range2D {
  public:
-  constexpr Range2D(Range1D<T> x, Range1D<T> y) : m_x(x), m_y(y) {}
-  constexpr Range2D(T xMin = NAN, T xMax = NAN, T yMin = NAN, T yMax = NAN)
+  constexpr Range2D<T>(Range1D<T> x, Range1D<T> y) : m_x(x), m_y(y) {}
+  constexpr Range2D<T>(T xMin = NAN, T xMax = NAN, T yMin = NAN, T yMax = NAN)
       : Range2D<T>(Range1D<T>(xMin, xMax), Range1D<T>(yMin, yMax)) {}
 
   bool operator!=(const Range2D& other) const {

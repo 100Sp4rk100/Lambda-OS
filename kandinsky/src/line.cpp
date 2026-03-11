@@ -75,11 +75,11 @@ frontColor, KDColor backColor) { int x0 = p1.x; int y0 = p1.y; int x1 = p2.x;
 
   for (wd = (wd+1)/2; ; ) { // pixel loop
     KDPoint p = {.x = x0, .y = y0};
-    KDColor color = KDColorMix(KDColorRed, KDColorWhite,
+    KDColor color = KDColorMix(Theme::ThemeGestion::getColor("KDColorRed"), Theme::ThemeGestion::getColor("KDColorWhite"),
 (abs(err-dx+dy)/ed-wd+1)); KDSetPixel(p, color); e2 = err; x2 = x0; if (2*e2 >=
 -dx) { // x step for (e2 += dy, y2 = y0; e2 < ed*wd && (y1 != y2 || dx > dy); e2
-+= dx) { y2 += sy; p = {.x = x0, .y = y2}; color = KDColorMix(KDColorRed,
-KDColorWhite, (abs(err-dx+dy)/ed-wd+1)); setPixelColor(x0, y2 += sy,
++= dx) { y2 += sy; p = {.x = x0, .y = y2}; color = KDColorMix(Theme::ThemeGestion::getColor("KDColorRed"),
+Theme::ThemeGestion::getColor("KDColorWhite"), (abs(err-dx+dy)/ed-wd+1)); setPixelColor(x0, y2 += sy,
 max(0,255*(abs(e2)/ed-wd+1)));
       }
       if (x0 == x1) break;

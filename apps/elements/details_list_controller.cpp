@@ -1,7 +1,9 @@
 #include "details_list_controller.h"
 
-#include <apps/math_preferences.h>
 #include <escher/clipboard.h>
+
+#include "apps/theme_gestion/themeGestion.h"
+
 
 #include "app.h"
 
@@ -11,12 +13,12 @@ using namespace Poincare;
 namespace Elements {
 
 DetailsListController::DetailsListController(
-    StackViewController* parentResponder)
+    StackViewController *parentResponder)
     : ListWithTopAndBottomController(parentResponder, &m_topElementView,
                                      &m_bottomMessageView),
-      m_topElementView(Escher::Palette::WallScreen),
+      m_topElementView(Theme::ThemeGestion::getColor("WallScreen")),
       m_bottomMessageView(I18n::Message::ElementsDataConditions,
-                          k_messageFormat) {}
+                          k_messageFormat()) {}
 
 bool DetailsListController::handleEvent(Ion::Events::Event e) {
   /* Navigate through elements, sorted by their atomic number.
@@ -33,7 +35,7 @@ bool DetailsListController::handleEvent(Ion::Events::Event e) {
     return false;
   }
 
-  ElementsViewDataSource* dataSource = App::app()->elementsViewDataSource();
+  ElementsViewDataSource *dataSource = App::app()->elementsViewDataSource();
   /* Add an extra ElementsDataBase::k_numberOfElements to work around the %
    * operator not behvaing correctly with negative integers. */
   AtomicNumber newZ = (dataSource->selectedElement() + step +
@@ -44,7 +46,7 @@ bool DetailsListController::handleEvent(Ion::Events::Event e) {
   /* Pop and push back to update the title. */
   KDPoint offset = m_selectableListView.contentOffset();
   int row = m_selectableListView.selectedRow();
-  StackViewController* stack = stackViewController();
+  StackViewController *stack = stackViewController();
   stack->pop();
   stack->push(this);
   m_selectableListView.setContentOffset(offset);
@@ -52,14 +54,14 @@ bool DetailsListController::handleEvent(Ion::Events::Event e) {
   return true;
 }
 
-const char* DetailsListController::title() const {
+const char *DetailsListController::title() {
   return I18n::translate(ElementsDataBase::Name(
       App::app()->elementsViewDataSource()->selectedElement()));
 }
 
-KDCoordinate DetailsListController::separatorBeforeRow(int row) const {
+KDCoordinate DetailsListController::separatorBeforeRow(int row) {
   assert(row < numberOfRows());
-  const DataField* dataField = DataFieldForRow(row);
+  const DataField *dataField = DataFieldForRow(row);
   if (dataField == &ElementsDataBase::ConfigurationField ||
       dataField == &ElementsDataBase::GroupField ||
       dataField == &ElementsDataBase::RadiusField ||
@@ -70,11 +72,11 @@ KDCoordinate DetailsListController::separatorBeforeRow(int row) const {
   return 0;
 }
 
-void DetailsListController::fillCellForRow(HighlightCell* cell, int row) {
+void DetailsListController::fillCellForRow(HighlightCell *cell, int row) {
   AtomicNumber z = App::app()->elementsViewDataSource()->selectedElement();
   assert(ElementsDataBase::IsElement(z));
-  PhysicalQuantityCell* typedCell = static_cast<PhysicalQuantityCell*>(cell);
-  const DataField* dataField = DataFieldForRow(row);
+  PhysicalQuantityCell *typedCell = static_cast<PhysicalQuantityCell *>(cell);
+  const DataField *dataField = DataFieldForRow(row);
 
   I18n::Message sublabel = I18n::Message::Default;
   if (dataField != &ElementsDataBase::GroupField) {
@@ -85,7 +87,7 @@ void DetailsListController::fillCellForRow(HighlightCell* cell, int row) {
 
   typedCell->subLabel()->setMessage(sublabel);
   int significantDigits =
-      MathPreferences::SharedPreferences()->numberOfSignificantDigits();
+      Preferences::SharedPreferences()->numberOfSignificantDigits();
   typedCell->label()->setLayout(dataField->fieldSymbolLayout());
   typedCell->accessory()->setLayout(dataField->getLayout(z, significantDigits));
 }
@@ -100,8 +102,8 @@ KDCoordinate DetailsListController::nonMemoizedRowHeight(int row) {
   return protectedNonMemoizedRowHeight(&tempCell, row);
 }
 
-const DataField* DetailsListController::DataFieldForRow(int row) {
-  constexpr const DataField* k_fields[k_numberOfRows] = {
+const DataField *DetailsListController::DataFieldForRow(int row) {
+  constexpr const DataField *k_fields[k_numberOfRows] = {
       &ElementsDataBase::ZField,
       &ElementsDataBase::AField,
       &ElementsDataBase::MassField,

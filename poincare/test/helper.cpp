@@ -1,222 +1,300 @@
 #include "helper.h"
 
 #include <apps/shared/global_context.h>
-#include <poincare/expression.h>
-#include <poincare/helpers/store.h>
 #include <poincare/print.h>
-#include <poincare/src/expression/k_tree.h>
-#include <poincare/src/expression/metric.h>
-#include <poincare/src/layout/layout_serializer.h>
-#include <poincare/src/layout/layouter.h>
-#include <poincare/src/layout/parsing/rack_parser.h>
-#include <poincare/src/layout/rack_from_text.h>
-#include <poincare/src/memory/tree_stack_checkpoint.h>
-#include <quiz.h>
+#include <poincare/src/parsing/parser.h>
 
-using namespace Poincare::Internal;
+using namespace Poincare;
 
-const char* AlmostMaxIntegerString() {
-  static const char* s =
+const char *MaxIntegerString() {
+  // (2^32)^k_maxNumberOfDigits-1
+  static const char *s =
       "179769313486231590772930519078902473361797697894230657273430081157732675"
       "805500963132708477322407536021120113879871393357658789768814416622492847"
       "430639474124377767893424865485276302219601246094119453082952085005768838"
       "150682342462881473913110540827237163350510684586298239947245938479716304"
-      "835356329624224137214";  // (2^8)^k_maxNumberOfDigits-2
+      "835356329624224137215";
   return s;
 }
 
-#if 0
-const char * MaxIntegerString() {
-  static const char * s = "179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137215"; // (2^8)^k_maxNumberOfDigits-1
+const char *OverflowedIntegerString() {
+  // (2^32)^k_maxNumberOfDigits
+  static const char *s =
+      "179769313486231590772930519078902473361797697894230657273430081157732675"
+      "805500963132708477322407536021120113879871393357658789768814416622492847"
+      "430639474124377767893424865485276302219601246094119453082952085005768838"
+      "150682342462881473913110540827237163350510684586298239947245938479716304"
+      "835356329624224137216";
   return s;
 }
 
-const char * OverflowedIntegerString() {
-  static const char * s = "179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216"; // (2^8)^k_maxNumberOfDigits
+const char *BigOverflowedIntegerString() {
+  // OverflowedIntegerString() with a 2 on first digit
+  static const char *s =
+      "279769313486231590772930519078902473361797697894230657273430081157732675"
+      "805500963132708477322407536021120113879871393357658789768814416622492847"
+      "430639474124377767893424865485276302219601246094119453082952085005768838"
+      "150682342462881473913110540827237163350510684586298239947245938479716304"
+      "835356329624224137216";
   return s;
 }
 
-const char * BigOverflowedIntegerString() {
-  static const char * s = "279769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216"; // OverflowedIntegerString() with a 2 on first digit
+const char *MaxParsedIntegerString() {
+  // 10^k_maxNumberOfParsedDigitsBase10 - 1
+  static const char *s = "999999999999999999999999999999";
   return s;
 }
 
-const char * MaxParsedIntegerString() {
-  static const char * s = "999999999999999999999999999999"; // 10^k_maxNumberOfParsedDigitsBase10 - 1
+const char *ApproximatedParsedIntegerString() {
+  // 10^k_maxNumberOfParsedDigitsBase10
+  static const char *s = "1000000000000000000000000000000";
   return s;
 }
 
-const char * ApproximatedParsedIntegerString() {
-  static const char * s = "1000000000000000000000000000000"; // 10^k_maxNumberOfParsedDigitsBase10
-  return s;
-}
-#endif
-
-/* TODO_PCJ: Use quiz_tolerate_print_if_failure instead of quiz_assert in tests
- * commented as TODO_PCJ */
-void quiz_tolerate_print_if_failure(bool test, const char* input,
-                                    const char* expected,
-                                    const char* observed) {
-  constexpr int bufferSize = 500;
-  char buffer[bufferSize];
-  int i = Poincare::Print::UnsafeCustomPrintf(
-      buffer, bufferSize, "%s\t%s\t%s", test ? "OK" : "BAD", input, expected);
-  if (!test) {
-    Poincare::Print::UnsafeCustomPrintf(buffer + i, bufferSize - i, "\t%s",
-                                        observed);
-  }
-  if (sPrintToleratedTests) {
-    quiz_print(buffer);
-  }
-}
-
-void quiz_assert_print_if_failure(bool test, const char* information,
-                                  const char* expected, const char* observed) {
+void quiz_assert_print_if_failure(bool test, const char *information) {
   if (!test) {
     quiz_print("TEST FAILURE WHILE TESTING:");
     quiz_print(information);
-    if (expected && observed) {
-      constexpr int bufferSize = 500;
-      char buffer[bufferSize];
-      Poincare::Print::UnsafeCustomPrintf(
-          buffer, bufferSize, "Expected: %s\nObserved: %s", expected, observed);
-      quiz_print(buffer);
-    }
   }
   quiz_assert(test);
 }
 
-void remove_system_codepoints(char* buffer) {
-  // TODO serialization should not add system codepoints instead
-  const char* source = buffer;
-  char* dest = buffer;
-  while (*source) {
-    if (*source == '\x11') {
-      source++;
-      continue;
-    }
-    *dest++ = *source++;
+void quiz_assert_log_if_failure(bool test, TreeHandle tree) {
+#if POINCARE_TREE_LOG
+  if (!test) {
+    quiz_print("TEST FAILURE WHILE TESTING:");
+    tree.log();
   }
-  *dest = 0;
-}
-
-void simplify(Tree* e, const ProjectionContext& ctx, bool beautify) {
-  if (!Simplification::Simplify(e, ctx, beautify)) {
-    // Return undef to spot tests overflowing the TreeStack
-    e->cloneNodeOverTree(KFailedSimplification);
-  }
-}
-
-void process_tree_and_compare(const char* input, const char* output,
-                              ProcessTree process,
-                              ProjectionContext projectionContext) {
-  Tree* expected = parse(output, projectionContext.m_context);
-  Tree* expression = parse(input, projectionContext.m_context);
-  if (!expression || !expected) {
-    // Parsing failed
-    quiz_assert(false);
-    if (expression) {
-      expression->removeTree();
-    } else if (expected) {
-      expected->removeTree();
-    }
-    return;
-  }
-  process(expression, projectionContext);
-  if (!expression) {
-    // process failed
-    quiz_assert(false);
-    expected->removeTree();
-    return;
-  }
-  bool ok = expression->treeIsIdenticalTo(expected);
-  if (!ok) {
-#ifndef PLATFORM_DEVICE
-    float expectedMetric =
-        Metric::GetMetric(expected, projectionContext.m_reductionTarget);
-    float expressionMetric =
-        Metric::GetMetric(expression, projectionContext.m_reductionTarget);
 #endif
-    constexpr size_t bufferSize = 1024;
-    char buffer[bufferSize];
-    serialize_expression(expression, buffer);
-    bool visuallyOk = strcmp(output, buffer) == 0;
-    if (visuallyOk) {
-      ok = true;
-    }
-#ifndef PLATFORM_DEVICE
-    else {
-      const char* metricText =
-          expectedMetric > expressionMetric
-              ? " (better "
-              : (expectedMetric == expressionMetric ? " (same " : " (worse ");
-      std::cout << input << " processed to " << buffer << " instead of "
-                << output << metricText << expressionMetric << " vs "
-                << expectedMetric << ")" << std::endl;
-    }
-#endif
-    quiz_assert(ok);
+  quiz_assert(test);
+}
+
+void build_failure_infos(char *returnedInformationsBuffer, size_t bufferSize,
+                         const char *expression, const char *result,
+                         const char *expectedResult) {
+  Print::UnsafeCustomPrintf(returnedInformationsBuffer, bufferSize,
+                            " %s\n processed to\n %s\n instead of\n %s",
+                            expression, result, expectedResult);
+}
+
+void assert_parsed_expression_process_to(
+    const char *expression, const char *result, ReductionTarget target,
+    Preferences::ComplexFormat complexFormat, Preferences::AngleUnit angleUnit,
+    Preferences::UnitFormat unitFormat, SymbolicComputation symbolicComputation,
+    UnitConversion unitConversion, ProcessExpression process,
+    int numberOfSignificantDigits) {
+  Shared::GlobalContext globalContext;
+  Expression e = parse_expression(expression, &globalContext, false);
+  Expression m = process(
+      e, ReductionContext(&globalContext, complexFormat, angleUnit, unitFormat,
+                          target, symbolicComputation, unitConversion));
+  constexpr int bufferSize = 500;
+  char buffer[bufferSize];
+  m.serialize(buffer, bufferSize, DecimalMode, numberOfSignificantDigits);
+  const bool test = strcmp(buffer, result) == 0;
+  char information[bufferSize] = "";
+  if (!test) {
+    build_failure_infos(information, bufferSize, expression, buffer, result);
   }
-  expression->removeTree();
-  expected->removeTree();
-  assert(SharedTreeStack->numberOfTrees() == 0);
+  quiz_assert_print_if_failure(test, information);
 }
 
-Tree* private_parse(const char* input, Poincare::Context* context,
-                    bool parseForAssignment = false,
-                    bool assertNotParsable = false) {
-  Tree* layout = RackFromText(input);
-  RackParser parser(layout, context, true,
-                    parseForAssignment
-                        ? ParsingContext::ParsingMethod::Assignment
-                        : ParsingContext::ParsingMethod::Classic);
-  Tree* expression = parser.parse();
-  if (assertNotParsable || !expression) {
-    quiz_assert(assertNotParsable == !expression);
-    layout->removeTree();
-    return nullptr;
+Expression parse_expression(const char *expression, Context *context,
+                            bool addParentheses, bool parseForAssignment) {
+  Expression result = Expression::Parse(expression, context, addParentheses,
+                                        parseForAssignment);
+  quiz_assert_print_if_failure(!result.isUninitialized(), expression);
+  return result;
+}
+
+void assert_parsed_expression_is(
+    const char *expression, Poincare::Expression r, bool addParentheses,
+    bool parseForAssignment,
+    Preferences::MixedFractions mixedFractionsParameter) {
+  Shared::GlobalContext context;
+  Preferences::SharedPreferences()->enableMixedFractions(
+      mixedFractionsParameter);
+  Expression e = parse_expression(expression, &context, addParentheses,
+                                  parseForAssignment);
+  quiz_assert_print_if_failure(e.isIdenticalTo(r), expression);
+}
+
+void assert_parse_to_same_expression(const char *expression1,
+                                     const char *expression2) {
+  Shared::GlobalContext context;
+  Expression e1 = parse_expression(expression1, &context, false);
+  Expression e2 = parse_expression(expression2, &context, false);
+  quiz_assert(e1.isIdenticalTo(e2));
+}
+
+void assert_reduce_and_store(const char *expression,
+                             Preferences::AngleUnit angleUnit,
+                             Preferences::UnitFormat unitFormat,
+                             Preferences::ComplexFormat complexFormat,
+                             ReductionTarget target) {
+  Shared::GlobalContext globalContext;
+  Expression e = parse_expression(expression, &globalContext, false);
+  assert_expression_reduce(e, angleUnit, unitFormat, complexFormat, target,
+                           expression);
+  assert(e.type() == ExpressionNode::Type::Store);
+  static_cast<Store &>(e).storeValueForSymbol(&globalContext);
+}
+
+void assert_expression_reduce(Expression e, Preferences::AngleUnit angleUnit,
+                              Preferences::UnitFormat unitFormat,
+                              Preferences::ComplexFormat complexFormat,
+                              ReductionTarget target,
+                              const char *printIfFailure) {
+  Shared::GlobalContext globalContext;
+  ReductionContext context = ReductionContext(&globalContext, complexFormat,
+                                              angleUnit, unitFormat, target);
+  bool reductionFailure = false;
+  e = e.cloneAndDeepReduceWithSystemCheckpoint(&context, &reductionFailure);
+  quiz_assert_print_if_failure(!reductionFailure, printIfFailure);
+}
+
+void assert_parsed_expression_simplify_to(
+    const char *expression, const char *simplifiedExpression,
+    ReductionTarget target, Preferences::AngleUnit angleUnit,
+    Preferences::UnitFormat unitFormat,
+    Preferences::ComplexFormat complexFormat,
+    SymbolicComputation symbolicComputation, UnitConversion unitConversion) {
+  assert_parsed_expression_process_to(
+      expression, simplifiedExpression, target, complexFormat, angleUnit,
+      unitFormat, symbolicComputation, unitConversion,
+      [](Expression e, ReductionContext reductionContext) {
+        Expression simplifiedExpression;
+        if (reductionContext.target() == User) {
+          /* Input approximatedExpression as a parameter so that approximation
+           * is computed too, which enables us to check that approximation does
+           * not raise any error. */
+          Expression approximatedExpression;
+          e.cloneAndSimplifyAndApproximate(
+              &simplifiedExpression, &approximatedExpression, reductionContext);
+        } else {
+          simplifiedExpression = e.cloneAndSimplify(reductionContext);
+        }
+        return simplifiedExpression;
+      });
+}
+
+template <typename T>
+void assert_expression_approximates_to(const char *expression,
+                                       const char *approximation,
+                                       Preferences::AngleUnit angleUnit,
+                                       Preferences::UnitFormat unitFormat,
+                                       Preferences::ComplexFormat complexFormat,
+                                       int numberOfSignificantDigits) {
+  assert_parsed_expression_process_to(
+      expression, approximation, SystemForApproximation, complexFormat,
+      angleUnit, unitFormat, ReplaceAllSymbolsWithDefinitionsOrUndefined,
+      DefaultUnitConversion,
+      [](Expression e, ReductionContext reductionContext) {
+        return e.approximate<T>(ApproximationContext(reductionContext));
+      },
+      numberOfSignificantDigits);
+}
+
+void assert_expression_approximates_keeping_symbols_to(
+    const char *expression, const char *simplifiedExpression,
+    Preferences::AngleUnit angleUnit, Preferences::UnitFormat unitFormat,
+    Preferences::ComplexFormat complexFormat, int numberOfSignificantDigits) {
+  assert_parsed_expression_process_to(
+      expression, simplifiedExpression, SystemForApproximation, complexFormat,
+      angleUnit, unitFormat, ReplaceAllDefinedSymbolsWithDefinition,
+      DefaultUnitConversion,
+      [](Expression e, ReductionContext reductionContext) {
+        Expression simplifiedExpression;
+        ReductionContext reductionContextClone = reductionContext;
+        reductionContextClone.setTarget(User);
+        e.cloneAndSimplifyAndApproximate(&simplifiedExpression, nullptr,
+                                         reductionContextClone, true);
+        return simplifiedExpression;
+      },
+      numberOfSignificantDigits);
+}
+
+template <typename T>
+void assert_expression_simplifies_approximates_to(
+    const char *expression, const char *approximation,
+    Preferences::AngleUnit angleUnit, Preferences::UnitFormat unitFormat,
+    Preferences::ComplexFormat complexFormat, int numberOfSignificantDigits) {
+  assert_parsed_expression_process_to(
+      expression, approximation, SystemForApproximation, complexFormat,
+      angleUnit, unitFormat, ReplaceAllSymbolsWithDefinitionsOrUndefined,
+      DefaultUnitConversion,
+      [](Expression e, ReductionContext reductionContext) {
+        e = e.cloneAndSimplify(reductionContext);
+        return e.approximate<T>(ApproximationContext(reductionContext));
+      },
+      numberOfSignificantDigits);
+}
+
+void assert_expression_serializes_to(Expression expression,
+                                     const char *serialization,
+                                     Preferences::PrintFloatMode mode,
+                                     int numberOfSignificantDigits) {
+  constexpr int bufferSize = 500;
+  char buffer[bufferSize];
+  expression.serialize(buffer, bufferSize, mode, numberOfSignificantDigits);
+  bool test = strcmp(serialization, buffer) == 0;
+  char information[bufferSize] = "";
+  if (!test) {
+    build_failure_infos(information, bufferSize, "serialized expression",
+                        buffer, serialization);
   }
-  layout->moveTreeOverTree(expression);
-  return layout;
+  quiz_assert_print_if_failure(test, information);
 }
 
-Tree* parse(const char* input, Poincare::Context* context,
-            bool parseForAssignment) {
-  return private_parse(input, context, parseForAssignment);
+void assert_expression_serializes_and_parses_to_itself(Expression expression) {
+  constexpr int bufferSize = 500;
+  char buffer[bufferSize];
+  expression.serialize(buffer, bufferSize);
+  assert_parsed_expression_is(buffer, expression);
 }
 
-Tree* parse_and_reduce(const char* input, bool beautify) {
-  Tree* e = parse(input);
-  assert(e);
-  ProjectionContext ctx = {};
-  simplify(e, ctx, beautify);
-  return e;
-}
-
-void assert_text_not_parsable(const char* input, Poincare::Context* context) {
-  bool parsed = private_parse(input, context, false, true);
-  quiz_assert(!parsed);
-}
-
-void assert_parse_to_integer_overflow(const char* input,
-                                      Poincare::Context* context) {
-  ExceptionTry {
-    private_parse(input, context);
-    quiz_assert(false);
+void assert_expression_parses_and_serializes_to(const char *expression,
+                                                const char *result) {
+  Shared::GlobalContext globalContext;
+  Expression e = parse_expression(expression, &globalContext, false);
+  constexpr int bufferSize = 500;
+  char buffer[bufferSize];
+  e.serialize(buffer, bufferSize);
+  const bool test = strcmp(buffer, result) == 0;
+  char information[bufferSize] = "";
+  if (!test) {
+    build_failure_infos(information, bufferSize, expression, buffer, result);
   }
-  ExceptionCatch(type) { quiz_assert(type == ExceptionType::IntegerOverflow); }
-  SharedTreeStack->flush();
+  quiz_assert_print_if_failure(test, information);
 }
 
-void store(const char* storeExpression, Poincare::Context* ctx) {
-  Poincare::Expression s = Poincare::Expression::Parse(storeExpression, ctx);
-  Poincare::StoreHelper::PerformStore(ctx, s);
+void assert_expression_parses_and_serializes_to_itself(const char *expression) {
+  return assert_expression_parses_and_serializes_to(expression, expression);
 }
 
-void serialize_expression(const Tree* expression, std::span<char> buffer) {
-  Tree* layout = Layouter::LayoutExpression(expression->cloneTree(), true);
-  quiz_assert(layout);
-  LayoutSerializer::Serialize(layout, buffer);
-  remove_system_codepoints(buffer.data());
-  layout->removeTree();
+void assert_layout_serializes_to(Layout layout, const char *serialization) {
+  constexpr int bufferSize = 255;
+  char buffer[bufferSize];
+  layout.serializeForParsing(buffer, bufferSize);
+  quiz_assert_print_if_failure(strcmp(serialization, buffer) == 0,
+                               serialization);
 }
+
+void assert_expression_layouts_as(Expression expression, Layout layout) {
+  Layout l = expression.createLayout(
+      DecimalMode, PrintFloat::k_maxNumberOfSignificantDigits, nullptr);
+  quiz_assert(l.isIdenticalTo(layout));
+}
+
+template void assert_expression_approximates_to<float>(
+    char const *, char const *, Preferences::AngleUnit, Preferences::UnitFormat,
+    Preferences::ComplexFormat, int);
+template void assert_expression_approximates_to<double>(
+    char const *, char const *, Preferences::AngleUnit, Preferences::UnitFormat,
+    Preferences::ComplexFormat, int);
+template void assert_expression_simplifies_approximates_to<float>(
+    char const *, char const *, Preferences::AngleUnit, Preferences::UnitFormat,
+    Preferences::ComplexFormat, int);
+template void assert_expression_simplifies_approximates_to<double>(
+    char const *, char const *, Preferences::AngleUnit, Preferences::UnitFormat,
+    Preferences::ComplexFormat, int);

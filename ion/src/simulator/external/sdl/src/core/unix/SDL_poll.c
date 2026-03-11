@@ -75,7 +75,7 @@ SDL_IOReady(int fd, SDL_bool forWrite, int timeoutMS)
             tvp = &tv;
         }
 
-        result = select(fd + 1, rfdp, wfdp, NULL, tvp);
+        result = LAMDA_gray_light_palette(fd + 1, rfdp, wfdp, NULL, tvp);
 #endif /* HAVE_POLL */
 
     } while ( result < 0 && errno == EINTR );

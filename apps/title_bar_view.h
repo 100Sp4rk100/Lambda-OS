@@ -4,9 +4,12 @@
 #include <apps/i18n.h>
 #include <escher/buffer_text_view.h>
 #include <escher/image_view.h>
+#include <escher/buffer_text_view.h>
 
 #include "battery_view.h"
 #include "shift_alpha_lock_view.h"
+
+#include "apps/theme_gestion/themeGestion.h"
 
 class TitleBarView : public Escher::View {
  public:
@@ -22,8 +25,9 @@ class TitleBarView : public Escher::View {
   bool setShiftAlphaLockStatus(Ion::Events::ShiftAlphaStatus status);
   void refreshPreferences();
   void reload();
+  bool setTime(int hour, int minute);
 
-  constexpr static KDColor k_backgroundColor = Escher::Palette::YellowDark;
+
 
  private:
   constexpr static size_t k_preferenceTextSize = sizeof("tech/rad");
@@ -31,14 +35,8 @@ class TitleBarView : public Escher::View {
   constexpr static KDCoordinate k_examIconWidth = 18;
   constexpr static KDCoordinate k_examIconHeight = 9;
   constexpr static KDCoordinate k_examIconMargin = 93;
-  constexpr static KDCoordinate k_examTextWidth =
-      KDFont::GlyphWidth(KDFont::Size::Large) * 3;
-  constexpr static KDGlyph::Format k_glyphsFormat = {
-      .style = {.glyphColor = KDColorWhite,
-                .backgroundColor = k_backgroundColor,
-                .font = KDFont::Size::Small},
-      .horizontalAlignment = KDGlyph::k_alignCenter,
-      .verticalAlignment = KDGlyph::k_alignCenter};
+  constexpr static KDCoordinate k_examTextWidth = 20;
+  static KDGlyph::Format k_glyphsFormat();
 
   int numberOfSubviews() const override;
   void layoutSubviews(bool force = false) override;
@@ -50,6 +48,9 @@ class TitleBarView : public Escher::View {
   Escher::BufferTextView<k_preferenceTextSize> m_preferenceView;
   Escher::ImageView m_examModeIconView;
   Escher::MessageTextView m_examModeTextView;
+
+  Escher::BufferTextView<k_preferenceTextSize> m_clockView;
+
 };
 
 #endif

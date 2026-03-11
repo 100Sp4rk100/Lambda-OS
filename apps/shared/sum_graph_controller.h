@@ -10,6 +10,8 @@
 #include "simple_interactive_curve_view_controller.h"
 #include "vertical_cursor_view.h"
 
+#include "apps/theme_gestion/themeGestion.h"
+
 namespace Shared {
 
 class SumGraphController : public SimpleInteractiveCurveViewController {
@@ -18,10 +20,12 @@ class SumGraphController : public SimpleInteractiveCurveViewController {
                      InteractiveCurveViewRange* range, CurveViewCursor* cursor);
 
   void viewWillAppear() override;
+  void didBecomeFirstResponder() override;
   bool handleEvent(Ion::Events::Event event) override;
   bool textFieldDidFinishEditing(Escher::AbstractTextField* textField,
                                  Ion::Events::Event event) override;
 
+  TELEMETRY_ID("Sum");
   void setRecord(Ion::Storage::Record record);
 
  protected:
@@ -33,7 +37,6 @@ class SumGraphController : public SimpleInteractiveCurveViewController {
   Ion::Storage::Record selectedRecord() {
     return m_graphView->selectedRecord();
   }
-  void handleResponderChainEvent(ResponderChainEvent event) override;
 
   enum class Step { FirstParameter = 0, SecondParameter = 1, Result = 2 };
 
@@ -60,8 +63,9 @@ class SumGraphController : public SimpleInteractiveCurveViewController {
   virtual double cursorNextStep(double position,
                                 OMG::HorizontalDirection direction) = 0;
   virtual Poincare::Layout createFunctionLayout() = 0;
-  virtual Poincare::SystemExpression createSumExpression(
-      double startSum, double endSum, Poincare::Context* context);
+  virtual Poincare::Expression createSumExpression(double startSum,
+                                                   double endSum,
+                                                   Poincare::Context* context);
 
   class LegendView : public Escher::View {
    public:
@@ -91,9 +95,7 @@ class SumGraphController : public SimpleInteractiveCurveViewController {
         Poincare::PrintFloat::charSizeForFloatsWithPrecision(k_valuesPrecision);
     constexpr static KDCoordinate k_legendHeight = 35;
     constexpr static KDFont::Size k_font = KDFont::Size::Small;
-    constexpr static KDGlyph::Format k_glyphsFormat = {
-        .style = {.backgroundColor = Escher::Palette::GrayMiddle,
-                  .font = k_font}};
+    static KDGlyph::Format k_glyphsFormat();
 
     int numberOfSubviews() const override { return 3; }
     Escher::View* subviewAtIndex(int index) override;

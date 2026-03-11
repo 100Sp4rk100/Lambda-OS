@@ -1,7 +1,7 @@
 #include "chained_expressions_list_controller.h"
 
 #include "../app.h"
-#include "expressions_list_controller.h"
+#include "apps/calculation/additional_results/expressions_list_controller.h"
 
 using namespace Poincare;
 using namespace Escher;
@@ -15,16 +15,11 @@ void ChainedExpressionsListController::viewDidDisappear() {
   ExpressionsListController::viewDidDisappear();
 }
 
-void ChainedExpressionsListController::handleResponderChainEvent(
-    Responder::ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    /* Width needs to be reinit if tail of controller changed and wasn't already
-     * initialized. */
-    initWidth(m_listController.selectableListView());
-    ExpressionsListController::handleResponderChainEvent(event);
-  } else {
-    ExpressionsListController::handleResponderChainEvent(event);
-  }
+void ChainedExpressionsListController::didBecomeFirstResponder() {
+  /* Width needs to be reinit if tail of controller changed and wasn't already
+   * initialized. */
+  initWidth(m_listController.selectableListView());
+  ExpressionsListController::didBecomeFirstResponder();
 }
 
 int ChainedExpressionsListController::reusableCellCount(int type) const {
@@ -81,13 +76,17 @@ int ChainedExpressionsListController::numberOfRows() const {
          (m_tail ? m_tail->numberOfRows() : 0);
 }
 
-Layout ChainedExpressionsListController::layoutAtIndex(HighlightCell* cell,
-                                                       int index) {
+size_t ChainedExpressionsListController::textAtIndex(char* buffer,
+                                                     size_t bufferSize,
+                                                     HighlightCell* cell,
+                                                     int index) {
   int numberOfOwnedCells = ExpressionsListController::numberOfRows();
   if (index >= numberOfOwnedCells) {
-    return m_tail->layoutAtIndex(cell, index - numberOfOwnedCells);
+    return m_tail->textAtIndex(buffer, bufferSize, cell,
+                               index - numberOfOwnedCells);
   }
-  return ExpressionsListController::layoutAtIndex(cell, index);
+  return ExpressionsListController::textAtIndex(buffer, bufferSize, cell,
+                                                index);
 }
 
 }  // namespace Calculation

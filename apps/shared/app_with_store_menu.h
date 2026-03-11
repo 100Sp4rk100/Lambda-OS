@@ -8,8 +8,7 @@ namespace Shared {
 
 class AppWithStoreMenu : public SharedApp {
  public:
-  bool canStoreLayout() const override { return true; }
-  void storeLayout(Poincare::Layout layout = {}) override;
+  void storeValue(const char* text = "") override;
   bool isStoreMenuOpen() const;
   Escher::EditableFieldHelpBox* toolbox() override final {
     return isStoreMenuOpen() ? nullptr : defaultToolbox();

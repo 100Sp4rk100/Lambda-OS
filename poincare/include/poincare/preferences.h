@@ -7,31 +7,16 @@
 #include <omg/global_box.h>
 #include <poincare/context.h>
 #include <poincare/exam_mode.h>
-#include <poincare/src/expression/context.h>
 #include <stdint.h>
-
-// Forward-declarations of friend classes in other namespaces
-class PreferencesTestBuilder;
-namespace Ion::Storage {
-class FileSystem;
-}
 
 namespace Poincare {
 
-using ReductionTarget = Internal::ReductionTarget;
-using SymbolicComputation = Internal::SymbolicComputation;
+class Expression;
 
-/**
- * Preferences live in the Storage, which does not enforce alignment. The
- * packed attribute ensures the compiler will not emit instructions that require
- * the data to be aligned.
- * TODO: Ideally the class should be final, but we need to override it with
- * Apps::MathPreferences and Escher::LayoutPreferences. See comment below. */
-class __attribute__((packed)) Preferences {
-  friend Ion::Storage::FileSystem;
-  friend PreferencesTestBuilder;
-  friend OMG::GlobalBox<Poincare::Preferences>;
-
+/* Preferences live in the Storage, which does not enforce alignment. The packed
+ * attribute ensures the compiler will not emit instructions that require the
+ * data to be aligned. */
+class __attribute__((packed)) Preferences final {
  public:
   constexpr static int DefaultNumberOfPrintedSignificantDigits = 10;
   constexpr static int VeryLargeNumberOfSignificantDigits = 7;
@@ -44,7 +29,12 @@ class __attribute__((packed)) Preferences {
 
   // Calculation preferences
 
-  using AngleUnit = Internal::AngleUnit;
+  enum class AngleUnit : uint8_t {
+    Radian = 0,
+    Degree,
+    Gradian,
+    NumberOfAngleUnit,
+  };
   /* The 'PrintFloatMode' refers to the way to display float 'scientific' or
    * 'auto'. The scientific mode returns float with style -1.2E2 whereas the
    * auto mode tries to return 'natural' float like (0.021) and switches to
@@ -54,25 +44,29 @@ class __attribute__((packed)) Preferences {
     Decimal = 0,
     Scientific,
     Engineering,
-    NModes,
+    NumberOfPrintFloatMode,
   };
   enum class EditionMode : bool {
     Edition2D,
     Edition1D,
   };
-  using ComplexFormat = Internal::ComplexFormat;
-  constexpr static ComplexFormat k_defaultComplexFormatIfNotReal =
+  enum class ComplexFormat : uint8_t {
+    Real = 0,
+    Cartesian,
+    Polar,
+    NumberOfComplexFormat,
+  };
+  constexpr static ComplexFormat k_defautComplexFormatIfNotReal =
       ComplexFormat::Cartesian;
-  // TODO: C++23: use std::to_underlying instead of static_cast
   constexpr static size_t k_numberOfBitsForAngleUnit =
       OMG::BitHelper::numberOfBitsToCountUpTo(
-          static_cast<uint8_t>(AngleUnit::NUnits));
+          static_cast<unsigned int>(AngleUnit::NumberOfAngleUnit));
   constexpr static size_t k_numberOfBitsForPrintFloatMode =
       OMG::BitHelper::numberOfBitsToCountUpTo(
-          static_cast<uint8_t>(PrintFloatMode::NModes));
+          static_cast<unsigned int>(PrintFloatMode::NumberOfPrintFloatMode));
   constexpr static size_t k_numberOfBitsForComplexFormat =
       OMG::BitHelper::numberOfBitsToCountUpTo(
-          static_cast<uint8_t>(ComplexFormat::NFormats));
+          static_cast<unsigned int>(ComplexFormat::NumberOfComplexFormat));
 
   struct CalculationPreferences {
     AngleUnit angleUnit : k_numberOfBitsForAngleUnit;
@@ -85,20 +79,11 @@ class __attribute__((packed)) Preferences {
           k_numberOfBitsForAngleUnit - k_numberOfBitsForPrintFloatMode -
           1 - k_numberOfBitsForComplexFormat;
     uint8_t numberOfSignificantDigits;
-
-    bool operator==(const CalculationPreferences&) const = default;
   };
 
-  constexpr static CalculationPreferences k_defaultCalculationPreferences = {
-      .angleUnit = AngleUnit::Radian,
-      .displayMode = Preferences::PrintFloatMode::Decimal,
-      .editionMode = EditionMode::Edition2D,
-      .complexFormat = Preferences::ComplexFormat::Real,
-      .numberOfSignificantDigits =
-          Preferences::DefaultNumberOfPrintedSignificantDigits};
-
   // Other preferences
-  using UnitFormat = Internal::UnitFormat;
+
+  enum class UnitFormat : bool { Metric = 0, Imperial = 1 };
   /* The symbol used for combinations and permutations is country-dependent and
    * set in apps but it stored there to be accessible from Poincare */
   enum class CombinatoricSymbols : uint8_t {
@@ -110,85 +95,17 @@ class __attribute__((packed)) Preferences {
     BottomRight = 0,
     TopLeft,
   };
-  enum class TranslateBuiltins : uint8_t {
-    No = 0,
-    TranslateToFrench,
-    // TODO: support other languages
-  };
   // This is in Poincare and not in Apps because it's used in Escher
   enum class LogarithmKeyEvent : uint8_t { Default, WithBaseTen };
   enum class ParabolaParameter : uint8_t { Default, FocalLength };
 
-  constexpr static MixedFractions k_defaultMixedFraction =
-      MixedFractions::Disabled;
-
-  constexpr static LogarithmBasePosition k_defaultLogarithmBasePosition =
-      LogarithmBasePosition::BottomRight;
-
+  Preferences();
   static void Init();
   static Preferences* SharedPreferences();
 
-  bool operator==(const Preferences&) const = default;
-
   static ComplexFormat UpdatedComplexFormatWithExpressionInput(
-      ComplexFormat complexFormat, const Internal::Tree* e, Context* context,
-      SymbolicComputation replaceSymbols =
-          SymbolicComputation::ReplaceDefinedSymbols);
+      ComplexFormat complexFormat, const Expression& e, Context* context);
 
-  CombinatoricSymbols combinatoricSymbols() const {
-    return m_combinatoricSymbols;
-  }
-  void setCombinatoricSymbols(CombinatoricSymbols combinatoricSymbols) {
-    m_combinatoricSymbols = combinatoricSymbols;
-  }
-  bool mixedFractionsAreEnabled() const { return m_mixedFractionsAreEnabled; }
-  void enableMixedFractions(MixedFractions enable) {
-    m_mixedFractionsAreEnabled = static_cast<bool>(enable);
-  }
-  LogarithmBasePosition logarithmBasePosition() const {
-    return m_logarithmBasePosition;
-  }
-  void setLogarithmBasePosition(LogarithmBasePosition position) {
-    m_logarithmBasePosition = position;
-  }
-  TranslateBuiltins translateBuiltins() const {
-#if POINCARE_TRANSLATE_BUILTINS
-    return m_translatedBuiltins;
-#else
-    return TranslateBuiltins::No;
-#endif
-  }
-  void setTranslateBuiltins(TranslateBuiltins translate) {
-#if POINCARE_TRANSLATE_BUILTINS
-    m_translatedBuiltins = translate;
-#endif
-  }
-  LogarithmKeyEvent logarithmKeyEvent() const { return m_logarithmKeyEvent; }
-  void setLogarithmKeyEvent(LogarithmKeyEvent logarithmKeyEvent) {
-    m_logarithmKeyEvent = logarithmKeyEvent;
-  }
-  ParabolaParameter parabolaParameter() const { return m_parabolaParameter; }
-  void setParabolaParameter(ParabolaParameter parameter) {
-    m_parabolaParameter = parameter;
-  }
-
-  bool forceExamModeReload() const { return m_forceExamModeReload; }
-  ExamMode examMode() const;
-  void setExamMode(ExamMode examMode);
-
- protected:
-  /* WARNING: The following methods should not be called in Poincare
-   * EditionMode, AngleUnit, ComplexFormat, PrintFloatMode and
-   * NumberOfSignificantDigits should not be stored in Poincaré's Preferences,
-   * and rather be passed to methods signatures.
-   * The refactor wasn't tackled yet but none of them is currently called in
-   * Poincaré. To ensure this, they are forbidden in PoincareJS (which doesn't
-   * need them), and are protected.
-   * Alias classes Apps::MathPreferences and Escher::LayoutPreferences are
-   * provided in Apps and Escher to access these methods. See comment in
-   * apps/math_preferences.h
-   * TODO_PCJ: Get rid of them entirely */
-#ifndef TARGET_POINCARE_JS
   CalculationPreferences calculationPreferences() const {
     return m_calculationPreferences;
   }
@@ -214,6 +131,12 @@ class __attribute__((packed)) Preferences {
   void setComplexFormat(Preferences::ComplexFormat complexFormat) {
     m_calculationPreferences.complexFormat = complexFormat;
   }
+  CombinatoricSymbols combinatoricSymbols() const {
+    return m_combinatoricSymbols;
+  }
+  void setCombinatoricSymbols(CombinatoricSymbols combinatoricSymbols) {
+    m_combinatoricSymbols = combinatoricSymbols;
+  }
   uint8_t numberOfSignificantDigits() const {
     return m_calculationPreferences.numberOfSignificantDigits;
   }
@@ -221,48 +144,56 @@ class __attribute__((packed)) Preferences {
     m_calculationPreferences.numberOfSignificantDigits =
         numberOfSignificantDigits;
   }
+  bool mixedFractionsAreEnabled() const { return m_mixedFractionsAreEnabled; }
+  void enableMixedFractions(MixedFractions enable) {
+    m_mixedFractionsAreEnabled = static_cast<bool>(enable);
+  }
+  LogarithmBasePosition logarithmBasePosition() const {
+    return m_logarithmBasePosition;
+  }
+  void setLogarithmBasePosition(LogarithmBasePosition position) {
+    m_logarithmBasePosition = position;
+  }
+  LogarithmKeyEvent logarithmKeyEvent() const { return m_logarithmKeyEvent; }
+  void setLogarithmKeyEvent(LogarithmKeyEvent logarithmKeyEvent) {
+    m_logarithmKeyEvent = logarithmKeyEvent;
+  }
+  ParabolaParameter parabolaParameter() { return m_parabolaParameter; }
+  void setParabolaParameter(ParabolaParameter parameter) {
+    m_parabolaParameter = parameter;
+  }
+
+  bool forceExamModeReload() const { return m_forceExamModeReload; }
+  ExamMode examMode() const;
+  void setExamMode(ExamMode examMode);
+
   uint32_t mathPreferencesCheckSum() const {
     return (static_cast<uint32_t>(complexFormat()) << 8) +
            static_cast<uint32_t>(angleUnit());
   }
-#endif
 
  private:
   constexpr static uint8_t k_version = 0;
 
-  /* Preferences is a singleton, hence the private constructor. The unique
-   * instance can be accessed through the Preferences::SharedPreferences()
-   * pointer. */
-  Preferences() = default;
-
-  CODE_GUARD(
-      poincare_preferences, 2067043470,  //
-      uint8_t m_version = k_version;
-      CalculationPreferences m_calculationPreferences =
-          k_defaultCalculationPreferences;
-      mutable ExamMode m_examMode =
-          ExamMode(Ion::ExamMode::Ruleset::Uninitialized);
-      /* This flag can only be asserted by writing it via DFU. When set,
-       * it will force the reactivation of the exam mode after leaving
-       * DFU to synchronize the persisting bytes with the Preferences. */
-      bool m_forceExamModeReload = false;
-      CombinatoricSymbols m_combinatoricSymbols = CombinatoricSymbols::Default;
-      bool m_mixedFractionsAreEnabled =
-          static_cast<bool>(k_defaultMixedFraction);
-      LogarithmBasePosition m_logarithmBasePosition =
-          k_defaultLogarithmBasePosition;
-      LogarithmKeyEvent m_logarithmKeyEvent = LogarithmKeyEvent::Default;
-      ParabolaParameter m_parabolaParameter = ParabolaParameter::Default;)
-
-#if POINCARE_TRANSLATE_BUILTINS
-  mutable TranslateBuiltins m_translatedBuiltins;
-#endif
+  CODE_GUARD(poincare_preferences, 524861357,  //
+             uint8_t m_version;
+             CalculationPreferences m_calculationPreferences;
+             mutable ExamMode m_examMode;
+             /* This flag can only be asserted by writing it via DFU. When set,
+              * it will force the reactivation of the exam mode after leaving
+              * DFU to synchronize the persisting bytes with the Preferences. */
+             bool m_forceExamModeReload;
+             mutable CombinatoricSymbols m_combinatoricSymbols;
+             mutable bool m_mixedFractionsAreEnabled;
+             mutable LogarithmBasePosition m_logarithmBasePosition;
+             mutable LogarithmKeyEvent m_logarithmKeyEvent;
+             mutable ParabolaParameter m_parabolaParameter;)
 
   /* Settings that alter layouts should be tracked by
    * CalculationStore::preferencesMightHaveChanged */
 };
 
-#if PLATFORM_DEVICE && !POINCARE_TRANSLATE_BUILTINS
+#if PLATFORM_DEVICE
 static_assert(sizeof(Preferences) == 11, "Class Preferences changed size");
 #endif
 

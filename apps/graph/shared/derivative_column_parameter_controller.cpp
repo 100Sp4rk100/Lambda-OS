@@ -16,7 +16,7 @@ DerivativeColumnParameterController::DerivativeColumnParameterController(
   m_colorCell.label()->setMessage(I18n::Message::Color);
 }
 
-const char* DerivativeColumnParameterController::title() const {
+const char* DerivativeColumnParameterController::title() {
   assert(m_parameterDelegate);
   return m_parameterDelegate->usePersonalizedTitle()
              ? m_titleBuffer
@@ -67,7 +67,7 @@ void DerivativeColumnParameterController::setRecord(Ion::Storage::Record record,
 
 ExpiringPointer<ContinuousFunction>
 DerivativeColumnParameterController::function() const {
-  return Shared::GlobalContext::s_continuousFunctionStore->modelForRecord(
+  return Shared::GlobalContext::continuousFunctionStore->modelForRecord(
       m_record);
 }
 

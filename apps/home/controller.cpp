@@ -2,7 +2,6 @@
 
 #include <apps/apps_container.h>
 #include <apps/home/apps_layout.h>
-#include <apps/math_preferences.h>
 #include <ion/keyboard/layout_events.h>
 #include <poincare/preferences.h>
 
@@ -18,22 +17,22 @@ using namespace Poincare;
 namespace Home {
 
 Controller::ContentView::ContentView(
-    Controller* controller, SelectableTableViewDataSource* selectionDataSource)
+    Controller *controller, SelectableTableViewDataSource *selectionDataSource)
     : m_selectableTableView(controller, controller, selectionDataSource,
                             controller) {
   m_selectableTableView.setVerticalCellOverlap(0);
   m_selectableTableView.setMargins(k_margins);
-  m_selectableTableView.setBackgroundColor(KDColorWhite);
+  m_selectableTableView.setBackgroundColor(Theme::ThemeGestion::getColor("KDColorWhite"));
   m_selectableTableView.decorator()->setVerticalMargins(
       {k_indicatorMargin, k_indicatorMargin - k_bottomMargin});
 }
 
-SelectableTableView* Controller::ContentView::selectableTableView() {
+SelectableTableView *Controller::ContentView::selectableTableView() {
   return &m_selectableTableView;
 }
 
 void Controller::ContentView::reloadBottomRow(
-    SimpleTableViewDataSource* dataSource, int lastIconColumn) {
+    SimpleTableViewDataSource *dataSource, int lastIconColumn) {
   /* We mark the missing icons on the last row as dirty. */
   for (int i = lastIconColumn + 1; i < dataSource->numberOfColumns(); i++) {
     markRectAsDirty(KDRect(dataSource->columnWidth(0) * i,
@@ -42,7 +41,7 @@ void Controller::ContentView::reloadBottomRow(
   }
 }
 
-View* Controller::ContentView::subviewAtIndex(int index) {
+View *Controller::ContentView::subviewAtIndex(int index) {
   assert(index == 0);
   return &m_selectableTableView;
 }
@@ -58,8 +57,8 @@ void Controller::ContentView::layoutSubviews(bool force) {
   setChildFrame(&m_selectableTableView, frame, force);
 }
 
-Controller::Controller(Responder* parentResponder,
-                       SelectableTableViewDataSource* selectionDataSource)
+Controller::Controller(Responder *parentResponder,
+                       SelectableTableViewDataSource *selectionDataSource)
     : ViewController(parentResponder), m_view(this, selectionDataSource) {}
 
 bool Controller::handleEvent(Ion::Events::Event event) {
@@ -82,6 +81,14 @@ bool Controller::handleEvent(Ion::Events::Event event) {
         k_numberOfColumns - 1, selectionDataSource()->selectedRow() - 1);
     return true;
   }
+  if (event == Ion::Events::Toolbox){
+    AppsContainer *container = AppsContainer::sharedAppsContainer();
+    container->switchToBuiltinApp(container->lambdaAppSnapshot());
+  }
+  if (event == Ion::Events::Ans){
+    AppsContainer *container = AppsContainer::sharedAppsContainer();
+    container->switchToBuiltinApp(container->settingsAppSnapshot());
+  }
   // Handle keys from 0 to 9
   char eventText[Ion::Events::EventData::k_maxDataSize] = {0};
   size_t length = Ion::Events::copyText(static_cast<uint8_t>(event), eventText,
@@ -94,9 +101,6 @@ bool Controller::handleEvent(Ion::Events::Event event) {
                   AppsContainer::sharedAppsContainer()->numberOfExternalApps();
     } else {
       iconIndex = eventText[0] - '1';
-    }
-    if (iconIndex >= AppsContainer::sharedAppsContainer()->numberOfApps()) {
-      return false;
     }
     int col = columnOfIconAtIndex(iconIndex);
     int row = rowOfIconAtIndex(iconIndex);
@@ -121,32 +125,28 @@ bool Controller::handleEvent(Ion::Events::Event event) {
   return false;
 }
 
-void Controller::handleResponderChainEvent(ResponderChainEvent event) {
-  if (event.type == ResponderChainEventType::HasBecomeFirst) {
-    if (selectionDataSource()->selectedRow() == -1) {
-      selectionDataSource()->selectCellAtLocation(0, 0);
-    }
-    App::app()->setFirstResponder(m_view.selectableTableView());
-  } else {
-    ViewController::handleResponderChainEvent(event);
+void Controller::didBecomeFirstResponder() {
+  if (selectionDataSource()->selectedRow() == -1) {
+    selectionDataSource()->selectCellAtLocation(0, 0);
   }
+  App::app()->setFirstResponder(m_view.selectableTableView());
 }
 
-HighlightCell* Controller::reusableCell(int index) {
+HighlightCell *Controller::reusableCell(int index) {
   assert(0 <= index && index < reusableCellCount());
   return &m_reusableCells[index];
 }
 
-void Controller::fillCellForLocation(HighlightCell* cell, int column, int row) {
-  AppCell* appCell = static_cast<AppCell*>(cell);
-  AppsContainer* container = AppsContainer::sharedAppsContainer();
+void Controller::fillCellForLocation(HighlightCell *cell, int column, int row) {
+  AppCell *appCell = static_cast<AppCell *>(cell);
+  AppsContainer *container = AppsContainer::sharedAppsContainer();
   int appIdx = indexOfAppAtColumnAndRow(column, row);
   if (appIdx >= container->numberOfApps()) {
     appCell->setVisible(false);
   } else {
     appCell->setVisible(true);
     if (appIdx < container->numberOfBuiltinApps()) {
-      const ::App::Descriptor* descriptor =
+      const ::App::Descriptor *descriptor =
           container->appSnapshotAtIndex(PermutedAppSnapshotIndex(appIdx))
               ->descriptor();
       appCell->setBuiltinAppDescriptor(descriptor);
@@ -159,13 +159,13 @@ void Controller::fillCellForLocation(HighlightCell* cell, int column, int row) {
 }
 
 int Controller::numberOfIcons() const {
-  AppsContainer* container = AppsContainer::sharedAppsContainer();
+  AppsContainer *container = AppsContainer::sharedAppsContainer();
   assert(container->numberOfApps() > 0);
   return container->numberOfApps() - 1;
 }
 
 void Controller::tableViewDidChangeSelectionAndDidScroll(
-    SelectableTableView* t, int previousSelectedCol, int previousSelectedRow,
+    SelectableTableView *t, int previousSelectedCol, int previousSelectedRow,
     KDPoint previousOffset, bool withinTemporarySelection) {
   assert(t == m_view.selectableTableView());
   /* If the number of icons is != 3*n, when we display the lowest row, no icons
@@ -179,16 +179,16 @@ void Controller::tableViewDidChangeSelectionAndDidScroll(
   }
 }
 
-SelectableTableViewDataSource* Controller::selectionDataSource() const {
+SelectableTableViewDataSource *Controller::selectionDataSource() const {
   return App::app()->snapshot();
 }
 
 void Controller::switchToSelectedApp() {
-  AppsContainer* container = AppsContainer::sharedAppsContainer();
+  AppsContainer *container = AppsContainer::sharedAppsContainer();
   int appIdx = indexOfAppAtColumnAndRow(selectionDataSource()->selectedColumn(),
                                         selectionDataSource()->selectedRow());
   if (appIdx < container->numberOfBuiltinApps()) {
-    ::App::Snapshot* selectedSnapshot =
+    ::App::Snapshot *selectedSnapshot =
         container->appSnapshotAtIndex(PermutedAppSnapshotIndex(appIdx));
     if (appIsForbidden(selectedSnapshot->descriptor()->name())) {
       App::app()->displayWarning(forbiddenAppMessage());
@@ -196,7 +196,7 @@ void Controller::switchToSelectedApp() {
       container->switchToBuiltinApp(selectedSnapshot);
     }
   } else {
-    assert(MathPreferences::SharedPreferences()->examMode().ruleset() ==
+    assert(Preferences::SharedPreferences()->examMode().ruleset() !=
            ExamMode::Ruleset::Off);
     m_view.reload();
     Ion::ExternalApps::App a = container->externalAppAtIndex(
@@ -206,7 +206,7 @@ void Controller::switchToSelectedApp() {
 }
 
 bool Controller::appIsForbidden(I18n::Message appName) const {
-  ExamMode examMode = MathPreferences::SharedPreferences()->examMode();
+  ExamMode examMode = Preferences::SharedPreferences()->examMode();
   return (appName == I18n::Message::CodeApp && examMode.forbidCodeApp()) ||
          (appName == I18n::Message::ElementsApp &&
           examMode.forbidElementsApp()) ||
@@ -214,7 +214,7 @@ bool Controller::appIsForbidden(I18n::Message appName) const {
 }
 
 I18n::Message Controller::forbiddenAppMessage() const {
-  ExamMode mode = MathPreferences::SharedPreferences()->examMode();
+  ExamMode mode = Preferences::SharedPreferences()->examMode();
   if (mode.ruleset() == ExamMode::Ruleset::PressToTest) {
     return I18n::Message::ForbiddenAppInPressToTestMode;
   }

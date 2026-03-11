@@ -1,10 +1,11 @@
 #ifndef ESCHER_HIGHLIGHT_CELL_H
 #define ESCHER_HIGHLIGHT_CELL_H
 
-#include <escher/palette.h>
 #include <escher/responder.h>
 #include <escher/view.h>
 #include <poincare/layout.h>
+
+#include "apps/theme_gestion/themeGestion.h"
 
 namespace Escher {
 
@@ -36,7 +37,7 @@ class HighlightCell : public View {
 
  protected:
   KDColor defaultBackgroundColor() const {
-    return isHighlighted() ? Palette::Select : KDColorWhite;
+    return isHighlighted() ? Theme::ThemeGestion::getColor("Select") : Theme::ThemeGestion::getColor("KDColorWhite");
   }
 
  private:

@@ -17,45 +17,32 @@
  * This is also very useful when running headless because we can easily log the
  * framebuffer to a PNG file. */
 
-static KDColor
-    sPixels[Ion::Display::WidthWithBorder * Ion::Display::HeightWithBorder];
+static KDColor sPixels[Ion::Display::Width * Ion::Display::Height];
 static bool sFrameBufferActive = false;
-
-constexpr static KDPoint k_frameOrigin{Ion::Display::Border,
-                                       Ion::Display::Border};
 
 namespace Ion {
 namespace Display {
 
-class IntializedFrameBuffer : public KDFrameBuffer {
- public:
-  IntializedFrameBuffer(KDColor* pixels, KDSize size)
-      : KDFrameBuffer(pixels, size) {
-    pushRectUniform(bounds(), k_fillColor);
-  }
-  constexpr static KDColor k_fillColor = ION_DISPLAY_BORDER_COLOR;
-};
-
-static IntializedFrameBuffer sFrameBuffer =
-    IntializedFrameBuffer(sPixels, KDSize(WidthWithBorder, HeightWithBorder));
+static KDFrameBuffer sFrameBuffer =
+    KDFrameBuffer(sPixels, KDSize(Width, Height));
 
 void pushRect(KDRect r, const KDColor* pixels) {
   if (sFrameBufferActive) {
     Simulator::Window::setNeedsRefresh();
-    sFrameBuffer.pushRect(r.translatedBy(k_frameOrigin), pixels);
+    sFrameBuffer.pushRect(r, pixels);
   }
 }
 
 void pushRectUniform(KDRect r, KDColor c) {
   if (sFrameBufferActive) {
     Simulator::Window::setNeedsRefresh();
-    sFrameBuffer.pushRectUniform(r.translatedBy(k_frameOrigin), c);
+    sFrameBuffer.pushRectUniform(r, c);
   }
 }
 
 void pullRect(KDRect r, KDColor* pixels) {
   if (sFrameBufferActive) {
-    sFrameBuffer.pullRect(r.translatedBy(k_frameOrigin), pixels);
+    sFrameBuffer.pullRect(r, pixels);
   }
 }
 

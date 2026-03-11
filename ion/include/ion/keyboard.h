@@ -7,42 +7,62 @@ extern "C" {
 #include <stdint.h>
 }
 
-#include <array>
+#include <ion/keyboard/layout_keyboard.h>
 
 namespace Ion {
 namespace Keyboard {
 
-constexpr int NumberOfKeys = ION_KEYBOARD_ROWS * ION_KEYBOARD_COLUMNS;
-
-#define PLAIN_KEY(...) KEY(__VA_ARGS__)
-#define SHIFT_KEY(...) KEY(__VA_ARGS__)
-#define ALPHA_KEY(...) KEY(__VA_ARGS__)
-#define SHIFT_ALPHA_KEY(...) KEY(__VA_ARGS__)
-#define DUMMY_KEY(...) KEY(__VA_ARGS__)
-
-enum class Key {
-#define KEY(N, R, C, ...) N = R * ION_KEYBOARD_COLUMNS + C,
-#include <ion/keys.inc>
-#undef KEY
-  None = NumberOfKeys,
-};
-
-#undef DUMMY_KEY
-#define DUMMY_KEY(...)
-
 constexpr Key ValidKeys[] = {
-#define KEY(N, ...) Key::N,
-#include <ion/keys.inc>
-#undef KEY
+    Key::Left,
+    Key::Up,
+    Key::Down,
+    Key::Right,
+    Key::OK,
+    Key::Back,
+    Key::Home,
+    Key::OnOff,
+    Key::Shift,
+    Key::Alpha,
+    Key::XNT,
+    Key::Var,
+    Key::Toolbox,
+    Key::Backspace,
+    Key::Exp,
+    Key::Ln,
+    Key::Log,
+    Key::Imaginary,
+    Key::Comma,
+    Key::Power,
+    Key::Sine,
+    Key::Cosine,
+    Key::Tangent,
+    Key::Pi,
+    Key::Sqrt,
+    Key::Square,
+    Key::Seven,
+    Key::Eight,
+    Key::Nine,
+    Key::LeftParenthesis,
+    Key::RightParenthesis,
+    Key::Four,
+    Key::Five,
+    Key::Six,
+    Key::Multiplication,
+    Key::Division,
+    Key::One,
+    Key::Two,
+    Key::Three,
+    Key::Plus,
+    Key::Minus,
+    Key::Zero,
+    Key::Dot,
+    Key::EE,
+    Key::Ans,
+    Key::EXE,
 };
 
-#undef PLAIN_KEY
-#undef SHIFT_KEY
-#undef ALPHA_KEY
-#undef SHIFT_ALPHA_KEY
-#undef DUMMY_KEY
-
-constexpr int NumberOfValidKeys = std::size(ValidKeys);
+constexpr int NumberOfKeys = 54;
+constexpr int NumberOfValidKeys = 46;
 
 class State {
  public:
@@ -66,8 +86,7 @@ class State {
   uint64_t m_bitField;
 };
 
-// forPython indicate if the scan is used for the `ion.keydown` python function
-State scan(bool forPython = false);
+State scan();
 State scanForInterruptionAndPopState();
 State popState();
 
