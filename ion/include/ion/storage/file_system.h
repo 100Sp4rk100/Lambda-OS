@@ -28,7 +28,7 @@ class FileSystem {
  public:
   typedef uint16_t record_size_t;
 
-  constexpr static size_t k_storageSize = 10 * 1024;
+  constexpr static size_t k_storageSize = 42 * 1024;
   static_assert(UINT16_MAX >= k_storageSize - 1,
                 "record_size_t not big enough");
 
