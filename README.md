@@ -128,6 +128,8 @@ Move it into your `epsilon` folder and run :
 git apply epsilon-v23.patch
 ```
 
+It's recomended to download the [launcher](#launcher) to.
+
 The next and final step is to [compile it](#how-to-compile-it).
 
 ## How to compile it
