@@ -122,7 +122,7 @@ cd epsilon
 git checkout version-23
 ```
 
-Then you need to download the [patch file](https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/epsilon-v23.patch){:download} located in `ressources/epsilon-v23.patch`.
+Then you need to download the You need to download the patch file: <a href="https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/epsilon-v23.patch" download>epsilon-v23.patch</a> located in `ressources/epsilon-v23.patch`.
 Move it into your `epsilon` folder and run :
 ```sh
 git apply epsilon-v23.patch
