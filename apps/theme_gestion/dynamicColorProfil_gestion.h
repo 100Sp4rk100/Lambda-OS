@@ -10,11 +10,13 @@ class DynamicColorProfilGestion{
     public:
         static KDColor getColor(const char* name);
         static IconProfil* getIconProfil();
+        static const uint16_t* getBackground();
         static bool reload();
         static bool isSquareIcon;
         static bool isBackground;
         static int background;
         static bool isDynamicImages;
+        static bool isImportBackground;
 
     private:
         static constexpr int K_MAX_COLORS = 43;

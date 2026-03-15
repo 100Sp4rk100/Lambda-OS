@@ -10,8 +10,9 @@ namespace Theme {
 static DynamicColorProfil dynamicColorProfil;
 static EpsilonIconProfil epsilonIconProfil;
 
-int DynamicTheme::getNumberBackground() const {
-    return Theme::DynamicColorProfilGestion::background;
+const uint16_t* DynamicTheme::getBackground() const {
+    if (Theme::DynamicColorProfilGestion::isImportBackground) return Theme::DynamicColorProfilGestion::getBackground();
+    return Background::BackgroundGestion::getBackgroundNumber(Theme::DynamicColorProfilGestion::background);
 }
 
 ColorProfil* DynamicTheme::getColorProfil() const {

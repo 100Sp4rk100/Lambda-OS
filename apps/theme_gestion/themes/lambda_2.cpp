@@ -8,8 +8,8 @@ namespace Theme {
 static LambdaColorProfil lambdaColorProfil;
 static LambdaIconProfil lambdaIconProfil;
 
-int Lambda2Theme::getNumberBackground() const {
-    return 1;
+const uint16_t* Lambda2Theme::getBackground() const {
+    return Background::BackgroundGestion::getBackgroundNumber(1);
 }
 
 ColorProfil* Lambda2Theme::getColorProfil() const {

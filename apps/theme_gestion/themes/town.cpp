@@ -12,8 +12,8 @@ static EpsilonIconProfil epsilonIconProfil;
 
 static TownAnimation town_animattion;
 
-int TownTheme::getNumberBackground() const {
-    return 2;
+const uint16_t* TownTheme::getBackground() const {
+    return Background::BackgroundGestion::getBackgroundNumber(2);
 }
 
 ColorProfil* TownTheme::getColorProfil() const {

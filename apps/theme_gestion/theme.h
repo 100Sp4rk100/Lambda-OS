@@ -4,11 +4,12 @@
 #include "color_profil.h"
 #include "icon_profil.h"
 #include "animation_template.h"
+#include "backgroundGestion.h"
 
 namespace Theme {
 class ThemeTemplate{
     public:
-        virtual int getNumberBackground() const = 0;
+        virtual const uint16_t* getBackground() const = 0;
         virtual ColorProfil* getColorProfil() const = 0;
         virtual bool isThereBackground() const = 0;
         virtual bool isSquareIcon() const = 0;

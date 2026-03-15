@@ -1,7 +1,12 @@
 #include "dynamicColorProfil_gestion.h"
 #include <kandinsky/color.h>
+#include <ion/src/device/shared/drivers/userland_header.h>
 #include "apps/theme_gestion/icons_profil/epsilon.h"
 #include "apps/theme_gestion/icons_profil/lambda.h"
+
+extern "C" {
+  extern uint8_t _external_apps_flash_start;
+}
 
 namespace Theme {
 
@@ -11,6 +16,7 @@ bool DynamicColorProfilGestion::isBackground = false;
 int DynamicColorProfilGestion::background = 0;
 int DynamicColorProfilGestion::iconProfil = 0;
 bool DynamicColorProfilGestion::isDynamicImages = false;
+bool DynamicColorProfilGestion::isImportBackground = false;
 
 static EpsilonIconProfil epsilonIconProfil;
 static LambdaIconProfil lambdaIconProfil;
@@ -33,9 +39,14 @@ bool DynamicColorProfilGestion::reload() {
     background = dataPtr[K_MAX_COLORS+2];
     iconProfil = dataPtr[K_MAX_COLORS+3];
     isDynamicImages = (dataPtr[K_MAX_COLORS+4] == 0);
+    isImportBackground = (dataPtr[K_MAX_COLORS+5] == 0);
 
     return true;
 };
+
+const uint16_t* DynamicColorProfilGestion::getBackground() {
+    return reinterpret_cast<const uint16_t*>(&_external_apps_flash_start);
+}
 
 IconProfil* DynamicColorProfilGestion::getIconProfil() {
     if (iconProfil==0) return &lambdaIconProfil;

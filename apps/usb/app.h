@@ -20,6 +20,7 @@ class App : public Escher::App {
     const Descriptor* descriptor() const override;
   };
   bool processEvent(Ion::Events::Event) override;
+  virtual void willBecomeInactive();
 
  private:
   App(Snapshot* snapshot);

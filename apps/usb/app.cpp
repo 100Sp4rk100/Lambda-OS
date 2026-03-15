@@ -3,6 +3,7 @@
 #include <apps/apps_container.h>
 #include <apps/i18n.h>
 #include <assert.h>
+#include "apps/theme_gestion/dynamicColorProfil_gestion.h"
 
 namespace USB {
 
@@ -26,5 +27,11 @@ App::App(Snapshot* snapshot)
     : Escher::App(snapshot, &m_usbConnectedController) {}
 
 bool App::processEvent(Ion::Events::Event e) { return false; }
+
+void App::willBecomeInactive() {
+  Theme::DynamicColorProfilGestion::reload();
+  AppsContainer::sharedAppsContainer()->reloadTitleBarView();
+  Escher::App::willBecomeInactive();
+}
 
 }  // namespace USB

@@ -63,9 +63,7 @@ void ThemeGestion::drawTemplateForAnimations(){
 }
 
 const uint16_t* ThemeGestion::getBackground() {
-    return Background::BackgroundGestion::getBackgroundNumber(
-        all_template[current]->getNumberBackground()
-    );
+    return all_template[current]->getBackground();
 }
 
 bool ThemeGestion::isSquareIcon() {

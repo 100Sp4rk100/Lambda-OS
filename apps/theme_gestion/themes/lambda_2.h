@@ -7,7 +7,7 @@ namespace Theme {
 
 class Lambda2Theme : public ThemeTemplate{
     public:
-        int getNumberBackground() const override;
+        const uint16_t* getBackground() const override;
         ColorProfil* getColorProfil() const override;
         bool isThereBackground() const override;
         bool isSquareIcon() const override;

@@ -8,8 +8,8 @@ namespace Theme {
 static EpsilonColorProfil epsilonColorProfil;
 static EpsilonIconProfil epsilonIconProfil;
 
-int EpsilonTheme::getNumberBackground() const {
-    return 0;
+const uint16_t* EpsilonTheme::getBackground() const {
+    return Background::BackgroundGestion::getBackgroundNumber(0);
 }
 
 ColorProfil* EpsilonTheme::getColorProfil() const {
