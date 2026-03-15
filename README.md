@@ -16,9 +16,9 @@ The userland is not finished but can be used as well.
 - Change the icons
 
 ## Launcher
-To use the full potential of the userland you need to run it with the [launcher](https://github.com/100Sp4rk100/Lambda-OS/blob/master/ressources/Lambda_OS.nwa).
+To use the full potential of the userland you need to run it with the [launcher](https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/Lambda_OS.nwa).
 
-To install it, go to [Numworks extern apps installer](https://my.numworks.com/apps) (you need to be login) and install the [launcher](https://github.com/100Sp4rk100/Lambda-OS/blob/master/ressources/Lambda_OS.nwa). Then open it on your calculator and `press 1`.
+To install it, go to [Numworks extern apps installer](https://my.numworks.com/apps) (you need to be login) and install the [launcher](https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/Lambda_OS.nwa). Then open it on your calculator and `press 1`.
 
 The launcher allows you to [import a custom background](#dynamic-profile) without recompiling the userland.
 
