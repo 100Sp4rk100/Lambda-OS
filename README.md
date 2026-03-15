@@ -5,6 +5,8 @@ The userland is not finished but can be used as well.
 
 <img src="ressources/example_os.gif" width=320 alt="Example userland">
 
+For instalation see [instalation guide](#instalation-guide)
+
 ## Functionalities
 
 - A clock (experimental)
@@ -111,6 +113,22 @@ To use the background you have to create a [dynamic profil](#dynamic-profile).
 To know the number of your background you have to do : `postion in the folder` + 4. For example `apps/theme_gestion/customs_backgrounds/example.png` is in first position so we need to do : `1+4=5`. So to use the example background you need to enter 5 in [lambda theme maker](https://100sp4rk100.github.io/Lambda-Theme-Maker-WebSite/).
 
 If you want, you can load a background without recompiling the userland by upload it with [lambda theme maker](https://100sp4rk100.github.io/Lambda-Theme-Maker-WebSite/).
+
+## Instalation guide
+To get the userland code you need to get the official code of Numworks. To do this run these following commands :
+```sh
+git clone https://github.com/numworks/epsilon.git
+cd epsilon
+git checkout version-23
+```
+
+Then you need to download the [patch file](https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/epsilon-v23.patch) located in `ressources/epsilon-v23.patch`.
+Move it into your `epsilon` folder and run :
+```sh
+git apply epsilon-v23.patch
+```
+
+The next and final step is to [compile it](#how-to-compile-it).
 
 ## How to compile it
 To compile it clone the repository and run :
