@@ -77,6 +77,8 @@ You can load a dynamic profile with this [website](https://100sp4rk100.github.io
 - If you don't use `Dynamic colors on images` you have to specify a profile for the icons : `Epsilon profile` or `Lambda profile`
 - You can download and load a profile to save it
 
+Finally to activate it on device, go to `Lambda` app then `Theme` and `Dynamic Profile`. Do the same steps to refresh the profil.
+
 ## Shortcut
 It's only on the home app :
 - `Toolbox` switch to the `Lambda` app
