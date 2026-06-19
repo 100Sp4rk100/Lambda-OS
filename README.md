@@ -1,7 +1,6 @@
 <img src="ressources/lambda.png" alt="Lambda logo" height="100" >
 
 Lambda is an experimental userland for NumWorks calculators.
-The userland is not finished but can be used as well.
 
 <img src="ressources/example_os.gif" width=320 alt="Example userland">
 
@@ -18,7 +17,7 @@ For instalation see [instalation guide](#instalation-guide)
 - Change the icons
 
 ## Launcher
-To use the full potential of the userland you need to run it with the [launcher](https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/Lambda_OS.nwa).
+If you are on Numworks bootloader, to use the full potential of the userland, you need to run it with the [launcher](https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/Lambda_OS.nwa).
 
 To install it, go to [Numworks extern apps installer](https://my.numworks.com/apps) (you need to be login) and install the [launcher](https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/Lambda_OS.nwa). Then open it on your calculator and `press 1`.
 
@@ -68,13 +67,14 @@ You can load a dynamic profile with this [website](https://100sp4rk100.github.io
 - You can change all the colors that you want.
 - `TextHillightColor` is used when you select an app in the home app
 - `TextColor` is the color of the names of apps in the home app
-- `BackgroundColor` is useful only if you don't activate the wallpaper
-- `BackgroundColorHilight` is useful only if you don't activate the wallpaper and it's for when you select an app in the home app
+- `BackgroundColor` is useful only if you don't activate the wallpaper or when Exam mod is enable
+- `BackgroundColorHilight` is useful only if you don't activate the wallpaper or when exam mod is active and it's for when you select an app in the home app
 - `Icons in a circle` change the form of icons (a circle or a square)
 - `Activate Background` is to set a specific background
 - if `Activate Background` is checked you can give a background number to select an [integrated background](#adding-background). You can also check `Import background ` and then upload an image on the website with the button `Import a background ` to have it on your calculator without recompiling the userland.
-- `Dynamic colors on images` change the yellow on the images with `YellowDark` that you have changed. It's useful to have custom icons without recreating all images. It's still experimental and has different results depending on colors (for example the town theme)
+- `Dynamic colors on images` change the yellow on the images with `YellowDark` that you have changed. It's useful to have custom icons without recreating all images. It's still experimental and has different results depending on colors (for example the town theme use this system)
 - If you don't use `Dynamic colors on images` you have to specify a profile for the icons : `Epsilon profile` or `Lambda profile`
+- You can import customs images for the icons or for the differents images in the userland. You don't have to change all the images. Missing images will be replaced with those defined by the selected profile. The images remain compatible with dynamic colors, even for icons you've imported yourself.
 - You can download and load a profile to save it
 
 ## Shortcut
