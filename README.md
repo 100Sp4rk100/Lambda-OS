@@ -77,6 +77,8 @@ You can load a dynamic profile with this [website](https://100sp4rk100.github.io
 - You can import customs images for the icons or for the differents images in the userland. You don't have to change all the images. Missing images will be replaced with those defined by the selected profile. The images remain compatible with dynamic colors, even for icons you've imported yourself.
 - You can download and load a profile to save it
 
+Finally to activate it on device, go to `Lambda` app then `Theme` and `Dynamic Profile`. Do the same steps to refresh the profil.
+
 ## Shortcut
 It's only on the home app :
 - `Toolbox` switch to the `Lambda` app
