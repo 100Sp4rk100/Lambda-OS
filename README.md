@@ -139,11 +139,11 @@ To compile it clone the repository and run :
 
 *For calculator :*
 - `make clean`
-- `make MODEL=your_model userland.B.dfu`
+- `make -j4 MODEL=your_model userland.B.dfu`
 - `python3 build/device/dfu.py -s 0x90410000:leave -D output/release/device/your_model/userland/userland.B.dfu`
 
 *For simulator :*
 - `make PLATFORM=simulator clean`
-- `make PLATFORM=simulator epsilon_run`
+- `make -j4 PLATFORM=simulator epsilon_run`
 
 Don't forget to change the `EPSILON_VERSION` in `build/config.mak` if necessary.
