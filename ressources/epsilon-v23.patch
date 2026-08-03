@@ -61162,10 +61162,10 @@ index 0000000000..c44f88a500
 \ No newline at end of file
 diff --git a/apps/theme_gestion/icons_profil/epsilon.cpp b/apps/theme_gestion/icons_profil/epsilon.cpp
 new file mode 100644
-index 0000000000..093d91b1cd
+index 0000000000..ec266f21f6
 --- /dev/null
 +++ b/apps/theme_gestion/icons_profil/epsilon.cpp
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,140 @@
 +#include "epsilon.h"
 +
 +#include <apps/calculation/calculation_icon_epsilon.h>
@@ -61302,7 +61302,6 @@ index 0000000000..093d91b1cd
 +    }else if (strcmp(name, "Animation") == 0) {
 +       return ImageStore::AnimationEpsilon; 
 +    }
-+    #endif
 +
 +    return ImageStore::CalculationIconEpsilon;
 +}
