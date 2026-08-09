@@ -91,6 +91,8 @@ To install it, download it [here](https://raw.githubusercontent.com/100Sp4rk100/
 
 Finally, open it and press 1.
 
+Before install the launcher, you need to follow the [installation guide](#installation-guide).
+
 ## Clock
 You now have the time on your calculator.
 This feature remains experimental. Indeed, when the calculator is turned off, it shuts down. Therefore, there is an `OFF` application to prevent this.
@@ -500,7 +502,7 @@ git apply epsilon-v23.patch
 It is important to change the target version in the `build/config.mak` file.
 To do this, turn on your calculator and go to Settings, then `About`, and note the `Software version`. Finally, in the `build/config.mak` file, replace `EPSILON_VERSION` with the one you found earlier.
 
-Now we need to compile the userland. To do this, run these commands :
+Now we need to compile the userland. To do this, run these commands :  
 *For the calculator :*
 ```sh
 make clean
