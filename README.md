@@ -328,7 +328,7 @@ Here are all the possible codes :
 | add_1 | [value] | adds `value` to variable 1 |
 | add_2 | [value] | adds `value` to variable 2 |
 | add_3 | [value] | adds `value` to variable 3 |
-| case | [variable/ value, operation, variable value] | performs the condition given between argument 0 and argument 2. There are 3 possible operations |
+| case | [variable/ value, operation, variable/ value] | performs the condition given between argument 0 and argument 2. There are 3 possible operations |
 | set_0 | [value] | sets the variable 0 to `value` |
 | set_1 | [value] | sets variable 1 to `value` |
 | set_2 | [value] | sets variable 2 to `value` |
@@ -465,7 +465,7 @@ To view the animation without flashing it on the calculator, you can run this co
 python animation_viewer.py animation.bin
 ```
 
-And there you have it, all you have to do now is flash your animation with [Lambda File Exchanger](https://100sp4rk100.github.io/Lambda-File-Exchanger/) or [Upsilon File Exchanger](https://yaya-cout.github.io/Numworks-connector/#/). If you want to have the animation on calculator, rename it to `animation.anim`.
+And there you have it, all you have to do now is flash your animation with [Lambda File Exchanger](https://100sp4rk100.github.io/Lambda-File-Exchanger/) or [Upsilon File Exchanger](https://yaya-cout.github.io/Numworks-connector/#/). If you want to have the animation on calculator, change the extention to `.anim`.
 
 ## Using Lambda File Exchanger
 Lambda File Exchanger allows you to manage your files in permanent and temporary storage.
