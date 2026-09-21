@@ -91,6 +91,8 @@ To install it, download it [here](https://raw.githubusercontent.com/100Sp4rk100/
 
 Finally, open it and press 1.
 
+Before install the launcher, you need to follow the [installation guide](#installation-guide).
+
 ## Clock
 You now have the time on your calculator.
 This feature remains experimental. Indeed, when the calculator is turned off, it shuts down. Therefore, there is an `OFF` application to prevent this.
@@ -328,7 +330,7 @@ Here are all the possible codes :
 | add_1 | [value] | adds `value` to variable 1 |
 | add_2 | [value] | adds `value` to variable 2 |
 | add_3 | [value] | adds `value` to variable 3 |
-| case | [variable/ value, operation, variable value] | performs the condition given between argument 0 and argument 2. There are 3 possible operations |
+| case | [variable/ value, operation, variable/ value] | performs the condition given between argument 0 and argument 2. There are 3 possible operations |
 | set_0 | [value] | sets the variable 0 to `value` |
 | set_1 | [value] | sets variable 1 to `value` |
 | set_2 | [value] | sets variable 2 to `value` |
