@@ -251,7 +251,7 @@ class Controller:
         return val - 256 if val > 127 else val
 
 if len(sys.argv) == 1:
-    raise AttributeError("You need to specify an animation file : animation_viewer.py animation.bin")
+    raise AttributeError("You need to specify an animation file : animation_viewer.py animation.anim")
 
 anim_path = sys.argv[1]
 

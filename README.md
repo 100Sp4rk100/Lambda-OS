@@ -245,6 +245,8 @@ If you want to share your theme with friends, click on `Download theme`, and the
 If you want to test a theme with a custom background or icons, first test the colors without the icons and background, as this will significantly speed up the theme download to the calculator. Once you've selected the desired colors, re-enable the icons and background.
 
 ## Create a custom animation
+<img src="ressources/images/creeper.gif" alt="Creeper">  
+
 For this tutorial, you will need the files located in the `resources/Python` folder of the repository or in the `apps/animation/python` folder after compiling the userland. The second option will allow you to access the creeper animation example, which is significantly more complex than what we will cover here.
 
 I suggest we create a simple cube that flashes in 2 colors.
@@ -456,14 +458,14 @@ Now, let's compile the animation. To do this, we'll run this command :
 ```sh
 python make_animation.py animation.json
 ```
-We will obtain a file named `animation.bin`.
+We will obtain a file named `animation.anim`.
 
 To view the animation without flashing it on the calculator, you can run this command :
 ```sh
-python animation_viewer.py animation.bin
+python animation_viewer.py animation.anim
 ```
 
-And there you have it, all you have to do now is flash your animation with [Lambda File Exchanger](https://100sp4rk100.github.io/Lambda-File-Exchanger/) or [Upsilon File Exchanger](https://yaya-cout.github.io/Numworks-connector/#/). If you want to have the animation on calculator, rename it to `animation.anim`.
+And there you have it, all you have to do now is flash your animation with [Lambda File Exchanger](https://100sp4rk100.github.io/Lambda-File-Exchanger/) or [Upsilon File Exchanger](https://yaya-cout.github.io/Numworks-connector/#/).
 
 ## Using Lambda File Exchanger
 Lambda File Exchanger allows you to manage your files in permanent and temporary storage.
@@ -484,12 +486,34 @@ When you delete or import a file, to synchronize it with the calculator, you mus
 ---
 
 # Installation Guide
+**On Windows you need to use WSL or [MSYS2](https://www.msys2.org/) app.**
+For MSYS2 use the `MINGW64` terminal.
+
 To obtain the lambda userland code, you need to get the official Numworks code. To do this, run these commands in a terminal :
 ```sh
 git clone https://github.com/numworks/epsilon.git
 cd epsilon
+```
+
+---
+**This part is optionnal :**
+
+Then install require tools with :
+```sh
+chmod +x tools/setup.sh && tools/setup.sh
+```
+Maybe you need to commit somes changes :
+```sh
+git add .
+git commit -m "somes changes"
+```
+---
+
+Now we switch to the correct branch :
+```sh
 git checkout version-23
 ```
+
 Next you need to download the patch file: <a href="https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/epsilon-v23.patch" download>epsilon-v23.patch</a>, in the `ressources/epsilon-v23.patch` folder or from the `release` section.
 
 Move it to the `epsilon` folder and run the command :
@@ -501,17 +525,42 @@ It is important to change the target version in the `build/config.mak` file.
 To do this, turn on your calculator and go to Settings, then `About`, and note the `Software version`. Finally, in the `build/config.mak` file, replace `EPSILON_VERSION` with the one you found earlier.
 
 Now we need to compile the userland. To do this, run these commands :
-*For the calculator :*
+***For the calculator :***
+Clean :
 ```sh
 make clean
+```
+Compile the userland :
+```sh
 make -j16 MODEL=your_model userland.B.dfu
+```
+Note that `-j16` corresponds to the number of cores in your processor. In this case, 16. 
+
+Flash the userland :
+```sh
 python3 build/device/dfu.py -s 0x90410000:leave -D output/release/device/your_model/userland/userland.B.dfu
 ```
 
-*For the simulator :*
+If you want to have external apps, you should run these commands instead :
+```sh
+make clean
+make -j16 MODEL=your_model userland.allow3rdparty.B.dfu
+python3 build/device/dfu.py -s 0x90410000:leave -D output/release/device/your_model/userland/userland.allow3rdparty.B.dfu
+```
+
+**Warning : The version with external apps is very unstable ! You may experience random crashes.**
+
+**Finally**, go to settings and reset it. Then use the [launcher](#launcher) to relaunch userland.
+
+
+If you encounter problems with flash with Python, compile the userland with this command :
+```sh
+make -j16 MODEL=your_model userland.B.bin
+```
+And flash the file `output/release/device/your_model/userland/userland.B.bin` with this [website](https://ti-planet.github.io/webdfu_numworks/n0110/) by clicking on button with this adress : `0x90410000`.
+
+***For the simulator :***
 ```sh
 make PLATFORM=simulator clean
 make -j16 PLATFORM=simulator epsilon_run
 ```
-
-Next, for the calculator only, go to settings and reset it. Then use the launcher to relaunch userland.

@@ -116,6 +116,6 @@ for f in frames:
 
 last_index = anim_path.rfind(".")
 
-output_file = open(f"{anim_path[:last_index]}.bin", "bw")
+output_file = open(f"{anim_path[:last_index]}.anim", "bw")
 output_file.write(output_bytes)
 output_file.close()
