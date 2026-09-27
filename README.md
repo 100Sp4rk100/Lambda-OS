@@ -210,17 +210,21 @@ The green text indicates the space occupied by visible files. The red text indic
 ## Create a dynamic profile
 You can create and load a dynamic theme with this [site](https://100sp4rk100.github.io/Lambda-Theme-Maker-WebSite/).
 
-- In this first section, we will define the colors of the theme :  
-<img src="ressources/images/maker_1.png" alt="Theme Maker all colors">  
-For this step, it's up to you to test and experiment.  
-Note that some colors have a specific purpose :  
-- `TextHillightColor` which is used when you select an application from the home screen.  
-- `TextColor` which is the color of the application names from the home screen
-- `BackgroundColor` which corresponds to the background colors on the home screen only if you do not activate the wallpaper or if exam mode is activated.  
-- `BackgroundColorHilight` which corresponds to the background color of selected text on the home screen only if you do not activate the wallpaper or if exam mode is activated.  
+- In this first section, we will define the colors of the theme:
 
-- Next, there's a section to further customize the home screen :  
-<img src="ressources/images/maker_2.png" alt="Theme Maker personalization of style">  
+<img src="ressources/images/maker_1.png" alt="Theme Maker all colors">
+
+For this step, it's up to you to test and experiment.  
+Note that some colors have a specific purpose:
+
+- `TextHillightColor` which is used when you select an application from the home screen.
+- `TextColor` which is the color of the application names from the home screen.
+- `BackgroundColor` which corresponds to the background colors on the home screen only if you do not activate the wallpaper or if exam mode is activated.
+- `BackgroundColorHilight` which corresponds to the background color of selected text on the home screen only if you do not activate the wallpaper or if exam mode is activated.
+
+- Next, there's a section to further customize the home screen:
+
+<img src="ressources/images/maker_2.png" alt="Theme Maker personalization of style">
 
 Here, `Icons in a circle` changes the shape of the icons. If the box is checked, the icons will be circular; otherwise, they will be square. The square shape is the default shape for Epsilon.
 
