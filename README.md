@@ -97,6 +97,9 @@ Before install the launcher, you need to follow the [installation guide](#instal
 You now have the time on your calculator.
 This feature remains experimental. Indeed, when the calculator is turned off, it shuts down. Therefore, there is an `OFF` application to prevent this.
 
+> [!WARNING]
+> The clock drain the battery very fast. You shouldn't use it all the time.
+
 ## Lambda App
 This application contains all the settings related to the functionalities added by the Lambda userland.
 You can set the clock and reset it. You can also change themes, icon visuals, and enable or disable animation on the home screen.
@@ -492,6 +495,83 @@ When you delete or import a file, to synchronize it with the calculator, you mus
 ---
 
 # Installation Guide
+You have 2 options to compile and install Lambda OS.
+> [!TIP]
+> Method 1 is recommended because of its simplicity.
+
+**Method 1:**
+The first method requires a GitHub account.
+Note that if you want to modify the code yourself, you will need to use the second method.
+
+1) Download the <a href="https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/github-actions-compile.yml" download>github-actions-compile.yml</a> file.
+
+2) Go to GitHub and create a new repository like this:
+<img src="ressources/images/compilation_git_action_1.png" alt="Compilation github action create repository">  
+
+> [!CAUTION]
+> Please make sure your repository is private to comply with the Epsilon/Lambda OS license !
+
+3) Then create a new file like this:  
+<img src="ressources/images/compilation_git_action_2.png" alt="Compilation github action create new file">  
+
+In the name field, copy and paste `.github/workflows/github-actions-compile.yml`
+
+Then drag the previously downloaded `github-actions-compile.yml` file into the text area to upload it.
+<img src="ressources/images/compilation_git_action_3.png" alt="Compilation github action upload file">  
+
+Click on `Commit changes`, add a message, then click `Commit changes` again.
+<img src="ressources/images/compilation_git_action_4.png" alt="Compilation github action commit file">  
+
+4) Go back to the root of the repository and click on `Actions`.
+<img src="ressources/images/compilation_git_action_5.png" alt="Compilation github action action button">  
+
+5) Click on `Github Actions Compile lambda OS`, then click on `Run workflow`.
+
+Fill in the required information :
+- `Version of Epsilon`
+- `Model of NumWorks`
+- Choose whether you want the ability to install external applications
+- If so, you will need to enter the addresses provided by `Lambda Installer`.
+
+You can find all the necessary information on [NumWorks Infos](https://100sp4rk100.github.io/Numworks-Infos/):  
+<img src="ressources/images/compilation_git_action_9.png" alt="Compilation github action numworks-infos">  
+
+> [!WARNING]
+> To find out the model, look at the back of your NumWorks calculator. It should look like N0xxx.
+
+> [!WARNING]
+> The version with external apps is very unstable ! You may experience random crashes.
+
+<img src="ressources/images/compilation_git_action_6.png" alt="Compilation github action options">  
+
+After entering all the required information, click on `Run workflow`.
+
+6) Wait for the compilation to finish (when the dot turns green).
+Then click on `compile`:
+<img src="ressources/images/compilation_git_action_7.png" alt="Compilation github action clic compile">  
+
+7) Scroll down to `Download BIN file` and click on the link to download it.
+<img src="ressources/images/compilation_git_action_8.png" alt="Compilation github action download file">  
+
+Then extract the binary file from the ZIP archive.
+
+8) Go to the [WebDFU](https://ti-planet.github.io/webdfu_numworks/n0110/) website to install the OS.
+- Reset your calculator using the button on the back while holding down 6.
+- Connect your calculator.
+- Import the binary file.
+- Click on `Flash Slot B Userland (0x90410000)`.
+
+<img src="ressources/images/compilation_git_action_10.png" alt="Compilation github action webdfu">  
+
+Once the installation is complete, you will have Lambda.  
+If you still on Epsilon you can check if lambda is installed by reconnect your calculator and clic on `Boot Slot B Userland (0x90410000)`. If it's OK go to the next step.
+
+> [!IMPORTANT]
+> After the installation, your calculator may remain stuck on the NumWorks/rescue screen. If this happens, update your calculator and repeat step 8. If your calculator was not up to date, you will need to start again from step 5 (after updating it).
+
+9) Finally, go to the settings, select reset, and install the [launcher](#launcher).
+
+**Method 2:**
 **On Windows you need to use WSL or [MSYS2](https://www.msys2.org/) app.**
 For MSYS2 use the `MINGW64` terminal.
 
@@ -554,7 +634,8 @@ make -j16 MODEL=your_model userland.allow3rdparty.B.dfu
 python3 build/device/dfu.py -s 0x90410000:leave -D output/release/device/your_model/userland/userland.allow3rdparty.B.dfu
 ```
 
-**Warning : The version with external apps is very unstable ! You may experience random crashes.**
+> [!WARNING]
+> The version with external apps is very unstable ! You may experience random crashes.
 
 **Finally**, go to settings and reset it. Then use the [launcher](#launcher) to relaunch userland.
 

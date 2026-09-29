@@ -8,10 +8,10 @@ index c4c8be9090..197a2b5121 100644
  __pycache__
 +.vscode/
 diff --git a/Makefile b/Makefile
-index 759141d134..5ff333956b 100644
+index 759141d134..3921d2d575 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -1,180 +1,194 @@
+@@ -1,180 +1,199 @@
 -# Disable default Make rules
 -.SUFFIXES:
 -
@@ -216,13 +216,13 @@ index 759141d134..5ff333956b 100644
 +  CXXFLAGS += -DALLOW_3RDPARTY=1
 +endif
 +
-+.PHONY: finding_external_flash_apps_adress
-+finding_external_flash_apps_adress:
-+	@python3 apps/external_apps_finding_adress.py
-+
-+ifneq ($(findstring allow3rdparty,$(MAKECMDGOALS) $(BUILD_DIR)),)
-+$(firstword $(MAKEFILE_LIST)): finding_external_flash_apps_adress
-+endif
++.PHONY: generate_external_apps_header
++generate_external_apps_header:
++	@if [ -n "$(EXT_APPS_ADRSS_START)" ] && [ -n "$(EXT_APPS_ADRSS_END)" ]; then \
++		python3 apps/external_apps_finding_adress.py "$(EXT_APPS_ADRSS_START)" "$(EXT_APPS_ADRSS_END)"; \
++	else \
++		python3 apps/external_apps_finding_adress.py; \
++	fi
 +
 +# Expand $(SFLAGS) once to avoid calling ($shell ...) once per file.
 +SFLAGS:=$(SFLAGS)
@@ -353,6 +353,11 @@ index 759141d134..5ff333956b 100644
 +all_objs = $(call object_for,$(all_src) $(kernel_src))
 +.SECONDARY: $(all_objs)
 +
++ifneq ($(findstring allow3rdparty,$(MAKECMDGOALS) $(BUILD_DIR)),)
++  $(all_objs): generate_external_apps_header
++endif
++
++
 +# Load source-based dependencies
 +# Compilers can generate Makefiles that states the dependencies of a given
 +# objet to other source and headers. This serve no purpose for a clean build,
@@ -386,121 +391,6 @@ index 759141d134..5ff333956b 100644
 +
 +.PHONY: clena
 +clena: cowsay_CLENA clean
-diff --git a/README.md b/README.md
-index 451096aa61..733f288b95 100644
---- a/README.md
-+++ b/README.md
-@@ -1,21 +1,88 @@
--<img src="docs/epsilon.svg?sanitize=true" alt="NumWorks Epsilon logo" height="70" >
--
--[![Build Status](https://github.com/numworks/epsilon/workflows/Continuous%20integration/badge.svg)](https://github.com/numworks/epsilon/actions?workflow=Continuous+integration)
--
--Epsilon is a high-performance graphing calculator operating system. It includes eight apps that cover the high school mathematics curriculum.
--
--You can try Epsilon straight from your browser in the [online simulator](https://www.numworks.com/simulator/).
--
--## Diving in
--
--We highly recommend you start by reading the [online documentation](https://www.numworks.com/resources/engineering/software/) for this project. You'll learn how to install the [SDK](https://www.numworks.com/resources/engineering/software/build/) and about the overall architecture of the Epsilon.
--
--## Contributing
--
--If you run into an issue, we would be very happy if you would file a bug on the [issue tracker](https://github.com/numworks/epsilon/issues).
--
--We welcome contributions. For smaller changes just open a pull request straight away. For larger changes we recommend you open an issue first for discussion.
--
--## Copyright
--
--All rights reserved. NumWorks is a registered trademark.
-+# Compiler l'userland
-+
-+## Version physique
-+
-+### Nettoyer
-+```sh
-+make clean
-+```
-+
-+### Compiler
-+**Compiler en .dfu**
-+Sans applications externes :
-+```sh
-+make -j16 MODEL=n0115 userland.B.dfu
-+```
-+
-+Avec applications externes :
-+```sh
-+make -j16 MODEL=n0115 userland.allow3rdparty.B.dfu
-+```
-+
-+*Falsher avec :*
-+Sans applications externes :
-+```sh
-+python3 build/device/dfu.py -s 0x90410000:leave -D output/release/device/n0115/userland/userland.B.dfu
-+```
-+
-+Avec applications externes :
-+```sh
-+python3 build/device/dfu.py -s 0x90410000:leave -D output/release/device/n0115/userland/userland.allow3rdparty.B.dfu
-+```
-+
-+**Compiler en .bin**
-+```sh
-+make -j16 MODEL=n0115 userland.B.bin
-+```
-+
-+*Falsher avec :*
-+Le site [webDFU](https://ti-planet.github.io/webdfu_numworks/n0110/) avec le flash sur le slot B : 0x90410000.
-+
-+## Le simulateur
-+
-+### Nettoyer
-+```sh
-+make PLATFORM=simulator clean
-+```
-+
-+### Compiler
-+Release
-+```sh
-+make -j16 PLATFORM=simulator epsilon_run
-+```
-+
-+Debug
-+```sh
-+make -j16 PLATFORM=simulator epsilon_run DEBUG=1
-+```
-+
-+## Créer le patch
-+Clonner le projet
-+```sh
-+git clone https://github.com/numworks/epsilon.git
-+cd epsilon
-+git checkout version-23
-+```
-+
-+Copier-coller toutes nos modifications.
-+
-+Créer le patch
-+```sh
-+git add .
-+git commit -m "create patch"
-+git diff --binary origin/version-23 > epsilon-v23.patch
-+```
-+
-+## Appliquer le patch
-+```sh
-+git clone https://github.com/numworks/epsilon.git
-+cd epsilon
-+git checkout version-23
-+```
-+
-+Copier-coller le fichier `epsilon-v23.patch`
-+
-+Executer :
-+```sh
-+git apply epsilon-v23.patch
-+```
-\ No newline at end of file
 diff --git a/apps/Makefile b/apps/Makefile
 index 709d4c011b..9591df1f54 100644
 --- a/apps/Makefile
@@ -21963,13 +21853,14 @@ index 0000000000..b0918a94f8
 \ No newline at end of file
 diff --git a/apps/external_apps_finding_adress.py b/apps/external_apps_finding_adress.py
 new file mode 100644
-index 0000000000..c00cd941d0
+index 0000000000..947c28ba81
 --- /dev/null
 +++ b/apps/external_apps_finding_adress.py
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,200 @@
 +import usb.core
 +import usb.util
 +import struct
++import sys
 +
 +#####################
 +### FILE TEMPLATE ###
@@ -22065,90 +21956,102 @@ index 0000000000..c00cd941d0
 +### MAIN PROGRAM ###
 +####################
 +
-+# Finding device
-+for identifier in IDENTIFIERS:
-+    vid = identifier["VID"]
-+    pid = identifier["PID"]
-+    dev = usb.core.find(idVendor=vid, idProduct=pid)
-+    if dev: break
++def get_dfu_info():
++    # Finding device
++    for identifier in IDENTIFIERS:
++        vid = identifier["VID"]
++        pid = identifier["PID"]
++        dev = usb.core.find(idVendor=vid, idProduct=pid)
++        if dev: break
 +
-+if not dev:
-+    raise ConnectionError("Target DFU device not found.\nPlease make sure your Numworks is properly plugged in.")
++    if not dev:
++        raise ConnectionError("Target DFU device not found.\nPlease make sure your Numworks is properly plugged in.")
 +
-+dev.set_configuration()
-+usb.util.claim_interface(dev, __DFU_INTERFACE)
++    dev.set_configuration()
++    usb.util.claim_interface(dev, __DFU_INTERFACE)
 +
-+# Finding device model with SRAM adress
-+cfg = dev[0]
-+for interface in cfg:
-+    num = interface.iInterface
-+    desc = usb.util.get_string(dev, num)
++    # Finding device model with SRAM adress
++    cfg = dev[0]
++    for interface in cfg:
++        num = interface.iInterface
++        desc = usb.util.get_string(dev, num)
 +
-+    if desc[:5] != "@SRAM": continue
++        if desc[:5] != "@SRAM": continue
 +
-+    address = int(desc.split("/")[1], 16)
-+    if address == N0110_N0115_MODEL_SRAM:
-+        model = "110-115"
-+    elif address == N0120_MODEL_SRAM:
-+        model = "120"
-+    else: 
-+        raise RuntimeError("Unknown model")
++        address = int(desc.split("/")[1], 16)
++        if address == N0110_N0115_MODEL_SRAM:
++            model = "110-115"
++        elif address == N0120_MODEL_SRAM:
++            model = "120"
++        else: 
++            raise RuntimeError("Unknown model")
 +
-+    if model: break
++        if model: break
 +
-+print(f"MODEL : N0{model}")
++    print(f"MODEL : N0{model}")
 +
-+# Reading the slot info and we check if it's valid
-+slot_info_addr = get_sram_adress(model)
-+slot_info_raw = read_memory(dev, slot_info_addr, 0xC + 0x4)
-+magic_start = int.from_bytes(slot_info_raw[:0x4])
-+magic_end = int.from_bytes(slot_info_raw[0xC:])
++    # Reading the slot info and we check if it's valid
++    slot_info_addr = get_sram_adress(model)
++    slot_info_raw = read_memory(dev, slot_info_addr, 0xC + 0x4)
++    magic_start = int.from_bytes(slot_info_raw[:0x4])
++    magic_end = int.from_bytes(slot_info_raw[0xC:])
 +
-+if magic_start != SLOT_INFO_MAGIC:
-+    raise RuntimeError("Bad magic start in slot info")
++    if magic_start != SLOT_INFO_MAGIC:
++        raise RuntimeError("Bad magic start in slot info")
 +
-+if magic_end != SLOT_INFO_MAGIC:
-+    raise RuntimeError("Bad magic end in slot info")
++    if magic_end != SLOT_INFO_MAGIC:
++        raise RuntimeError("Bad magic end in slot info")
 +
-+# Readind the userland adress
-+userland_header_adress = int.from_bytes(slot_info_raw[0x8:0xC], byteorder="little")
-+userland_header_raw = read_memory(dev, userland_header_adress, 0x24 + 0x4)
++    # Readind the userland adress
++    userland_header_adress = int.from_bytes(slot_info_raw[0x8:0xC], byteorder="little")
++    userland_header_raw = read_memory(dev, userland_header_adress, 0x24 + 0x4)
 +
-+magic_start = int.from_bytes(userland_header_raw[:0x4])
++    magic_start = int.from_bytes(userland_header_raw[:0x4])
 +
-+# Check the first MAGIC
-+if magic_start != USERLAND_HEADER_MAGIC:
-+    raise RuntimeError("Bad magic start in userland header")
++    # Check the first MAGIC
++    if magic_start != USERLAND_HEADER_MAGIC:
++        raise RuntimeError("Bad magic start in userland header")
 +
-+epsilon_version = userland_header_raw[0x4:0xC].decode("utf-8")
++    epsilon_version = userland_header_raw[0x4:0xC].decode("utf-8")
 +
-+print(f"Epsilon version : {epsilon_version}")
++    print(f"Epsilon version : {epsilon_version}")
 +
-+new_header = epsilon_version > "22.0.0"
++    new_header = epsilon_version > "22.0.0"
 +
-+if new_header:
-+    # we can read more memory ti have the full userland header
-+    userland_header_raw = read_memory(dev, userland_header_adress, 0x2C + 0x4)
++    if new_header:
++        # we can read more memory ti have the full userland header
++        userland_header_raw = read_memory(dev, userland_header_adress, 0x2C + 0x4)
 +
-+    magic_end = int.from_bytes(userland_header_raw[0x2C:])
++        magic_end = int.from_bytes(userland_header_raw[0x2C:])
++    else:
++        magic_end = int.from_bytes(userland_header_raw[0x24:])
++
++    if magic_end != USERLAND_HEADER_MAGIC:
++        raise RuntimeError("Bad magic end in userland header")
++
++    # Finding flash adress we need
++    external_apps_flash_start = hex(int.from_bytes(userland_header_raw[0x14:0x18], byteorder="little"))
++    external_apps_flash_end = hex(int.from_bytes(userland_header_raw[0x18:0x1C], byteorder="little"))
++
++    print(f"Address of the start of the flash found : {external_apps_flash_start}")
++    print(f"Address of the end of the flash found : {external_apps_flash_end}")
++
++    usb.util.dispose_resources(dev)
++
++    return external_apps_flash_start, external_apps_flash_end
++
++if len(sys.argv) >= 3:
++    external_apps_flash_start_str = sys.argv[1]
++    external_apps_flash_end_str = sys.argv[2]
 +else:
-+    magic_end = int.from_bytes(userland_header_raw[0x24:])
++    external_apps_flash_start, external_apps_flash_end = get_dfu_info()
 +
-+if magic_end != USERLAND_HEADER_MAGIC:
-+    raise RuntimeError("Bad magic end in userland header")
-+
-+# Finding flash adress we need
-+external_apps_flash_start = hex(int.from_bytes(userland_header_raw[0x14:0x18], byteorder="little"))
-+external_apps_flash_end = hex(int.from_bytes(userland_header_raw[0x18:0x1C], byteorder="little"))
-+
-+print(f"Address of the start of the flash found : {external_apps_flash_start}")
-+print(f"Address of the end of the flash found : {external_apps_flash_end}")
-+
-+usb.util.dispose_resources(dev)
++    external_apps_flash_start_str = "0x" + external_apps_flash_start[2:].upper()
++    external_apps_flash_end_str = "0x" + external_apps_flash_end[2:].upper()
 +
 +# Creating the file
-+TEMPLATE = TEMPLATE.replace("START_ADR", "0x" + external_apps_flash_start[2:].upper())
-+TEMPLATE = TEMPLATE.replace("END_ADR", "0x" + external_apps_flash_end[2:].upper())
++TEMPLATE = TEMPLATE.replace("START_ADR", external_apps_flash_start_str)
++TEMPLATE = TEMPLATE.replace("END_ADR", external_apps_flash_end_str)
 +
 +with open("apps/external_apps_adress.h", "w") as f:
 +    f.writelines(TEMPLATE)

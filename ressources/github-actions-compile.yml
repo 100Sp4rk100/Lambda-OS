@@ -1,0 +1,79 @@
+name: GitHub Actions Compile lambda OS
+run-name: ${{ github.actor }} is compiling Lambda OS
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_version_var:
+        description: 'Version Number'
+        required: true
+        type: string
+        default: '25.2.0'
+      num_model_var:
+        description: 'Target Model (e.g. n0110)'
+        required: true
+        type: string
+        default: 'n0110'
+      external_apps_enable:
+        description: 'Activate the possibility to add external apps (experimental)'
+        required: true
+        type: boolean
+        default: false
+      external_apps_adr_sart:
+        description: 'Start adress for external apps (find on website : ) REQUIRED if external_apps_enable is True'
+        required: false
+        type: string
+        default: '0x90170000'
+      external_apps_adr_end:
+        description: 'End adress for external apps (find on website : ) REQUIRED if external_apps_enable is True'
+        required: false
+        type: string
+        default: '0x903F0000'
+
+jobs:
+  compile:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential python3
+
+      - name: Install python dependances
+        run: |
+          pip3 install lz4 pillow
+
+      - name: Clone Epsilon
+        run: |
+          git clone https://github.com/numworks/epsilon.git
+          cd epsilon
+          git checkout version-23
+
+      - name: Download & apply patch
+        working-directory: ./epsilon
+        run: |
+          wget -O epsilon-v23.patch https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/epsilon-v23.patch
+          git apply epsilon-v23.patch
+
+      - name: Modify version file
+        working-directory: ./epsilon
+        run: |
+          sed -i 's/^VERSION=.*/VERSION=${{ inputs.num_version_var }}/' build/config.mak
+
+      - name: Compile
+        working-directory: ./epsilon
+        run: |
+          if [ "${{ inputs.external_apps_enable }}" = "true" ]; then
+            make -j$(nproc) MODEL=${{ inputs.num_model_var }} userland.allow3rdparty.B.bin EXT_APPS_ADRSS_START="${{ inputs.external_apps_adr_sart }}" EXT_APPS_ADRSS_END="${{ inputs.external_apps_adr_end }}"
+          else
+            make -j$(nproc) MODEL=${{ inputs.num_model_var }} userland.B.bin
+          fi
+
+      - name: Download BIN file
+        uses: actions/upload-artifact@v4
+        with:
+            name: lambda-OS-${{inputs.num_model_var}}-${{inputs.num_version_var}}-external_apps-${{inputs.external_apps_enable}}
+            path: epsilon/output/release/device/${{ inputs.num_model_var }}/userland/*.bin
