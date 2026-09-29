@@ -44,7 +44,7 @@ jobs:
 
       - name: Install python dependances
         run: |
-          pip3 install lz4 pillow
+          pip3 install lz4 pillow pyusb
 
       - name: Clone Epsilon
         run: |
