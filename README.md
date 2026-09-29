@@ -503,7 +503,7 @@ You have 2 options to compile and install Lambda OS.
 The first method requires a GitHub account.
 Note that if you want to modify the code yourself, you will need to use the second method.
 
-1) Download the <a href="https://raw.githubusercontent.com/100Sp4rk100/Lambda-OS/master/ressources/github-actions-compile.yml" download>github-actions-compile.yml</a> file.
+1) Download the [github-actions-compile.yml](https://github.com/100Sp4rk100/Lambda-OS/blob/master/ressources/github-actions-compile.yml) file.
 
 2) Go to GitHub and create a new repository like this:
 <img src="ressources/images/compilation_git_action_1.png" alt="Compilation github action create repository">  
