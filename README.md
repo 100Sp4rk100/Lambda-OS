@@ -223,7 +223,19 @@ Note that some colors have a specific purpose:
 - `TextHillightColor` which is used when you select an application from the home screen.
 - `TextColor` which is the color of the application names from the home screen.
 - `BackgroundColor` which corresponds to the background colors on the home screen only if you do not activate the wallpaper or if exam mode is activated.
-- `BackgroundColorHilight` which corresponds to the background color of selected text on the home screen only if you do not activate the wallpaper or if exam mode is activated.
+- `BackgroundColorHilight` which corresponds to the background color of selected text on the home screen only if you do not activate the wallpaper or if exam mode is activated.  
+
+To help you, on `Lambda Classic` theme, we change theses colors :  
+- `YellowDark`  
+- `YellowLight`  
+- `GrayWhite`  
+- `GrayVeryDark`  
+- `Select`  
+- `WallScreen`  
+- `WallScreenDark`  
+- `PopUpTitleBackground`  
+- `KDColorBlack`  
+- `KDColorWhite`  
 
 - Next, there's a section to further customize the home screen:
 
