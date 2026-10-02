@@ -61,7 +61,7 @@ jobs:
       - name: Modify version file
         working-directory: ./epsilon
         run: |
-          sed -i 's/^VERSION=.*/VERSION=${{ inputs.num_version_var }}/' build/config.mak
+          sed -i '7s/.*/EPSILON_VERSION ?= ${{ inputs.num_version_var }}/' build/config.mak
 
       - name: Compile
         working-directory: ./epsilon
