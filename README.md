@@ -226,16 +226,20 @@ Note that some colors have a specific purpose:
 - `BackgroundColorHilight` which corresponds to the background color of selected text on the home screen only if you do not activate the wallpaper or if exam mode is activated.  
 
 To help you, on `Lambda Classic` theme, we change theses colors :  
-- `YellowDark`  
-- `YellowLight`  
-- `GrayWhite`  
-- `GrayVeryDark`  
-- `Select`  
-- `WallScreen`  
-- `WallScreenDark`  
-- `PopUpTitleBackground`  
-- `KDColorBlack`  
-- `KDColorWhite`  
+- `YellowDark` = `0x4AC514`  
+- `YellowLight` = `0x66ed2a`  
+- `GrayWhite` = `0x3B3B3B`  
+- `GrayVeryDark` = `0x4AC514`  
+- `Select` = `0x5d5d5d`  
+- `WallScreen` = `0x3B3B3B`  
+- `WallScreenDark` = `0x5d5d5d`  
+- `PopUpTitleBackground` = `0x4AC514`  
+- `KDColorBlack` = `0x4AC514`  
+- `KDColorWhite` = `0x3B3B3B`  
+- `TextHillightColor` = `0x0000FF`  
+- `TextColor` = `0x4AC514`  
+- `BackgroundColor` = `0x3B3B3B`  
+- `BackgroundColorHilight` = `0x5d5d5d`  
 
 - Next, there's a section to further customize the home screen:
 
