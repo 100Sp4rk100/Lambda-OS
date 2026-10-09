@@ -183,6 +183,9 @@ You can import a `.anim` file using [Lambda File Exchanger](https://100sp4rk100.
 For more information on creating a custom animation, see the [tutorials](#tutorials) section.
 
 # Permanent Storage
+> [!WARNING]
+> The first time or after installation with a binary file, you need to format the flash. See how to use [Lambda File Exchanger](https://100sp4rk100.github.io/Lambda-File-Exchanger/) in [tutorials](#tutorials) section.
+
 Permanent storage management is in the `Explorer` application.
 Within the application, there are two categories :
 - So-called temporary files
