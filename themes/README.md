@@ -10,4 +10,4 @@ Please note that licenses vary by theme, as they depend on the individual creato
 <img src="ghibli/explorer.png" alt="Explorer">  
 <img src="ghibli/menu.png" alt="Menu">  
 
-[Licence](./ghibli/LICENCE.md).
+[Licence](./ghibli/LICENSE.md).
