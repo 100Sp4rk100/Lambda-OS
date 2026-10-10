@@ -124,6 +124,8 @@ You can import a `.theme` using [Lambda File Exchanger](https://100sp4rk100.gith
 
 For more information on how to create a dynamic profile, refer to the [tutorials](#tutorials) section.
 
+[See somes users theme here](./themes/THEMES.md).
+
 ### Add a wallpaper
 To add a background by recompiling the userland, you need to add your image in `PNG` format to this folder: `apps/theme_gestion/customs_backgrounds`.
 Then, to use it with a dynamic profile, you will need to calculate its background number as follows: `position in the folder` + 4.
@@ -271,6 +273,8 @@ If you want to share your theme with friends, click on `Download theme`, and the
 
 **Tips:**
 If you want to test a theme with a custom background or icons, first test the colors without the icons and background, as this will significantly speed up the theme download to the calculator. Once you've selected the desired colors, re-enable the icons and background.
+
+[See somes users theme here](./themes/THEMES.md).
 
 ## Create a custom animation
 <img src="ressources/images/creeper.gif" alt="Creeper">  
