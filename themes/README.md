@@ -9,3 +9,5 @@ Please note that licenses vary by theme, as they depend on the individual creato
 <img src="ghibli/home_3.png" alt="Home 3">  
 <img src="ghibli/explorer.png" alt="Explorer">  
 <img src="ghibli/menu.png" alt="Menu">  
+
+[Licence](./ghibli/LICENCE.md).
