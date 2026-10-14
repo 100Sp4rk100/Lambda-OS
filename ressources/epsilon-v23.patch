@@ -26963,10 +26963,10 @@ index db751bb92b..1d67446ed9 100644
 +}
 \ No newline at end of file
 diff --git a/apps/home/app_cell.cpp b/apps/home/app_cell.cpp
-index f2ffea5bd6..b05f53c65a 100644
+index f2ffea5bd6..067666dc88 100644
 --- a/apps/home/app_cell.cpp
 +++ b/apps/home/app_cell.cpp
-@@ -1,81 +1,130 @@
+@@ -1,81 +1,155 @@
 -#include "app_cell.h"
 -
 -#include <assert.h>
@@ -27056,8 +27056,11 @@ index f2ffea5bd6..b05f53c65a 100644
 +
 +#include <kandinsky/ion_context.h>
 +
-+#include "apps/theme_gestion/themeGestion.h"
-+#include "apps/theme_gestion/backgroundGestion.h"
++#include <apps/theme_gestion/themeGestion.h>
++#include <apps/theme_gestion/backgroundGestion.h>
++#include <apps/internal_storage/manager.h>
++#include <apps/internal_storage/file.h>
++#include <apps/theme_gestion/dynamicColorProfil_gestion.h>
 +
 +using namespace Escher;
 +
@@ -27146,7 +27149,29 @@ index f2ffea5bd6..b05f53c65a 100644
 +void AppCell::setExternalApp(Ion::ExternalApps::App app) {
 +  m_pointerNameView.setText(app.name());
 +  m_messageNameView.setMessage((I18n::Message)0);
-+  m_image = Image(k_iconWidth, k_iconHeight, app.iconData(), app.iconSize());
++  if (Theme::ThemeGestion::getCurrent() != 4 || !Theme::DynamicColorProfilGestion::isCustomImages){
++    m_image = Image(k_iconWidth, k_iconHeight, app.iconData(), app.iconSize());
++  }else {
++    char file_name[InternalStorage::maxNameLength];
++    size_t i = 0;
++    while (i < InternalStorage::maxNameLength - 4 && app.name()[i] != '\0') {
++        file_name[i] = app.name()[i];
++        i++;
++    }
++    file_name[i] = '.';
++    i++;
++    file_name[i] = 'c';
++    i++;
++    file_name[i] = 'i';
++    i++;
++    file_name[i] = '\0';
++    InternalStorage::InternalFile file = InternalStorage::InternalManager::getFile(file_name);
++    if (!file.isValable() || file.record.buffer == nullptr){
++      m_image = Image(k_iconWidth, k_iconHeight, app.iconData(), app.iconSize(), false, true);
++    }else {
++      m_image = Image(k_iconWidth, k_iconHeight, reinterpret_cast<const uint8_t*>(file.record.buffer), 0);
++    }
++  }
 +  m_iconView.setImage(&m_image);
 +  layoutSubviews();
 +  reloadCell();
@@ -31933,10 +31958,10 @@ index 0000000000..e0c6b1abff
 \ No newline at end of file
 diff --git a/apps/internal_storage/manager.cpp b/apps/internal_storage/manager.cpp
 new file mode 100644
-index 0000000000..e55c6cf54b
+index 0000000000..ca514a2c01
 --- /dev/null
 +++ b/apps/internal_storage/manager.cpp
-@@ -0,0 +1,299 @@
+@@ -0,0 +1,284 @@
 +#include "manager.h"
 +
 +#include <ion/src/device/shared/drivers/flash_write_with_interruptions.h>
@@ -32021,39 +32046,24 @@ index 0000000000..e55c6cf54b
 +}
 +
 +void InternalManager::fullErase(){
-+    uint32_t invalid_file = 0x00;
-+
 +    #if PLATFORM_DEVICE
-+    const uint8_t * src_buffer = reinterpret_cast<const uint8_t *>(&invalid_file);
-+    #endif
++    uint32_t currentAddress = reinterpret_cast<uint32_t>(managerStartAdress());
++    uint32_t endAddress = reinterpret_cast<uint32_t>(managerEndAdress());
 +
-+    uint8_t * adress = managerStartAdress();
++    while (currentAddress < endAddress) {
++        int sector = Ion::Device::Flash::SectorAtAddress(currentAddress);
 +
-+    while (adress + sizeof(uint32_t) * 2 + maxNameLength + sizeof(uint8_t) < managerEndAdress()){
-+        uint32_t magic = *reinterpret_cast<uint32_t*>(adress);
-+        if (magic != Magic) {
++        if (sector < 0) {
 +            break;
 +        }
 +
-+        uint32_t current_buffer_size = *reinterpret_cast<uint32_t*>(adress + sizeof(uint32_t));
++        Ion::Device::Flash::EraseSectorWithInterruptions(sector, true);
 +
-+        if (isValidAdress(adress)) {
-+            uint8_t * flag_adress = adress + sizeof(uint32_t) * 2 + maxNameLength;
-+
-+            #if PLATFORM_DEVICE
-+            Ion::Device::Flash::WriteMemoryWithInterruptions(
-+                flag_adress, 
-+                src_buffer,
-+                sizeof(uint32_t),
-+                true
-+            );
-+            #else
-+            *reinterpret_cast<uint32_t*>(flag_adress) = invalid_file;
-+            #endif
-+        }
-+
-+        adress += (sizeof(uint32_t) * 2) + maxNameLength + 4 + current_buffer_size + getPadingForBufferSize(current_buffer_size);
++        currentAddress += k_sectorSize;
 +    }
++    #else
++    memset(s_simulatorFlash, 0xFF, k_simulatorFlashSize);
++    #endif
 +
 +    updateInfo();
 +}
@@ -33232,10 +33242,10 @@ index 623e7f3cbb..023c973364 100644
 +  return KDSize(k_lockWidth, k_lockHeight);
 +}
 diff --git a/apps/main.cpp b/apps/main.cpp
-index f29e622fb1..a06bc72490 100644
+index f29e622fb1..28fbdde02d 100644
 --- a/apps/main.cpp
 +++ b/apps/main.cpp
-@@ -1,113 +1,125 @@
+@@ -1,113 +1,127 @@
 -#include <escher/init.h>
 -#include <poincare/init.h>
 -
@@ -33461,6 +33471,8 @@ index f29e622fb1..a06bc72490 100644
 +   * memory pointers could be overlooked during mark procedure. */
 +  volatile int stackTop;
 +  Ion::setStackStart((void *)(&stackTop));
++
++  Ion::LED::updateColorWithPlugAndCharge();
 +
 +  ClockTimer::ClockTimer::init();
 +  Theme::ThemeGestion::setup();
@@ -67701,6 +67713,40 @@ index 7d6f824078..f6cf74ebc0 100644
 +}  // namespace Escher
 +
 +#endif
+diff --git a/escher/include/escher/image.h b/escher/include/escher/image.h
+index 21da9a9b1d..3a096c6906 100644
+--- a/escher/include/escher/image.h
++++ b/escher/include/escher/image.h
+@@ -10,17 +10,19 @@ class Image {
+   constexpr Image(KDCoordinate width, KDCoordinate height,
+                   const uint8_t* compressedPixelData,
+                   uint16_t compressedPixelDataSize,
+-                  bool hasTransparency = false)
++                  bool hasTransparency = false, bool isForExtApp = false)
+       : m_width(width),
+         m_height(height),
+         m_compressedPixelData(compressedPixelData),
+         m_compressedPixelDataSize(compressedPixelDataSize),
+-        m_hasTransparency(hasTransparency) {}
++        m_hasTransparency(hasTransparency),
++        m_isForExtApp(isForExtApp) {}
+   KDCoordinate width() const { return m_width; }
+   KDCoordinate height() const { return m_height; }
+   const uint8_t* compressedPixelData() const { return m_compressedPixelData; }
+   uint16_t compressedPixelDataSize() const { return m_compressedPixelDataSize; }
+   bool hasTransparency() const { return m_hasTransparency; }
++  bool forExtApp() const {return m_isForExtApp; }
+ 
+  private:
+   KDCoordinate m_width;
+@@ -28,6 +30,7 @@ class Image {
+   const uint8_t* m_compressedPixelData;
+   uint16_t m_compressedPixelDataSize;
+   bool m_hasTransparency;
++  bool m_isForExtApp;
+ };
+ 
+ }  // namespace Escher
 diff --git a/escher/include/escher/list_with_top_and_bottom_controller.h b/escher/include/escher/list_with_top_and_bottom_controller.h
 index a3b6798968..3b01d9f73b 100644
 --- a/escher/include/escher/list_with_top_and_bottom_controller.h
@@ -72524,20 +72570,20 @@ index bbe82fcade..c9e1ba8337 100644
 +
 +}  // namespace Escher
 diff --git a/escher/src/image_view.cpp b/escher/src/image_view.cpp
-index 59441e952c..cebcc39a2a 100644
+index 59441e952c..c7f37e0ac6 100644
 --- a/escher/src/image_view.cpp
 +++ b/escher/src/image_view.cpp
 @@ -4,6 +4,9 @@ extern "C" {
  }
  #include <ion.h>
  
-+#include "apps/theme_gestion/themeGestion.h"
-+#include "apps/theme_gestion/dynamicColorProfil_gestion.h"
++#include <apps/theme_gestion/themeGestion.h>
++#include <apps/theme_gestion/dynamicColorProfil_gestion.h>
 +
  namespace Escher {
  
  ImageView::ImageView() : View(), m_image(nullptr) {}
-@@ -21,9 +24,31 @@ void ImageView::drawRect(KDContext *ctx, KDRect rect) const {
+@@ -21,9 +24,40 @@ void ImageView::drawRect(KDContext *ctx, KDRect rect) const {
    // That's a VERY big buffer we're allocating on the stack
    assert(Ion::stackSafe());
  
@@ -72552,6 +72598,14 @@ index 59441e952c..cebcc39a2a 100644
 +      pixelBufferSize * sizeof(KDColor)
 +    );
 +  }else{
++    if (m_image->forExtApp()){
++      Ion::decompress(
++          m_image->compressedPixelData(),
++          reinterpret_cast<uint8_t *>(pixelBuffer),
++          m_image->compressedPixelDataSize(),
++          pixelBufferSize * sizeof(KDColor)
++        );
++    }else{
 +      uint16_t isPresent = *reinterpret_cast<const uint16_t*>(m_image->compressedPixelData());
 +      if (isPresent == 1){
 +        const uint16_t* rawPixelData = reinterpret_cast<const uint16_t*>(m_image->compressedPixelData()+2);
@@ -72566,6 +72620,7 @@ index 59441e952c..cebcc39a2a 100644
 +          pixelBufferSize * sizeof(KDColor)
 +        );
 +      }
++    }
 +  }
 +
 +  Theme::ThemeGestion::editImageWithDynamicColor(pixelBuffer, pixelBufferSize);

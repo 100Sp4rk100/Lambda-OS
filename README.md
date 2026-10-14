@@ -186,7 +186,7 @@ For more information on creating a custom animation, see the [tutorials](#tutori
 
 # Permanent Storage
 > [!WARNING]
-> The first time or after installation with a binary file, you need to format the flash. See how to use [Lambda File Exchanger](https://100sp4rk100.github.io/Lambda-File-Exchanger/) in [tutorials](#tutorials) section.
+> The first time or after installation with a binary file, you need to format the flash.
 
 Permanent storage management is in the `Explorer` application.
 Within the application, there are two categories :
