@@ -21,3 +21,5 @@ Under the following terms:
 - Attribution — You must give appropriate credit, provide a link to the license, and indicate if changes were made. 
 - NonCommercial — You may not use the material for commercial purposes.
 - No additional restrictions — You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
+
+The Numcraft icon (Numcraft_Laputa) was created by [Yannis300307](https://github.com/yannis300307).
